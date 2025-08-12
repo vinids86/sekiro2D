@@ -366,7 +366,7 @@ material = SubResource("ShaderMaterial_ipns3")
 position = Vector2(0, -30)
 sprite_frames = SubResource("SpriteFrames_g0wcc")
 animation = &"idle_exhausted"
-frame_progress = 0.811999
+frame_progress = 0.462351
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
