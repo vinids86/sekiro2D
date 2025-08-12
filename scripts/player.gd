@@ -4,6 +4,9 @@ class_name Player
 signal stamina_changed
 signal health_changed
 
+@export var exhausted_lock_duration := 0.35  # tempo mínimo “exposto” após perder auto-block
+var exhausted_lock_timer := 0.0              # contador regressivo do lock
+
 @onready var controller: CombatController = $CombatController
 @onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
 @onready var attack_hitbox: Area2D = $AttackHitbox
@@ -19,7 +22,7 @@ var last_direction = "right"
 var input_direction_buffer := Vector2.ZERO
 @export var direction_buffer_duration := 0.2  # segundos
 var direction_buffer_timer := 0.0
-
+var stunned_block_toggle := false
 @export var speed := 200.0
 @export var jump_force := -400.0
 @export var gravity := 900.0
@@ -34,11 +37,10 @@ func _ready():
 	controller.setup(self)
 	controller.connect("play_sound", _on_play_sound)
 	controller.connect("state_changed", _on_state_changed_with_dir)
-	controller.setup(self)
+
 	health_changed.emit()
 	stamina_changed.emit()
 
-	# ✅ Força a animação correta no início
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
 	
 func _physics_process(delta: float) -> void:
@@ -62,13 +64,18 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# 🔄 Atualiza animação baseada no movimento real
 	if not is_on_floor():
 		sprite.play("jump")
-	elif velocity.x != 0:
-		sprite.play("walk")
 	else:
-		sprite.play("idle")
+		var moving: bool = absf(velocity.x) > 0.1
+		var base := "walk" if moving else "idle"
+		var suffix := "_exhausted" if is_exhausted() else ""
+		var target := base + suffix
+		print("Player anim: ", target)
+		if sprite.animation != target:
+			print("Player anim: ", target)
+			sprite.play(target)
+
 
 	# Atualiza direção visual
 	sprite.flip_h = last_direction == "left"
@@ -92,6 +99,10 @@ func _process(delta: float):
 			stamina_changed.emit()
 		else:
 			stamina_recovery_timer -= delta
+	
+	# Lock de exaustão (mantém aparência “exposta” por um tempinho)
+	if exhausted_lock_timer > 0.0:
+		exhausted_lock_timer -= delta
 
 func _on_play_sound(path: String):
 	audio_player.stream = load(path)
@@ -107,6 +118,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 
 	if new_state == CombatController.CombatState.IDLE:
 		attack_hitbox.disable()
+		anim = "idle_exhausted" if is_exhausted() else "idle"
 
 	elif new_state == CombatController.CombatState.STARTUP:
 		var attack = controller.owner_node.attack_sequence[controller.combo_index]
@@ -131,16 +143,16 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 		anim = "parry_success"
 		attack_hitbox.disable()
 
-	elif new_state == CombatController.CombatState.GUARD_BROKEN:
-		anim = "guard_broken"
-		attack_hitbox.disable()
-
 	elif new_state == CombatController.CombatState.STUNNED:
-		anim = "stunned"
-		attack_hitbox.disable()
+		if controller.stun_kind == CombatController.StunKind.PARRIED:
+			anim = "stunned_parry"
+			controller.stun_kind = CombatController.StunKind.NONE  # consome o contexto
+		else:
+			anim = "stunned_block_b" if stunned_block_toggle else "stunned_block_a"
+			stunned_block_toggle = not stunned_block_toggle
 
 	if anim != "" and $AnimatedSprite2D.animation != anim:
-		print("🎞️ FSM tocando anim:", anim)
+		print("Player animação atual: ", anim)
 		$AnimatedSprite2D.play(anim)
 
 	$AnimatedSprite2D.flip_h = last_direction == "left"
@@ -193,6 +205,11 @@ func consume_stamina(amount: float):
 	if previous > current_stamina:
 		stamina_recovery_timer = stamina_recovery_delay
 
+	# 🔒 Se cruzou o limiar do auto-block, ativa lock de exaustão
+	# Usa o mesmo limiar do jogo: block só ocorre se tiver stamina >= block_stamina_cost
+	if previous >= controller.block_stamina_cost and current_stamina < controller.block_stamina_cost:
+		exhausted_lock_timer = exhausted_lock_duration
+
 func update_attack_hitbox_position(direction: String) -> void:
 	var offset := Vector2.ZERO
 
@@ -240,3 +257,10 @@ func flash_hit_color(duration := 0.1):
 	flash_material.set("shader_parameter/flash", true)
 	await get_tree().create_timer(duration).timeout
 	flash_material.set("shader_parameter/flash", false)
+
+func is_exhausted() -> bool:
+	# Enquanto o lock estiver ativo, permanece “exposto”
+	if exhausted_lock_timer > 0.0:
+		return true
+	# Fora do lock, considera exposto se abaixo do custo do auto-block
+	return current_stamina < controller.block_stamina_cost

@@ -5,6 +5,9 @@ class_name Enemy
 signal stamina_changed
 signal health_changed
 
+@export var exhausted_lock_duration := 0.35  # tempo mínimo “exposto” após perder auto-block
+var exhausted_lock_timer := 0.0              # contador regressivo do lock
+
 @export var speed := 100.0
 @export var stamina_recovery_rate := 20.0  # unidades por segundo
 @export var stamina_recovery_delay := 1.0  # segundos após ação para começar a recuperar
@@ -14,7 +17,8 @@ signal health_changed
 @onready var current_health := max_health
 var stamina_recovery_timer := 0.0
 var last_direction = "left"
-@export var parry_chance := 0.6
+var stunned_block_toggle := false
+@export var parry_chance := 0.3
 @export var player_path: NodePath
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var controller: CombatController = $CombatController
@@ -24,6 +28,11 @@ var should_attack_after_parry := false
 @onready var sprite := $AnimatedSprite2D
 @onready var flash_material := sprite.material as ShaderMaterial
 var attack_sequence: Array[AttackConfig] = []
+
+func is_exhausted() -> bool:
+	if exhausted_lock_timer > 0.0:
+		return true
+	return current_stamina < controller.block_stamina_cost
 
 func _ready():
 	attack_sequence = AttackConfig.default_sequence()
@@ -56,6 +65,10 @@ func _process(delta):
 			stamina_changed.emit()
 		else:
 			stamina_recovery_timer -= delta
+	
+	# Lock de exaustão (mantém aparência “exposta” por um tempinho)
+	if exhausted_lock_timer > 0.0:
+		exhausted_lock_timer -= delta
 
 func is_player_attacking_towards_me() -> bool:
 	var player_controller = player.get_combat_controller()
@@ -104,6 +117,10 @@ func consume_stamina(amount: float):
 	stamina_changed.emit()
 	stamina_recovery_timer = stamina_recovery_delay
 
+	# Ativa lock se acabou de perder auto-block (cruzou o limiar)
+	if previous >= controller.block_stamina_cost and current_stamina < controller.block_stamina_cost:
+		exhausted_lock_timer = exhausted_lock_duration
+
 func take_damage(amount: float):
 	current_health -= amount
 	health_changed.emit()
@@ -117,11 +134,9 @@ func die():
 	print("☠ ", self.name, " morreu.")
 
 func on_parried():
-	print("⛔ Enemy foi parryado! Entrando em GUARD_BROKEN.")
 	get_combat_controller().on_parried()
 
 func on_blocked():
-	print("🛡️ Enemy bloqueou o ataque. Entrando em STUNNED.")
 	get_combat_controller().on_blocked()
 
 func _on_play_sound(path: String):
@@ -136,7 +151,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 
 	match new_state:
 		CombatController.CombatState.IDLE:
-			anim = "idle"
+			anim = "idle_exhausted" if is_exhausted() else "idle"
 			attack_hitbox.disable()
 			
 			if should_attack_after_parry:
@@ -166,13 +181,13 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			anim = "parry"
 			attack_hitbox.disable()
 
-		CombatController.CombatState.GUARD_BROKEN:
-			anim = "guard_broken"
-			attack_hitbox.disable()
-
 		CombatController.CombatState.STUNNED:
-			anim = "stunned"
-			attack_hitbox.disable()
+			if controller.stun_kind == CombatController.StunKind.PARRIED:
+				anim = "stunned_parry"
+				controller.stun_kind = CombatController.StunKind.NONE  # consome o contexto
+			else:
+				anim = "stunned_block_b" if stunned_block_toggle else "stunned_block_a"
+				stunned_block_toggle = not stunned_block_toggle
 
 		CombatController.CombatState.PARRY_SUCCESS:
 			anim = "parry_success"
@@ -180,6 +195,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			should_attack_after_parry = true
 
 	$AnimatedSprite2D.flip_h = last_direction == "left"
+	print("Enemy animação atual: ", anim)
 	$AnimatedSprite2D.play(anim)
 	
 func get_label_from_vector(dir: Vector2) -> String:

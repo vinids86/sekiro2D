@@ -1,4 +1,4 @@
-[gd_scene load_steps=51 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=47 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/enemy.gd" id="1_md0e3"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
@@ -6,12 +6,12 @@
 [ext_resource type="Script" uid="uid://b17ee834ggrbu" path="res://scripts/combat_controller.gd" id="3_4ra3w"]
 [ext_resource type="Texture2D" uid="uid://bsud8yd4gfb7b" path="res://assets/Enemy_Attack_1.png" id="3_w8i8w"]
 [ext_resource type="Texture2D" uid="uid://cc6rflvgy3vfx" path="res://assets/Enemy_Attack_2.png" id="4_otmr2"]
-[ext_resource type="Texture2D" uid="uid://gopwnykrife7" path="res://assets/Enemy_Idle.png" id="4_xwavj"]
 [ext_resource type="Texture2D" uid="uid://cppy6ykfvvktv" path="res://assets/Enemy_Attack_3.png" id="5_wtq4b"]
 [ext_resource type="Script" uid="uid://0i0csel48jdr" path="res://scripts/attack_hitbox.gd" id="6_xwavj"]
 [ext_resource type="Texture2D" uid="uid://c77r8albxqnq8" path="res://assets/Enemy_Hurt.png" id="7_otmr2"]
 [ext_resource type="Texture2D" uid="uid://dm136bwyhx6bw" path="res://assets/Enemy_Protection.png" id="8_j0cyh"]
 [ext_resource type="Texture2D" uid="uid://cd6id4evx0ynm" path="res://assets/Protection.png" id="9_g0wcc"]
+[ext_resource type="Texture2D" uid="uid://cnjb46jokvnxf" path="res://assets/Enemy_Dead.png" id="9_otmr2"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
 size = Vector2(50, 70)
@@ -61,29 +61,13 @@ region = Rect2(128, 0, 128, 128)
 atlas = ExtResource("7_otmr2")
 region = Rect2(256, 0, 128, 128)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_nenq2"]
-atlas = ExtResource("4_xwavj")
+[sub_resource type="AtlasTexture" id="AtlasTexture_w8i8w"]
+atlas = ExtResource("9_g0wcc")
 region = Rect2(0, 0, 128, 128)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_md484"]
-atlas = ExtResource("4_xwavj")
+[sub_resource type="AtlasTexture" id="AtlasTexture_x6q4o"]
+atlas = ExtResource("9_otmr2")
 region = Rect2(128, 0, 128, 128)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ipns3"]
-atlas = ExtResource("4_xwavj")
-region = Rect2(256, 0, 128, 128)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_8qclf"]
-atlas = ExtResource("4_xwavj")
-region = Rect2(384, 0, 128, 128)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_w8i8w"]
-atlas = ExtResource("4_xwavj")
-region = Rect2(512, 0, 128, 128)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_otmr2"]
-atlas = ExtResource("4_xwavj")
-region = Rect2(640, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_1x4g4"]
 atlas = ExtResource("8_j0cyh")
@@ -141,17 +125,17 @@ region = Rect2(0, 64, 128, 64)
 atlas = ExtResource("2_nenq2")
 region = Rect2(0, 128, 128, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_otmr2"]
+atlas = ExtResource("9_g0wcc")
+region = Rect2(128, 0, 128, 128)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_0lg75"]
-atlas = ExtResource("7_otmr2")
+atlas = ExtResource("9_g0wcc")
 region = Rect2(0, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_lsnsy"]
-atlas = ExtResource("7_otmr2")
-region = Rect2(128, 0, 128, 128)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_605iw"]
-atlas = ExtResource("7_otmr2")
-region = Rect2(256, 0, 128, 128)
+atlas = ExtResource("9_g0wcc")
+region = Rect2(0, 0, 128, 128)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_g0wcc"]
 animations = [{
@@ -217,26 +201,19 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_nenq2")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_md484")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ipns3")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_8qclf")
-}, {
-"duration": 1.0,
 "texture": SubResource("AtlasTexture_w8i8w")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_otmr2")
 }],
 "loop": true,
 "name": &"idle",
 "speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x6q4o")
+}],
+"loop": true,
+"name": &"idle_exhausted",
+"speed": 5.0
 }, {
 "frames": [],
 "loop": true,
@@ -342,17 +319,27 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_0lg75")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_lsnsy")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_605iw")
+"texture": SubResource("AtlasTexture_otmr2")
 }],
 "loop": true,
-"name": &"stunned",
+"name": &"stunned_block_a",
 "speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0lg75")
+}],
+"loop": true,
+"name": &"stunned_block_b",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lsnsy")
+}],
+"loop": true,
+"name": &"stunned_parry",
+"speed": 8.0
 }, {
 "frames": [],
 "loop": true,
@@ -378,7 +365,8 @@ shape = SubResource("RectangleShape2D_md0e3")
 material = SubResource("ShaderMaterial_ipns3")
 position = Vector2(0, -30)
 sprite_frames = SubResource("SpriteFrames_g0wcc")
-animation = &"startup_3"
+animation = &"idle_exhausted"
+frame_progress = 0.811999
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
