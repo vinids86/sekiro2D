@@ -59,6 +59,11 @@ func _process(delta: float) -> void:
 
 	if exhausted_lock_timer > 0.0:
 		exhausted_lock_timer -= delta
+	
+	if controller.combat_state == CombatController.CombatState.IDLE:
+		var target := "idle_exhausted" if is_exhausted() else "idle"
+		if sprite.animation != target:
+			sprite.play(target)
 
 func is_player_attacking_towards_me() -> bool:
 	var player_controller: CombatController = player.get_combat_controller()

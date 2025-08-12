@@ -28,9 +28,9 @@ signal play_sound(path: String)
 @export var block_stun := 1.0
 @export var input_buffer_duration := 0.4
 @export var block_stamina_cost := 10.0
-
 @export var combo_timeout_duration := 2.0
-@export var chain_grace := 0.12 # segundos extras para segurar o buffer até o fim do RECOVERING
+@export var chain_grace := 0.12
+
 var combo_timeout_timer := 0.0
 var combo_in_progress := false
 var combo_index := 0
@@ -48,7 +48,6 @@ var current_attack_direction: Vector2 = Vector2.ZERO
 var status_effects: Dictionary = {}
 var did_parry_succeed := false
 
-# Transições ajustadas para cobrir os casos dos logs
 var transitions := {
 	CombatState.IDLE:          [CombatState.STARTUP, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
 	CombatState.STARTUP:       [CombatState.ATTACKING, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
@@ -63,23 +62,19 @@ func setup(owner: Node) -> void:
 	owner_node = owner
 
 func _process(delta: float) -> void:
-	# Buffer timer
 	if buffer_timer > 0.0:
 		buffer_timer -= delta
 		if buffer_timer <= 0.0:
 			queued_action = ActionType.NONE
 
-	# Executa ação bufferizada assim que possível
 	if can_act() and queued_action != ActionType.NONE:
 		try_execute_buffer()
 
-	# State timer
 	if state_timer > 0.0:
 		state_timer -= delta
 		if state_timer <= 0.0 and can_auto_advance():
 			auto_advance_state()
 
-	# Efeitos temporários
 	var expired := []
 	for effect_name in status_effects.keys():
 		status_effects[effect_name] -= delta
@@ -88,7 +83,6 @@ func _process(delta: float) -> void:
 	for effect_name in expired:
 		status_effects.erase(effect_name)
 
-	# Timeout de combo
 	if combo_in_progress:
 		combo_timeout_timer -= delta
 		if combo_timeout_timer <= 0.0:
@@ -107,11 +101,8 @@ func auto_advance_state() -> void:
 			change_state(CombatState.RECOVERING)
 		CombatState.RECOVERING:
 			on_attack_finished(did_parry_succeed)
-			# Se um ataque foi bufferizado durante o RECOVERING, encadeia direto
 			if queued_action == ActionType.ATTACK and buffer_timer > 0.0:
-				# usa a direção que ficou no buffer
 				current_attack_direction = queued_direction
-				# limpa o buffer ANTES de trocar de estado
 				queued_action = ActionType.NONE
 				queued_direction = Vector2.ZERO
 				change_state(CombatState.STARTUP)
@@ -129,29 +120,16 @@ func auto_advance_state() -> void:
 
 func change_state(new_state: CombatState) -> void:
 	if not transitions.get(combat_state, []).has(new_state):
-		if owner_node:
-			print("❌ Transição inválida para %s: %s → %s" % [
-				owner_node.name,
-				CombatState.keys()[combat_state],
-				CombatState.keys()[new_state]
-			])
-		else:
-			print("❌ Transição inválida: %s → %s (sem owner_node)" % [
-				CombatState.keys()[combat_state],
-				CombatState.keys()[new_state]
-			])
 		return
-	print("%s mudando estado: %s para %s" % [
+	print("%s mudando estado: %s → %s" % [
 		owner_node.name,
 		CombatState.keys()[combat_state],
 		CombatState.keys()[new_state]
 	])
-
 	previous_state = combat_state
 	_on_exit_state(combat_state)
 	combat_state = new_state
 	_on_enter_state(combat_state)
-
 	emit_signal("state_changed", previous_state, new_state, current_attack_direction)
 
 func _on_enter_state(state: CombatState) -> void:
@@ -177,7 +155,6 @@ func _on_enter_state(state: CombatState) -> void:
 		CombatState.RECOVERING:
 			if attack:
 				state_timer = attack.recovery
-			# Extende o buffer até o final do recovering se estiver no limite
 			if buffer_timer > 0.0:
 				buffer_timer = max(buffer_timer, chain_grace)
 
@@ -213,7 +190,6 @@ func has_effect(name: String) -> bool:
 func try_execute_buffer() -> void:
 	if not can_act():
 		return
-
 	match queued_action:
 		ActionType.ATTACK:
 			if try_attack(true, queued_direction):
@@ -222,18 +198,14 @@ func try_execute_buffer() -> void:
 				queued_direction = Vector2.ZERO
 
 func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
-	# Não permite ataque em estados que impedem ação
 	if combat_state in [CombatState.STUNNED]:
 		return false
-
-	# Garante sequência definida
 	if not owner_node or owner_node.attack_sequence.is_empty():
 		return false
 
 	var sequence = owner_node.attack_sequence
 	var attack = sequence[combo_index]
 
-	# Verifica stamina
 	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(attack.stamina_cost):
 		return false
 
@@ -243,8 +215,6 @@ func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 		combo_in_progress = true
 		change_state(CombatState.STARTUP)
 		return true
-
-	# Caso esteja em outro estado (ex: PARRY_ACTIVE), armazena no buffer
 	elif not from_buffer:
 		queued_action = ActionType.ATTACK
 		queued_direction = dir
@@ -267,7 +237,6 @@ func try_parry(from_buffer := false, dir := Vector2.ZERO) -> bool:
 		return false
 	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(1):
 		return false
-	# Pode parryar em IDLE, STARTUP e STUNNED
 	if combat_state not in [CombatState.IDLE, CombatState.STARTUP, CombatState.STUNNED]:
 		return false
 
@@ -292,8 +261,3 @@ func on_blocked() -> void:
 
 func can_act() -> bool:
 	return combat_state in [CombatState.IDLE, CombatState.RECOVERING]
-
-# Futuro (heavy):
-# - Reintroduzir GUARD_BROKEN "duro" (sem auto-block e sem parry).
-# - Adicionar ATTACKING → GUARD_BROKEN quando heavy conectar sem resposta.
-# - Em _on_enter_state(GUARD_BROKEN), aplicar efeitos "no_attack", "no_parry", "no_auto_block".

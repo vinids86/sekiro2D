@@ -357,6 +357,7 @@ size = Vector2(48, 60)
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1_md0e3")
+parry_chance = 0.5
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_md0e3")
@@ -366,7 +367,7 @@ material = SubResource("ShaderMaterial_ipns3")
 position = Vector2(0, -30)
 sprite_frames = SubResource("SpriteFrames_g0wcc")
 animation = &"idle_exhausted"
-frame_progress = 0.462351
+frame_progress = 0.873359
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
