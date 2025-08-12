@@ -23,8 +23,11 @@ var last_direction = "left"
 var should_attack_after_parry := false
 @onready var sprite := $AnimatedSprite2D
 @onready var flash_material := sprite.material as ShaderMaterial
+var attack_sequence: Array[AttackConfig] = []
 
 func _ready():
+	attack_sequence = AttackConfig.default_sequence()
+
 	$AnimatedSprite2D.modulate = Color(1, 0.3, 0.3)  # Vermelho mais suave
 	$AnimatedSprite2D.play("idle")
 	$CombatController.setup(self)
@@ -128,6 +131,7 @@ func _on_play_sound(path: String):
 func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction: Vector2):
 	var resolved_direction = get_label_from_vector(attack_direction)
 	last_direction = resolved_direction
+	update_attack_hitbox_position(last_direction)
 	var anim := ""
 
 	match new_state:
@@ -138,19 +142,21 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			if should_attack_after_parry:
 				should_attack_after_parry = false
 				var attack_vector = get_vector_from_label(last_direction)
-				controller.try_attack(false, attack_vector)
+				call_deferred("_delayed_attack", attack_vector)
 
 		CombatController.CombatState.STARTUP:
-			anim = "startup_attack"
-			update_attack_hitbox_position(last_direction)
-			# Aqui ainda não ativa — hitbox só será ativada em ATTACKING
+			var attack = controller.owner_node.attack_sequence[controller.combo_index]
+			anim = attack.startup_animation
+			attack_hitbox.disable()
 
 		CombatController.CombatState.ATTACKING:
-			anim = "attack"
+			var attack = controller.owner_node.attack_sequence[controller.combo_index]
+			anim = attack.attack_animation
 			attack_hitbox.enable()
 
 		CombatController.CombatState.RECOVERING:
-			anim = "recoverring_attack"
+			var attack = controller.owner_node.attack_sequence[controller.combo_index]
+			anim = attack.recovery_animation
 			attack_hitbox.disable()
 			# ⚠️ Continua atacando se o ataque não foi parryado
 			if not controller.did_parry_succeed:
@@ -209,3 +215,7 @@ func flash_hit_color(duration := 0.1):
 	await get_tree().create_timer(duration).timeout
 
 	flash_material.set("shader_parameter/flash", false)
+
+func _delayed_attack(attack_vector: Vector2) -> void:
+	await get_tree().process_frame
+	controller.try_attack(false, attack_vector)

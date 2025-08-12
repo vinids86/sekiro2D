@@ -22,16 +22,15 @@ enum ActionType {
 signal state_changed(old_state: int, new_state: int, attack_direction: Vector2)
 signal play_sound(path: String)
 
-@export var attack_startup := 1.6
-@export var attack_duration := 0.3
-@export var recovery_duration := 0.3
 @export var parry_window := 0.4
 @export var parry_cooldown := 0.2
 @export var block_stun := 1.0
 @export var guard_break_stun := 3
 @export var input_buffer_duration := 0.4
-@export var attack_stamina_cost := 5.0
 @export var block_stamina_cost := 10.0
+@export var combo_timeout_duration := 2.0  # segundos sem atacar para resetar combo
+var combo_timeout_timer := 0.0
+var combo_in_progress := false
 
 var combat_state: CombatState = CombatState.IDLE
 var previous_state: CombatState = CombatState.IDLE
@@ -59,6 +58,8 @@ var transitions := {
 	CombatState.GUARD_BROKEN: [CombatState.IDLE, CombatState.STUNNED, CombatState.PARRY_ACTIVE]
 }
 
+var combo_index := 0
+
 func setup(owner: Node):
 	owner_node = owner
 
@@ -84,6 +85,13 @@ func _process(delta):
 			expired.append(effect_name)
 	for effect_name in expired:
 		status_effects.erase(effect_name)
+	# ⚠️ Resetar combo se passar muito tempo sem atacar
+	if combo_in_progress:
+		combo_timeout_timer -= delta
+		if combo_timeout_timer <= 0:
+			combo_index = 0
+			combo_in_progress = false
+
 
 func can_auto_advance() -> bool:
 	return [CombatState.STARTUP, CombatState.ATTACKING, CombatState.RECOVERING,
@@ -98,6 +106,7 @@ func auto_advance_state():
 		CombatState.ATTACKING:
 			change_state(CombatState.RECOVERING)
 		CombatState.RECOVERING:
+			on_attack_finished(did_parry_succeed)
 			change_state(CombatState.IDLE)
 		CombatState.STUNNED:
 			change_state(CombatState.IDLE)
@@ -139,7 +148,7 @@ func change_state(new_state: CombatState):
 	combat_state = new_state
 	_on_enter_state(combat_state)
 		# ⚠️ Atualiza direção para o ataque
-	if new_state == CombatState.STARTUP and queued_action == ActionType.ATTACK:
+	if new_state == CombatState.STARTUP:
 		current_attack_direction = queued_direction
 
 	emit_signal("state_changed", previous_state, new_state, current_attack_direction)
@@ -147,32 +156,49 @@ func change_state(new_state: CombatState):
 func _on_enter_state(state: CombatState):
 	did_parry_succeed = false
 
+	var attack = null
+	if not owner_node.attack_sequence.is_empty():
+		attack = owner_node.attack_sequence[combo_index]
+
 	match state:
 		CombatState.STARTUP:
-			state_timer = attack_startup
-			owner_node.consume_stamina(attack_stamina_cost)
+			if attack:
+				state_timer = attack.startup
+				owner_node.consume_stamina(attack.stamina_cost)
+
 		CombatState.ATTACKING:
-			state_timer = attack_duration
-			play_sound.emit("res://audio/attack.wav")
+			if attack:
+				state_timer = attack.duration
+				if attack.attack_sound != "":
+					play_sound.emit(attack.attack_sound)
+
+		CombatState.RECOVERING:
+			if attack:
+				state_timer = attack.recovery
+
 		CombatState.PARRY_ACTIVE:
 			state_timer = parry_window
 			play_sound.emit("res://audio/parry_active.wav")
-		CombatState.RECOVERING:
-			state_timer = recovery_duration
+
 		CombatState.STUNNED:
 			state_timer = block_stun
 			queued_action = ActionType.NONE
 			buffer_timer = 0
+
 		CombatState.GUARD_BROKEN:
 			state_timer = guard_break_stun
 			apply_effect("post_guard_break", 0.3)
+
 		CombatState.PARRY_SUCCESS:
 			state_timer = 0.4
 			play_sound.emit("res://audio/parry_success.wav")
+
 		CombatState.PARRY_MISS:
 			state_timer = 0.2
+
 		CombatState.IDLE:
 			if previous_state != CombatState.GUARD_BROKEN:
+				await get_tree().process_frame
 				try_execute_buffer()
 
 func _on_exit_state(state: CombatState):
@@ -199,40 +225,74 @@ func try_execute_buffer():
 				queued_direction = Vector2.ZERO
 
 func try_attack(from_buffer := false, dir := Vector2.ZERO):
-	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(attack_stamina_cost):
-		return false
-
+	# Não permite ataque se estiver em estados que impedem ação
 	if combat_state in [CombatState.STUNNED, CombatState.GUARD_BROKEN]:
 		return false
 
+	# Garante que o owner tenha sequência definida
+	if owner_node.attack_sequence.is_empty():
+		return false
+
+	var sequence = owner_node.attack_sequence
+	var attack = sequence[combo_index]
+
+	# Verifica stamina
+	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(attack.stamina_cost):
+		return false
+
 	if combat_state == CombatState.IDLE:
+		# Consome stamina
+		if owner_node.has_method("consume_stamina"):
+			owner_node.consume_stamina(attack.stamina_cost)
+
+		# Reinicia o tempo do combo
+		combo_timeout_timer = combo_timeout_duration
+		combo_in_progress = true
+
 		current_attack_direction = dir
 		change_state(CombatState.STARTUP)
 		return true
 
+	# Caso esteja em outro estado (ex: PARRY_ACTIVE), armazena no buffer
 	elif not from_buffer:
 		queued_action = ActionType.ATTACK
 		queued_direction = dir
 		buffer_timer = input_buffer_duration
 
 	return false
+	
+func on_attack_finished(was_parried: bool):
+	if was_parried:
+		combo_index = 0
+	else:
+		combo_index = (combo_index + 1) % owner_node.attack_sequence.size()
 
 func try_parry(from_buffer := false, dir := Vector2.ZERO):
-	if combat_state in [CombatState.PARRY_ACTIVE]:
+	# Já está tentando parry
+	if combat_state == CombatState.PARRY_ACTIVE:
 		return false
 
+	# Está em cooldown de parry
 	if has_effect("parry_cooldown"):
 		return false
 
-	if combat_state in [CombatState.IDLE, CombatState.STARTUP, CombatState.STUNNED, CombatState.GUARD_BROKEN]:
-		change_state(CombatState.PARRY_ACTIVE)
-		if not from_buffer:
-			queued_action = ActionType.NONE
-			queued_direction = dir
-			buffer_timer = 0
-		return true
+	# Não tem stamina suficiente nem para tentar
+	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(1):
+		return false
 
-	return false
+	# Só pode tentar parry se estiver em estado válido
+	if combat_state not in [CombatState.IDLE, CombatState.STARTUP, CombatState.STUNNED, CombatState.GUARD_BROKEN]:
+		return false
+
+	change_state(CombatState.PARRY_ACTIVE)
+
+	# Armazena direção e limpa buffer se input direto
+	if not from_buffer:
+		queued_action = ActionType.NONE
+		queued_direction = dir
+		buffer_timer = 0
+
+	return true
 
 func on_parried():
 	change_state(CombatState.GUARD_BROKEN)

@@ -26,40 +26,52 @@ var direction_buffer_timer := 0.0
 
 @onready var sprite := $AnimatedSprite2D
 @onready var flash_material := sprite.material as ShaderMaterial
+var attack_sequence: Array[AttackConfig] = []
 
 func _ready():
+	attack_sequence = AttackConfig.default_sequence()
+
+	controller.setup(self)
 	controller.connect("play_sound", _on_play_sound)
 	controller.connect("state_changed", _on_state_changed_with_dir)
 	controller.setup(self)
 	health_changed.emit()
 	stamina_changed.emit()
+
+	# ✅ Força a animação correta no início
+	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
 	
 func _physics_process(delta: float) -> void:
-	if controller.combat_state != CombatController.CombatState.IDLE:
-		velocity = Vector2.ZERO
-		return
-
-	var direction := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	velocity.x = direction * speed
-
-	# Aplicar gravidade
+	# Sempre aplicar gravidade
 	if not is_on_floor():
 		velocity.y += gravity * delta
 	elif Input.is_action_just_pressed("move_up"):  # Pulo
 		velocity.y = jump_force
+	else:
+		velocity.y = 0.0  # Resetar no chão
+
+	# Impede movimentação horizontal se não puder agir
+	if controller.combat_state != CombatController.CombatState.IDLE:
+		velocity.x = 0.0
+		move_and_slide()
+		return
+
+	# Movimento horizontal
+	var direction := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	velocity.x = direction * speed
 
 	move_and_slide()
 
-func update_animation(direction: float) -> void:
+	# 🔄 Atualiza animação baseada no movimento real
 	if not is_on_floor():
-		$AnimatedSprite2D.play("jump")
-	elif direction != 0:
-		$AnimatedSprite2D.play("walk")
+		sprite.play("jump")
+	elif velocity.x != 0:
+		sprite.play("walk")
 	else:
-		$AnimatedSprite2D.play("idle")
+		sprite.play("idle")
 
-	if direction != 0:
-		$AnimatedSprite2D.flip_h = direction < 0
+	# Atualiza direção visual
+	sprite.flip_h = last_direction == "left"
 	
 func _process(delta: float):
 	var dir := get_current_input_direction()
@@ -70,9 +82,6 @@ func _process(delta: float):
 		direction_buffer_timer -= delta
 		if direction_buffer_timer <= 0.0 and input_direction_buffer != Vector2.ZERO:
 			input_direction_buffer = Vector2.ZERO
-
-	if controller.combat_state == CombatController.CombatState.IDLE:
-		update_animation(velocity.x)
 
 	handle_input()
 
@@ -96,41 +105,44 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 
 	update_attack_hitbox_position(last_direction)
 
-	match new_state:
-		CombatController.CombatState.IDLE:
-			anim = "idle"
-			attack_hitbox.disable()
+	if new_state == CombatController.CombatState.IDLE:
+		attack_hitbox.disable()
 
-		CombatController.CombatState.STARTUP:
-			anim = "startup_attack"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.STARTUP:
+		var attack = controller.owner_node.attack_sequence[controller.combo_index]
+		anim = attack.startup_animation
+		attack_hitbox.disable()
 
-		CombatController.CombatState.ATTACKING:
-			anim = "attack"
-			attack_hitbox.enable()
+	elif new_state == CombatController.CombatState.ATTACKING:
+		var attack = controller.owner_node.attack_sequence[controller.combo_index]
+		anim = attack.attack_animation
+		attack_hitbox.enable()
 
-		CombatController.CombatState.RECOVERING:
-			anim = "recoverring_attack"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.RECOVERING:
+		var attack = controller.owner_node.attack_sequence[controller.combo_index]
+		anim = attack.recovery_animation
+		attack_hitbox.disable()
 
-		CombatController.CombatState.PARRY_ACTIVE:
-			anim = "parry"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.PARRY_ACTIVE:
+		anim = "parry"
+		attack_hitbox.disable()
 
-		CombatController.CombatState.PARRY_SUCCESS:
-			anim = "parry_success"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.PARRY_SUCCESS:
+		anim = "parry_success"
+		attack_hitbox.disable()
 
-		CombatController.CombatState.GUARD_BROKEN:
-			anim = "guard_broken"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.GUARD_BROKEN:
+		anim = "guard_broken"
+		attack_hitbox.disable()
 
-		CombatController.CombatState.STUNNED:
-			anim = "stunned"
-			attack_hitbox.disable()
+	elif new_state == CombatController.CombatState.STUNNED:
+		anim = "stunned"
+		attack_hitbox.disable()
 
-	$AnimatedSprite2D.play(anim)
-	# Garante que o personagem olhe na direção correta durante qualquer estado
+	if anim != "" and $AnimatedSprite2D.animation != anim:
+		print("🎞️ FSM tocando anim:", anim)
+		$AnimatedSprite2D.play(anim)
+
 	$AnimatedSprite2D.flip_h = last_direction == "left"
 
 func get_current_input_direction() -> Vector2:
