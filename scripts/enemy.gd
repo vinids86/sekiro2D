@@ -69,7 +69,7 @@ func is_player_attacking_towards_me() -> bool:
 	var player_controller: CombatController = player.get_combat_controller()
 	if player_controller.combat_state != CombatController.CombatState.STARTUP:
 		return false
-	if global_position.distance_to(player.global_position) > 80:
+	if global_position.distance_to(player.global_position) > 140:
 		return false
 	return true
 

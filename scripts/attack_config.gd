@@ -26,7 +26,7 @@ func _init(_startup: float, _duration: float, _recovery: float, _stamina_cost: f
 
 static func default_sequence() -> Array[AttackConfig]:
 	return [
-		AttackConfig.new(0.3, 0.2, 0.2, 2, "attack_1", "res://audio/attack1.wav", "startup_1", "recover_1"),
-		AttackConfig.new(0.1, 0.2, 0.2, 3, "attack_2", "res://audio/attack2.wav", "startup_2", "recover_2"),
-		AttackConfig.new(0.3, 0.2, 0.2, 3, "attack_3", "res://audio/attack3.wav", "startup_3", "recover_3"),
+		AttackConfig.new(0.3, 0.1, 0.2, 2, "attack_1", "res://audio/attack1.wav", "startup_1", "recover_1"),
+		AttackConfig.new(0.3, 0.1, 0.2, 3, "attack_2", "res://audio/attack2.wav", "startup_2", "recover_2"),
+		AttackConfig.new(0.3, 0.1, 0.2, 3, "attack_3", "res://audio/attack3.wav", "startup_3", "recover_3"),
 	]

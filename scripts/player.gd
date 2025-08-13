@@ -40,12 +40,30 @@ func _ready() -> void:
 	stamina_changed.emit()
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
 
+@export var attack_dash_speed := 140.0
+@export var attack_push_in_startup := true  # se true, também avança no STARTUP
+
 func _physics_process(delta: float) -> void:
-	var can_move := controller.combat_state == CombatController.CombatState.IDLE
-	var direction := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	velocity.x = (direction * speed) if can_move else 0.0
+	var state := controller.combat_state
+	var dir_sign := 1.0 if last_direction == "right" else -1.0
+
+	var can_move := state == CombatController.CombatState.IDLE
+	var is_attack_moving := state == CombatController.CombatState.ATTACKING
+
+	# entrada de movimento só vale no IDLE
+	var input_dir := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+
+	if can_move:
+		velocity.x = input_dir * speed
+	elif is_attack_moving:
+		velocity.x = attack_dash_speed * dir_sign
+	else:
+		velocity.x = 0.0
+
 	velocity.y = 0.0
 	move_and_slide()
+
+	# animações "livres" só no IDLE (FSM controla as demais)
 	if can_move:
 		var moving: bool = absf(velocity.x) > 0.1
 		var base := "walk" if moving else "idle"
@@ -53,7 +71,8 @@ func _physics_process(delta: float) -> void:
 		var target := base + suffix
 		if sprite.animation != target:
 			sprite.play(target)
-	sprite.flip_h = last_direction == "left"
+
+	sprite.flip_h = (last_direction == "left")
 
 func _process(delta: float) -> void:
 	var dir := get_current_input_direction()
