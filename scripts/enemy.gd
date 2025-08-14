@@ -12,6 +12,8 @@ signal health_changed
 @export var parry_chance := 0.3
 @export var exhausted_lock_duration := 0.35
 @export var player_path: NodePath
+@export var attack_push_speed := 120.0
+@export var attack_step_duration := 0.06
 
 @onready var controller: CombatController = $CombatController
 @onready var audio_enemy: AudioStreamPlayer2D = $AudioEnemy
@@ -19,6 +21,9 @@ signal health_changed
 @onready var player: Player = get_node(player_path) as Player
 @onready var sprite := $AnimatedSprite2D
 @onready var flash_material := sprite.material as ShaderMaterial
+
+var step_timer := 0.0
+var step_speed := 0.0
 
 var current_health := max_health
 var current_stamina := max_stamina
@@ -36,10 +41,25 @@ func _ready() -> void:
 	attack_sequence = AttackConfig.default_sequence()
 	controller.setup(self)
 	controller.connect("play_sound", _on_play_sound)
+	controller.play_stream.connect(_on_cc_play_stream)
 	controller.connect("state_changed", _on_state_changed_with_dir)
+	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
+	controller.attack_step.connect(_on_attack_step)
 	health_changed.emit()
 	stamina_changed.emit()
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(-1, 0))
+
+func _physics_process(delta: float) -> void:
+	if step_timer > 0.0:
+		step_timer -= delta
+		velocity.x = step_speed
+	elif controller.combat_state != CombatController.CombatState.IDLE:
+		velocity.x = 0.0
+	else:
+		velocity.x = 0.0
+
+	velocity.y = 0.0
+	move_and_slide()
 
 func _process(delta: float) -> void:
 	if is_player_attacking_towards_me():
@@ -218,3 +238,18 @@ func is_exhausted() -> bool:
 	if exhausted_lock_timer > 0.0:
 		return true
 	return current_stamina < controller.block_stamina_cost
+
+func _on_cc_play_stream(stream: AudioStream) -> void:
+	$AudioEnemy.stream = stream
+	$AudioEnemy.play()
+	
+func _on_hitbox_active_changed(on: bool) -> void:
+	if on:
+		attack_hitbox.enable()
+	else:
+		attack_hitbox.disable()
+
+func _on_attack_step(distance_px: float) -> void:
+	var dir := -1.0 if last_direction == "left" else 1.0
+	step_timer = attack_step_duration
+	step_speed = (distance_px / attack_step_duration) * dir

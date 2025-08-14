@@ -520,7 +520,7 @@ shape = SubResource("RectangleShape2D_hqtel")
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_dw050")
 animation = &"parry"
-frame_progress = 0.150801
+frame_progress = 0.193319
 
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("4_dqkch")

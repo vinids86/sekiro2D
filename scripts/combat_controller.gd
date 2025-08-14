@@ -22,6 +22,12 @@ enum ActionType {
 
 signal state_changed(old_state: int, new_state: int, attack_direction: Vector2)
 signal play_sound(path: String)
+signal play_stream(stream: AudioStream) # <-- NOVO: para quando attack_sound for AudioStream
+signal hitbox_active_changed(is_on: bool)
+signal attack_step(distance_px: float)
+
+var step_emitted := false
+var active_clock := 0.0
 
 @export var parry_window := 0.4
 @export var parry_cooldown := 0.2
@@ -48,10 +54,13 @@ var current_attack_direction: Vector2 = Vector2.ZERO
 var status_effects: Dictionary = {}
 var did_parry_succeed := false
 
+# 0 = none/outro estado; 1 = recovering_hard; 2 = recovering_soft
+var recovering_phase := 0
+
 var transitions := {
 	CombatState.IDLE:          [CombatState.STARTUP, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
 	CombatState.STARTUP:       [CombatState.ATTACKING, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
-	CombatState.ATTACKING:     [CombatState.RECOVERING, CombatState.STUNNED],
+	CombatState.ATTACKING:     [CombatState.RECOVERING, CombatState.STUNNED, CombatState.PARRY_ACTIVE],
 	CombatState.RECOVERING:    [CombatState.IDLE, CombatState.STUNNED, CombatState.STARTUP],
 	CombatState.PARRY_ACTIVE:  [CombatState.PARRY_SUCCESS, CombatState.IDLE, CombatState.STUNNED],
 	CombatState.PARRY_SUCCESS: [CombatState.IDLE, CombatState.STUNNED],
@@ -88,6 +97,9 @@ func _process(delta: float) -> void:
 		if combo_timeout_timer <= 0.0:
 			combo_index = 0
 			combo_in_progress = false
+	if combat_state == CombatState.ATTACKING:
+		active_clock += delta
+		_check_attack_step(active_clock) 
 
 func can_auto_advance() -> bool:
 	return [CombatState.STARTUP, CombatState.ATTACKING, CombatState.RECOVERING,
@@ -100,14 +112,24 @@ func auto_advance_state() -> void:
 		CombatState.ATTACKING:
 			change_state(CombatState.RECOVERING)
 		CombatState.RECOVERING:
-			on_attack_finished(did_parry_succeed)
-			if queued_action == ActionType.ATTACK and buffer_timer > 0.0:
-				current_attack_direction = queued_direction
-				queued_action = ActionType.NONE
-				queued_direction = Vector2.ZERO
-				change_state(CombatState.STARTUP)
+			var attack = _current_attack()
+			if recovering_phase == 1:
+				recovering_phase = 2
+				state_timer = attack.recovery_soft if attack else 0.0
+				if buffer_timer > 0.0:
+					buffer_timer = max(buffer_timer, chain_grace)
+				if queued_action == ActionType.ATTACK and _can_chain_next_on_soft(attack):
+					on_attack_finished(did_parry_succeed)
+					combo_in_progress = true
+					combo_timeout_timer = combo_timeout_duration
+					current_attack_direction = queued_direction
+					_clear_buffer()
+					change_state(CombatState.STARTUP)
+					return
+				elif state_timer <= 0.0:
+					_finish_recover_and_exit()
 			else:
-				change_state(CombatState.IDLE)
+				_finish_recover_and_exit()
 		CombatState.STUNNED:
 			change_state(CombatState.IDLE)
 		CombatState.PARRY_SUCCESS:
@@ -117,6 +139,15 @@ func auto_advance_state() -> void:
 				change_state(CombatState.PARRY_SUCCESS)
 			else:
 				change_state(CombatState.IDLE)
+
+func _finish_recover_and_exit() -> void:
+	on_attack_finished(did_parry_succeed)
+	if queued_action == ActionType.ATTACK && buffer_timer > 0.0:
+		current_attack_direction = queued_direction
+		_clear_buffer()
+		change_state(CombatState.STARTUP)
+	else:
+		change_state(CombatState.IDLE)
 
 func change_state(new_state: CombatState) -> void:
 	if not transitions.get(combat_state, []).has(new_state):
@@ -135,9 +166,7 @@ func change_state(new_state: CombatState) -> void:
 func _on_enter_state(state: CombatState) -> void:
 	did_parry_succeed = false
 
-	var attack = null
-	if owner_node and not owner_node.attack_sequence.is_empty():
-		attack = owner_node.attack_sequence[combo_index]
+	var attack = _current_attack()
 
 	match state:
 		CombatState.STARTUP:
@@ -148,13 +177,19 @@ func _on_enter_state(state: CombatState) -> void:
 
 		CombatState.ATTACKING:
 			if attack:
-				state_timer = attack.duration
-				if attack.attack_sound != "":
-					play_sound.emit(attack.attack_sound)
+				state_timer = attack.active_duration
+				active_clock = 0.0
+				hitbox_active_changed.emit(true)
+				step_emitted = false
+				if attack and attack.attack_sound:
+					play_stream.emit(attack.attack_sound)
 
 		CombatState.RECOVERING:
+			recovering_phase = 1
 			if attack:
-				state_timer = attack.recovery
+				state_timer = attack.recovery_hard
+			else:
+				state_timer = 0.0
 			if buffer_timer > 0.0:
 				buffer_timer = max(buffer_timer, chain_grace)
 
@@ -172,6 +207,7 @@ func _on_enter_state(state: CombatState) -> void:
 			play_sound.emit("res://audio/parry_success.wav")
 
 		CombatState.IDLE:
+			recovering_phase = 0
 			await get_tree().process_frame
 			try_execute_buffer()
 
@@ -180,6 +216,8 @@ func _on_exit_state(state: CombatState) -> void:
 		CombatState.STARTUP, CombatState.ATTACKING, CombatState.PARRY_ACTIVE:
 			if state == CombatState.PARRY_ACTIVE:
 				apply_effect("parry_cooldown", parry_cooldown)
+			if state == CombatState.ATTACKING:
+				hitbox_active_changed.emit(false)
 
 func apply_effect(name: String, duration: float) -> void:
 	status_effects[name] = duration
@@ -194,8 +232,10 @@ func try_execute_buffer() -> void:
 		ActionType.ATTACK:
 			if try_attack(true, queued_direction):
 				current_attack_direction = queued_direction
-				queued_action = ActionType.NONE
-				queued_direction = Vector2.ZERO
+				_clear_buffer()
+		ActionType.PARRY:
+			if try_parry(true, queued_direction):
+				_clear_buffer()
 
 func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 	if combat_state in [CombatState.STUNNED]:
@@ -203,9 +243,7 @@ func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 	if not owner_node or owner_node.attack_sequence.is_empty():
 		return false
 
-	var sequence = owner_node.attack_sequence
-	var attack = sequence[combo_index]
-
+	var attack = _current_attack()
 	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(attack.stamina_cost):
 		return false
 
@@ -215,11 +253,21 @@ func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 		combo_in_progress = true
 		change_state(CombatState.STARTUP)
 		return true
-	elif not from_buffer:
+	elif combat_state == CombatState.RECOVERING and recovering_phase == 2:
+		if _can_chain_next_on_soft(attack):
+			# finalize o golpe atual antes de encadear
+			on_attack_finished(false)
+			combo_in_progress = true
+			combo_timeout_timer = combo_timeout_duration
+			current_attack_direction = dir
+			_clear_buffer()
+			change_state(CombatState.STARTUP)
+			return true
+
+	if not from_buffer:
 		queued_action = ActionType.ATTACK
 		queued_direction = dir
 		buffer_timer = input_buffer_duration
-
 	return false
 
 func on_attack_finished(was_parried: bool) -> void:
@@ -230,23 +278,42 @@ func on_attack_finished(was_parried: bool) -> void:
 		if owner_node and not owner_node.attack_sequence.is_empty():
 			combo_index = (combo_index + 1) % owner_node.attack_sequence.size()
 
-func try_parry(from_buffer := false, dir := Vector2.ZERO) -> bool:
+func can_transition_to_parry() -> bool:
+	# mesmas regras que combinamos (inclui STUNNED = true)
 	if combat_state == CombatState.PARRY_ACTIVE:
 		return false
 	if has_effect("parry_cooldown"):
 		return false
 	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(1):
 		return false
-	if combat_state not in [CombatState.IDLE, CombatState.STARTUP, CombatState.STUNNED]:
+
+	var attack = _current_attack()
+	match combat_state:
+		CombatState.IDLE:
+			return true
+		CombatState.STARTUP:
+			return attack and attack.can_cancel_to_parry_on_startup
+		CombatState.ATTACKING:
+			return attack and attack.can_cancel_to_parry_on_active
+		CombatState.RECOVERING:
+			return false
+		CombatState.STUNNED:
+			return true
+		_:
+			return false
+
+func try_parry(from_buffer := false, dir := Vector2.ZERO) -> bool:
+	if not can_transition_to_parry():
+		if not from_buffer:
+			queued_action = ActionType.PARRY
+			queued_direction = dir
+			buffer_timer = input_buffer_duration
 		return false
 
 	change_state(CombatState.PARRY_ACTIVE)
-
 	if not from_buffer:
-		queued_action = ActionType.NONE
+		_clear_buffer()
 		queued_direction = dir
-		buffer_timer = 0.0
-
 	return true
 
 func on_parried() -> void:
@@ -261,3 +328,64 @@ func on_blocked() -> void:
 
 func can_act() -> bool:
 	return combat_state in [CombatState.IDLE, CombatState.RECOVERING]
+
+func _current_attack():
+	if owner_node and not owner_node.attack_sequence.is_empty():
+		return owner_node.attack_sequence[combo_index]
+	return null
+
+func _can_chain_next_on_soft(attack) -> bool:
+	return attack and attack.can_chain_next_attack_on_soft_recovery
+
+func _clear_buffer() -> void:
+	queued_action = ActionType.NONE
+	queued_direction = Vector2.ZERO
+	buffer_timer = 0.0
+
+func _resolve_attack_stream(snd) -> AudioStream:
+	# aceitamos AudioStream direto ou path (com/sem extensão)
+	if snd == null:
+		return null
+	if snd is AudioStream:
+		return snd
+	var path := str(snd)
+	if path.is_empty():
+		return null
+	# anexa extensão se preciso
+	if not (path.ends_with(".wav") or path.ends_with(".ogg")):
+		if ResourceLoader.exists(path + ".wav"):
+			path += ".wav"
+		elif ResourceLoader.exists(path + ".ogg"):
+			path += ".ogg"
+	# carrega
+	if ResourceLoader.exists(path):
+		var s: AudioStream = load(path)
+		return s
+	print("⚠️ Attack sound não encontrado: ", path)
+	return null
+
+func _play_attack_stream(stream: AudioStream) -> void:
+	if stream == null:
+		return
+	# tenta tocar direto no dono (Player/Enemy) se tiver AudioPlayer
+	if owner_node:
+		var p = owner_node.get_node_or_null("AudioPlayer")
+		if p and p is AudioStreamPlayer2D:
+			p.stream = stream
+			p.play()
+			return
+	# fallback por sinal (caso você já tenha algo conectado)
+	play_stream.emit(stream)
+
+func get_current_attack():
+	return _current_attack()
+
+func _check_attack_step(t: float) -> void:
+	var atk = _current_attack()
+	if not atk or step_emitted:
+		return
+	if atk.step_distance_px == 0.0:
+		return
+	if t >= atk.step_time_in_active and t <= (atk.step_time_in_active + 0.02):
+		step_emitted = true
+		attack_step.emit(atk.step_distance_px)

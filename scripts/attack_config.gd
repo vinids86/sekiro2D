@@ -1,32 +1,81 @@
 # AttackConfig.gd
+@tool
 extends Resource
 class_name AttackConfig
 
-var startup: float
-var duration: float
-var recovery: float
-var stamina_cost: float
+@export var step_distance_px: float = 0.0      # quanto avança nesse golpe (em pixels)
+@export var step_time_in_active: float = 0.0   # quando aplicar (segundos após iniciar o ACTIVE)
 
-var attack_animation: String = ""
-var startup_animation: String = ""
-var recovery_animation: String = ""
-var attack_sound: String = ""
+# Tempo (s)
+@export var startup: float = 0.2
+@export var active_duration: float = 0.1
+@export var recovery_hard: float = 0.15    # janela sem ação
+@export var recovery_soft: float = 0.15    # janela com cancel (ex.: para próximo ataque)
+@export var stamina_cost: float = 2.0
 
-func _init(_startup: float, _duration: float, _recovery: float, _stamina_cost: float,
-		   _attack_anim := "", _attack_sound := "", _startup_anim := "", _recovery_anim := ""):
-	startup = _startup
-	duration = _duration
-	recovery = _recovery
-	stamina_cost = _stamina_cost
-	attack_animation = _attack_anim
-	startup_animation = _startup_anim
-	recovery_animation = _recovery_anim
-	attack_sound = _attack_sound
+# Hitbox (uma ou mais janelas dentro do ativo)
+# Ex.: [[0.00, 0.08], [0.10, 0.12]]  -> dois hits
+@export var active_windows: Array[Vector2] = [Vector2(0.0, 0.1)]
 
+# Cancel rules (em que fases pode cancelar para quê)
+@export var can_cancel_to_parry_on_startup: bool = true
+@export var can_cancel_to_parry_on_active: bool = false
+@export var can_chain_next_attack_on_soft_recovery: bool = true
+@export var can_move_during_active: bool = false
+@export var move_influence: float = 0.0  # 0..1 (quão “arrasta” o personagem no ataque)
+
+# Parry/Poise
+@export var parryable: bool = true        # ataques "especiais" seriam false
+@export var super_armor_startup: float = 0.0  # segundos de super armor dentro do startup
+@export var poise_damage: float = 10.0
+
+# Identidade/Tags
+enum AttackKind { NORMAL, HEAVY, GRAB, SPECIAL }
+@export var kind: AttackKind = AttackKind.NORMAL
+
+# Animações (use hints para reduzir erro)
+@export var startup_animation: StringName = &"startup_1"
+@export var attack_animation: StringName = &"attack_1"
+@export var recovery_animation: StringName = &"recover_1"
+
+# Áudio como recurso, não path
+@export var attack_sound: AudioStream
+
+func total_time() -> float:
+	return startup + active_duration + recovery_hard + recovery_soft
+
+static func new_simple(
+	_startup: float, _active: float, _rec_hard: float, _rec_soft: float, _stamina: float,
+	_startup_anim := &"", _attack_anim := &"", _recovery_anim := &"",
+	_sound: AudioStream = null,
+	_step_px: float = 0.0, _step_t: float = 0.0
+) -> AttackConfig:
+	var c := AttackConfig.new()
+	c.startup = _startup
+	c.active_duration = _active
+	c.recovery_hard = _rec_hard
+	c.recovery_soft = _rec_soft
+	c.stamina_cost = _stamina
+	c.startup_animation = _startup_anim
+	c.attack_animation = _attack_anim
+	c.recovery_animation = _recovery_anim
+	c.attack_sound = _sound
+	c.step_distance_px = _step_px
+	c.step_time_in_active = _step_t
+	return c
 
 static func default_sequence() -> Array[AttackConfig]:
 	return [
-		AttackConfig.new(0.3, 0.1, 0.2, 2, "attack_1", "res://audio/attack1.wav", "startup_1", "recover_1"),
-		AttackConfig.new(0.3, 0.1, 0.2, 3, "attack_2", "res://audio/attack2.wav", "startup_2", "recover_2"),
-		AttackConfig.new(0.3, 0.1, 0.2, 3, "attack_3", "res://audio/attack3.wav", "startup_3", "recover_3"),
+		AttackConfig.new_simple(0.4, 0.1, 0.25, 0.05, 2.0,
+			&"startup_1", &"attack_1", &"recover_1",
+			preload("res://audio/attack_1.wav"),
+			20.0, 0.02),
+		AttackConfig.new_simple(0.28, 0.1, 0.24, 0.06, 3.0,
+			&"startup_2", &"attack_2", &"recover_2",
+			preload("res://audio/attack_2.wav"),
+			24.0, 0.02),
+		AttackConfig.new_simple(0.26, 0.12, 0.26, 0.08, 3.0,
+			&"startup_3", &"attack_3", &"recover_3",
+			preload("res://audio/attack_3.wav"),
+			26.0, 0.03),
 	]

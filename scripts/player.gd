@@ -11,6 +11,10 @@ signal health_changed
 @export var stamina_recovery_delay := 1.0
 @export var direction_buffer_duration := 0.2
 @export var exhausted_lock_duration := 0.35
+@export var attack_push_speed := 180.0
+@export var attack_step_duration := 0.06  # 60ms de empurrão
+var step_timer := 0.0
+var step_speed := 0.0
 
 @onready var controller: CombatController = $CombatController
 @onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
@@ -35,13 +39,13 @@ func _ready() -> void:
 	attack_sequence = AttackConfig.default_sequence()
 	controller.setup(self)
 	controller.connect("play_sound", _on_play_sound)
+	controller.play_stream.connect(_on_cc_play_stream)
 	controller.connect("state_changed", _on_state_changed_with_dir)
+	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
+	controller.attack_step.connect(_on_attack_step)
 	health_changed.emit()
 	stamina_changed.emit()
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
-
-@export var attack_dash_speed := 140.0
-@export var attack_push_in_startup := true  # se true, também avança no STARTUP
 
 func _physics_process(delta: float) -> void:
 	var state := controller.combat_state
@@ -55,9 +59,13 @@ func _physics_process(delta: float) -> void:
 
 	if can_move:
 		velocity.x = input_dir * speed
-	elif is_attack_moving:
-		velocity.x = attack_dash_speed * dir_sign
 	else:
+		velocity.x = 0.0
+		
+	if step_timer > 0.0:
+		step_timer -= delta
+		velocity.x = step_speed
+	elif controller.combat_state != CombatController.CombatState.IDLE:
 		velocity.x = 0.0
 
 	velocity.y = 0.0
@@ -109,26 +117,26 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 	if not controller.owner_node.attack_sequence.is_empty():
 		attack = controller.owner_node.attack_sequence[controller.combo_index]
 	if new_state == CombatController.CombatState.IDLE:
-		attack_hitbox.disable()
+		#attack_hitbox.disable()
 		anim = "idle_exhausted" if is_exhausted() else "idle"
 	elif new_state == CombatController.CombatState.STARTUP:
 		if attack:
 			anim = attack.startup_animation
-		attack_hitbox.disable()
+		#attack_hitbox.disable()
 	elif new_state == CombatController.CombatState.ATTACKING:
 		if attack:
 			anim = attack.attack_animation
-		attack_hitbox.enable()
+		#attack_hitbox.enable()
 	elif new_state == CombatController.CombatState.RECOVERING:
 		if attack:
 			anim = attack.recovery_animation
-		attack_hitbox.disable()
+		#attack_hitbox.disable()
 	elif new_state == CombatController.CombatState.PARRY_ACTIVE:
 		anim = "parry"
-		attack_hitbox.disable()
+		#attack_hitbox.disable()
 	elif new_state == CombatController.CombatState.PARRY_SUCCESS:
 		anim = "parry_success"
-		attack_hitbox.disable()
+		#attack_hitbox.disable()
 	elif new_state == CombatController.CombatState.STUNNED:
 		if controller.stun_kind == CombatController.StunKind.PARRIED:
 			anim = "stunned_parry"
@@ -229,3 +237,18 @@ func is_exhausted() -> bool:
 	if exhausted_lock_timer > 0.0:
 		return true
 	return current_stamina < controller.block_stamina_cost
+
+func _on_cc_play_stream(stream: AudioStream) -> void:
+	$AudioPlayer.stream = stream
+	$AudioPlayer.play()
+
+func _on_hitbox_active_changed(on: bool) -> void:
+	if on:
+		attack_hitbox.enable()
+	else:
+		attack_hitbox.disable()
+
+func _on_attack_step(distance_px: float) -> void:
+	var dir := -1.0 if last_direction == "left" else 1.0
+	step_timer = attack_step_duration
+	step_speed = (distance_px / attack_step_duration) * dir
