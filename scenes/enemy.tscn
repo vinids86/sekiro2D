@@ -1,4 +1,4 @@
-[gd_scene load_steps=62 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=65 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
@@ -71,6 +71,18 @@ region = Rect2(0, 192, 128, 64)
 [sub_resource type="AtlasTexture" id="AtlasTexture_78kod"]
 atlas = ExtResource("2_nenq2")
 region = Rect2(0, 256, 128, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t3vcr"]
+atlas = ExtResource("3_wtq4b")
+region = Rect2(960, 0, 320, 180)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x6q4o"]
+atlas = ExtResource("3_wtq4b")
+region = Rect2(0, 0, 320, 180)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hyejq"]
+atlas = ExtResource("3_wtq4b")
+region = Rect2(320, 0, 320, 180)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_lsnsy"]
 atlas = ExtResource("8_wtq4b")
@@ -219,6 +231,30 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_5",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t3vcr")
+}],
+"loop": true,
+"name": &"finisher_attack",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x6q4o")
+}],
+"loop": true,
+"name": &"finisher_recover",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hyejq")
+}],
+"loop": true,
+"name": &"finisher_startup",
 "speed": 5.0
 }, {
 "frames": [],
@@ -416,7 +452,7 @@ size = Vector2(100, 145)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lsnsy"]
 size = Vector2(100, 145)
 
-[node name="Enemy" type="CharacterBody2D"]
+[node name="Enemy" type="CharacterBody2D" groups=["enemy"]]
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1_md0e3")
@@ -430,7 +466,7 @@ shape = SubResource("RectangleShape2D_md0e3")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 material = SubResource("ShaderMaterial_ipns3")
 sprite_frames = SubResource("SpriteFrames_g0wcc")
-animation = &"stunned_block_b"
+animation = &"finisher_recover"
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
@@ -478,7 +514,6 @@ metadata/_custom_type_script = "uid://bqisijj67a3tv"
 [node name="EnemyBrain" type="Node" parent="."]
 script = ExtResource("18_wrm80")
 enemy_path = NodePath("..")
-parry_chance = 1.0
 metadata/_custom_type_script = "uid://co7hq7vicwny6"
 
 [node name="ScreenClamp" type="Node" parent="."]

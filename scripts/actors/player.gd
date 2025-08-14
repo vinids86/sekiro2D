@@ -16,6 +16,11 @@ signal health_changed
 @export var heavy_attack: AttackConfig
 @export var heavy_hold_threshold := 0.33
 
+# FINISHER (executa quando alvo estiver em GUARD_BROKEN)
+@export var finisher_attack: AttackConfig
+@export var finisher_max_distance := 120.0
+@export var finisher_require_facing := true
+
 @onready var controller: CombatController = $CombatController
 @onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
 @onready var attack_hitbox: Area2D = $AttackHitbox
@@ -68,6 +73,9 @@ func _ready() -> void:
 
 	if heavy_attack == null:
 		heavy_attack = AttackConfig.heavy_preset()
+
+	if finisher_attack== null:
+		finisher_attack = AttackConfig.finisher_preset()
 
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
 
@@ -131,8 +139,12 @@ func handle_input_parry_only() -> void:
 			controller.queued_direction = input_dir
 
 func _update_attack_hold(delta: float) -> void:
-	# início do hold
+	# início do hold / prioridade: FINISHER
 	if Input.is_action_just_pressed("attack"):
+		# tenta finisher antes de tudo
+		if _try_finisher_input():
+			return
+
 		_attack_hold_active = true
 		_attack_hold_timer = 0.0
 		_heavy_sent = false
@@ -155,7 +167,6 @@ func _update_attack_hold(delta: float) -> void:
 			if heavy_attack and controller.has_method("try_attack_heavy"):
 				controller.try_attack_heavy(heavy_attack, _attack_hold_dir)
 			else:
-				# fallback (se ainda não aplicamos o patch no controller): leve
 				controller.try_attack(false, _attack_hold_dir)
 		return
 
@@ -164,6 +175,48 @@ func _update_attack_hold(delta: float) -> void:
 		_attack_hold_active = false
 		if not _heavy_sent:
 			controller.try_attack(false, _attack_hold_dir)
+
+# Tenta achar um alvo GUARD_BROKEN válido na frente
+func _find_guard_broken_target() -> Dictionary:
+	var me := self as Node2D
+	var best_node: Node2D = null
+	var best_dist := INF
+	var dir_label := last_direction
+	for n in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(n): continue
+		var e := n as Node2D
+		if e == null: continue
+		if not e.has_method("get_combat_controller"): continue
+		var ecc: CombatController = e.get_combat_controller()
+		if ecc == null or not ecc.is_guard_broken(): continue
+
+		var dx := e.global_position.x - me.global_position.x
+		var dist := absf(dx)
+		if dist > finisher_max_distance: continue
+
+		if finisher_require_facing:
+			if dir_label == "right" and dx < 0.0: continue
+			if dir_label == "left" and dx > 0.0: continue
+
+		if dist < best_dist:
+			best_dist = dist
+			best_node = e
+
+	if best_node:
+		var vec := (best_node.global_position - me.global_position).normalized()
+		return {"node": best_node, "dir": vec}
+	return {}
+
+# Se houver alvo em GUARD_BROKEN, dispara finisher imediatamente
+func _try_finisher_input() -> bool:
+	if finisher_attack == null or not controller.has_method("try_attack_heavy"):
+		return false
+	var target := _find_guard_broken_target()
+	if target.is_empty():
+		return false
+	var dir: Vector2 = target["dir"]
+	controller.try_attack_heavy(finisher_attack, dir)
+	return true
 
 func get_current_input_direction() -> Vector2:
 	return Vector2(
@@ -210,7 +263,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			anim.play_exact("parry")
 		CombatController.CombatState.PARRY_SUCCESS:
 			anim.play_exact("parry_success")
-			attack_hitbox.disable() # blindagem
+			attack_hitbox.disable()
 		CombatController.CombatState.STUNNED:
 			var a := ("stunned_parry" if controller.stun_kind == CombatController.StunKind.PARRIED
 				else ("stunned_block_b" if stunned_block_toggle else "stunned_block_a"))
@@ -260,6 +313,13 @@ func receive_attack(attacker: Node) -> void:
 
 	# I-FRAMES curtos: durante PARRY_SUCCESS não recebe hit nem auto-block
 	if c.combat_state == CombatController.CombatState.PARRY_SUCCESS:
+		return
+
+	# Se eu estou GUARD_BROKEN: ignora parry/autoblock; toma o hit e consome com finisher
+	if c.combat_state == CombatController.CombatState.GUARD_BROKEN and atk_cfg:
+		_apply_attack_effects(atk_cfg)
+		if atk_cc:
+			atk_cc.resolve_finisher(atk_cc, c)
 		return
 
 	# 1) Se estou em PARRY_ACTIVE → testar janela efetiva por tipo
@@ -315,8 +375,7 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 
 	audio_out.play_stream(sfx_hit)
 
-	# === Regra: se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN ===
-	# (sem zerar “na marra”; só quando o próprio heavy gerou o esgotamento)
+	# Se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN
 	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
 		c.force_guard_broken()
 

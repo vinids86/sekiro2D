@@ -135,3 +135,29 @@ static func heavy_preset() -> AttackConfig:
 	c.step_distance_px = 40.0
 	c.step_time_in_active = 0.02
 	return c
+
+static func finisher_preset() -> AttackConfig:
+	var c := AttackConfig.new_simple(
+		0.25, # startup (rápido, “decisivo”)
+		0.15, # active
+		0.60, # recovery_hard
+		0.00, # recovery_soft (não emenda combo)
+		0.0   # stamina_cost (não bloquear execução por falta de stamina)
+	)
+	c.kind = AttackKind.SPECIAL
+	c.damage = 55.0
+	c.stamina_damage_extra = 0.0
+	c.parry_window_factor = 1.0
+	c.bypass_auto_block = true
+	c.ends_combo = true
+	c.can_chain_next_attack_on_soft_recovery = false
+
+	c.startup_animation  = &"finisher_startup"
+	c.attack_animation   = &"finisher_attack"
+	c.recovery_animation = &"finisher_recover"
+	c.attack_sound = load("res://audio/finisher.wav")
+	
+	# “dash” curtinho para atravessar e dar impacto
+	c.step_distance_px = 64.0
+	c.step_time_in_active = 0.01
+	return c

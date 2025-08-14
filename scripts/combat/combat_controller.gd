@@ -38,7 +38,7 @@ signal request_push_apart(pixels: float)
 @export var parry_success_base_lockout := 0.4
 
 # --- Guard Broken & Finisher ---
-@export var guard_broken_duration := 0.9
+@export var guard_broken_duration := 1.9
 @export var finisher_attacker_lockout := 0.45
 @export var finisher_defender_lockout := 0.9
 @export var finisher_push_px := 64.0
@@ -96,7 +96,7 @@ var transitions := {
 	CombatState.PARRY_ACTIVE:  [CombatState.PARRY_SUCCESS, CombatState.IDLE, CombatState.STUNNED, CombatState.RECOVERING, CombatState.GUARD_BROKEN],
 	CombatState.PARRY_SUCCESS: [CombatState.IDLE, CombatState.STUNNED, CombatState.GUARD_BROKEN],
 	CombatState.STUNNED:       [CombatState.IDLE, CombatState.STUNNED, CombatState.PARRY_ACTIVE, CombatState.GUARD_BROKEN],
-	CombatState.GUARD_BROKEN:  [CombatState.IDLE] # não age; sai sozinho para IDLE
+	CombatState.GUARD_BROKEN:  [CombatState.IDLE, CombatState.RECOVERING]
 }
 
 # --- Interface opcional injetada (desacoplado de Player/Enemy) ---
@@ -205,6 +205,7 @@ func _finish_recover_and_exit() -> void:
 	if _forced_lockout_active or _force_recover_timer >= 0.0:
 		_forced_lockout_active = false
 		_force_recover_timer = -1.0
+		_override_attack = null
 		change_state(CombatState.IDLE)
 		return
 
@@ -252,6 +253,7 @@ func _on_enter_state(state: CombatState) -> void:
 				step_emitted = false
 				hitbox_active_changed.emit(true)
 				if attack.attack_sound:
+					print("SFX:", attack.attack_sound.resource_path)
 					play_stream.emit(attack.attack_sound)
 
 		CombatState.RECOVERING:
@@ -260,6 +262,7 @@ func _on_enter_state(state: CombatState) -> void:
 				_forced_lockout_active = true
 				recovering_phase = 0
 				state_timer = forced
+				_override_attack = null 
 			else:
 				recovering_phase = 1
 				state_timer = attack.recovery_hard if attack else 0.0
@@ -281,6 +284,7 @@ func _on_enter_state(state: CombatState) -> void:
 			buffer_timer = 0.0
 			_queued_heavy_cfg = null
 			_queued_heavy_dir = Vector2.ZERO
+			_override_attack = null   
 
 		CombatState.PARRY_SUCCESS:
 			var dur := parry_success_base_lockout
@@ -477,7 +481,8 @@ func resolve_finisher(attacker: CombatController, defender: CombatController) ->
 	# Ambos entram em lockout (neutro) e se separam
 	attacker.force_lockout(finisher_attacker_lockout)
 	defender.force_lockout(finisher_defender_lockout)
-	request_push_apart.emit(finisher_push_px)
+	attacker.request_push_apart.emit(finisher_push_px)
+	defender.request_push_apart.emit(finisher_push_px)
 
 func on_parried() -> void:
 	stun_kind = StunKind.PARRIED
@@ -526,6 +531,7 @@ func force_lockout(duration: float) -> void:
 	buffer_timer = 0.0
 	_queued_heavy_cfg = null
 	_queued_heavy_dir = Vector2.ZERO
+	_override_attack = null
 	change_state(CombatState.RECOVERING)
 
 # Parry LEVE
@@ -545,7 +551,8 @@ func resolve_parry_heavy_neutral(attacker: CombatController, defender: CombatCon
 	if defender.combat_state == CombatState.PARRY_ACTIVE:
 		defender.change_state(CombatState.PARRY_SUCCESS)
 	attacker.force_stun(parry_heavy_neutral_lockout, true)
-	request_push_apart.emit(parry_heavy_pushback_pixels)
+	attacker.request_push_apart.emit(parry_heavy_pushback_pixels)
+	defender.request_push_apart.emit(parry_heavy_pushback_pixels)
 
 # Checagem de janela efetiva (usa relógio de PARRY_ACTIVE)
 func is_within_parry_window(effective_window: float) -> bool:

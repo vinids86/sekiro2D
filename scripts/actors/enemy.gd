@@ -212,6 +212,14 @@ func receive_attack(attacker: Node) -> void:
 	if c.combat_state == CombatController.CombatState.PARRY_SUCCESS:
 		return
 
+	# >>> NOVO: se estou GUARD_BROKEN, qualquer hit vira FINISHER
+	if c.combat_state == CombatController.CombatState.GUARD_BROKEN and atk_cfg:
+		_apply_attack_effects(atk_cfg)
+		if atk_cc:
+			atk_cc.resolve_finisher(atk_cc, c)
+		return
+	# <<< FIM NOVO
+
 	# 1) PARRY ativo → resolver por tipo (com janela efetiva)
 	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE and atk_cfg and atk_cfg.parryable:
 		var factor := atk_cfg.parry_window_factor if atk_cfg.parry_window_factor != 0.0 else 1.0
@@ -266,7 +274,6 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 	audio_out.play_stream(sfx_hit)
 
 	# === Regra: se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN ===
-	# (sem zerar “na marra”; só quando o próprio heavy gerou o esgotamento)
 	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
 		c.force_guard_broken()
 

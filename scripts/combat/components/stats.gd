@@ -8,7 +8,7 @@ signal died
 @export var max_health := 100.0
 @export var max_stamina := 100.0
 @export var stamina_recovery_rate := 20.0     # por segundo
-@export var stamina_recovery_delay := 1.0     # segundos sem recuperar após gasto
+@export var stamina_recovery_delay := 2.0     # segundos sem recuperar após gasto
 @export var exhausted_threshold := 10.0       # opcional: limiar (pode ser sincronizado com block_stamina_cost)
 
 var current_health := 0.0
