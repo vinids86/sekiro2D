@@ -132,6 +132,6 @@ static func heavy_preset() -> AttackConfig:
 	c.attack_animation = &"heavy_attack"
 	c.recovery_animation = &"heavy_recover"
 	c.attack_sound = preload("res://audio/heavy_attack.wav")
-	c.step_distance_px = 12.0
+	c.step_distance_px = 40.0
 	c.step_time_in_active = 0.02
 	return c
