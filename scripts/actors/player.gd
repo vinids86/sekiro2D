@@ -293,10 +293,16 @@ func receive_attack(attacker: Node) -> void:
 		take_damage(20)
 
 func _apply_attack_effects(cfg: AttackConfig) -> void:
+	var c := get_combat_controller()
+	# Guarda stamina antes do hit
+	var stamina_before := stats.current_stamina
+
+	# Pressão extra de stamina (antes do dano base)
 	if cfg.stamina_damage_extra > 0.0:
 		stats.consume_stamina(cfg.stamina_damage_extra)
 		stamina_changed.emit()
 
+	# Dano base: stamina absorve antes; sem stamina → vida
 	if stats.current_stamina > 0.0:
 		stats.consume_stamina(cfg.damage)
 		stamina_changed.emit()
@@ -308,6 +314,11 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 			die()
 
 	audio_out.play_stream(sfx_hit)
+
+	# === Regra: se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN ===
+	# (sem zerar “na marra”; só quando o próprio heavy gerou o esgotamento)
+	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
+		c.force_guard_broken()
 
 # ============================ Utilidades ============================
 

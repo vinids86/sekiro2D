@@ -3,7 +3,7 @@ class_name CombatController
 
 # ---------------- Enums ----------------
 enum StunKind { NONE, BLOCKED, PARRIED }
-enum CombatState { IDLE, STARTUP, ATTACKING, PARRY_ACTIVE, PARRY_SUCCESS, RECOVERING, STUNNED }
+enum CombatState { IDLE, STARTUP, ATTACKING, PARRY_ACTIVE, PARRY_SUCCESS, RECOVERING, STUNNED, GUARD_BROKEN }
 enum ActionType { NONE, ATTACK, PARRY }
 
 const EFFECT_PARRY_COOLDOWN := "parry_cooldown"
@@ -37,6 +37,12 @@ signal request_push_apart(pixels: float)
 # Duração base do PARRY_SUCCESS (defensor); pode ser sobrescrita no resolver
 @export var parry_success_base_lockout := 0.4
 
+# --- Guard Broken & Finisher ---
+@export var guard_broken_duration := 0.9
+@export var finisher_attacker_lockout := 0.45
+@export var finisher_defender_lockout := 0.9
+@export var finisher_push_px := 64.0
+
 # ---------------- Estado interno ----------------
 var combo_timeout_timer := 0.0
 var combo_in_progress := false
@@ -66,6 +72,7 @@ var parry_clock := 0.0
 # Override dinâmico de lockouts
 var parry_success_lockout_override := -1.0
 var stun_lockout_override := -1.0
+var guard_broken_lockout_override := -1.0
 
 # Sinaliza para lógica externa se o último parry foi contra HEAVY
 var last_parry_was_heavy := false
@@ -76,19 +83,20 @@ var stun_kind: StunKind = StunKind.NONE
 var _force_recover_timer := -1.0
 var _forced_lockout_active := false
 
-# === NOVO: suporte a ataque pesado (override + buffer próprio) ===
+# === suporte a ataque pesado (override + buffer próprio) ===
 var _override_attack: AttackConfig = null
 var _queued_heavy_cfg: AttackConfig = null
 var _queued_heavy_dir: Vector2 = Vector2.ZERO
 
 var transitions := {
-	CombatState.IDLE:          [CombatState.STARTUP, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
-	CombatState.STARTUP:       [CombatState.ATTACKING, CombatState.PARRY_ACTIVE, CombatState.STUNNED, CombatState.RECOVERING],
-	CombatState.ATTACKING:     [CombatState.RECOVERING, CombatState.STUNNED, CombatState.PARRY_ACTIVE],
-	CombatState.RECOVERING:    [CombatState.IDLE, CombatState.STUNNED, CombatState.STARTUP],
-	CombatState.PARRY_ACTIVE:  [CombatState.PARRY_SUCCESS, CombatState.IDLE, CombatState.STUNNED, CombatState.RECOVERING],
-	CombatState.PARRY_SUCCESS: [CombatState.IDLE, CombatState.STUNNED],
-	CombatState.STUNNED:       [CombatState.IDLE, CombatState.STUNNED, CombatState.PARRY_ACTIVE]
+	CombatState.IDLE:          [CombatState.STARTUP, CombatState.PARRY_ACTIVE, CombatState.STUNNED, CombatState.GUARD_BROKEN],
+	CombatState.STARTUP:       [CombatState.ATTACKING, CombatState.PARRY_ACTIVE, CombatState.STUNNED, CombatState.RECOVERING, CombatState.GUARD_BROKEN],
+	CombatState.ATTACKING:     [CombatState.RECOVERING, CombatState.STUNNED, CombatState.PARRY_ACTIVE, CombatState.GUARD_BROKEN],
+	CombatState.RECOVERING:    [CombatState.IDLE, CombatState.STUNNED, CombatState.STARTUP, CombatState.GUARD_BROKEN],
+	CombatState.PARRY_ACTIVE:  [CombatState.PARRY_SUCCESS, CombatState.IDLE, CombatState.STUNNED, CombatState.RECOVERING, CombatState.GUARD_BROKEN],
+	CombatState.PARRY_SUCCESS: [CombatState.IDLE, CombatState.STUNNED, CombatState.GUARD_BROKEN],
+	CombatState.STUNNED:       [CombatState.IDLE, CombatState.STUNNED, CombatState.PARRY_ACTIVE, CombatState.GUARD_BROKEN],
+	CombatState.GUARD_BROKEN:  [CombatState.IDLE] # não age; sai sozinho para IDLE
 }
 
 # --- Interface opcional injetada (desacoplado de Player/Enemy) ---
@@ -108,7 +116,6 @@ func _process(delta: float) -> void:
 		buffer_timer -= delta
 		if buffer_timer <= 0.0:
 			queued_action = ActionType.NONE
-			# expira também buffer pesado
 			_queued_heavy_cfg = null
 			_queued_heavy_dir = Vector2.ZERO
 
@@ -144,7 +151,7 @@ func _process(delta: float) -> void:
 
 func can_auto_advance() -> bool:
 	return [CombatState.STARTUP, CombatState.ATTACKING, CombatState.RECOVERING,
-			CombatState.STUNNED, CombatState.PARRY_ACTIVE, CombatState.PARRY_SUCCESS].has(combat_state)
+			CombatState.STUNNED, CombatState.PARRY_ACTIVE, CombatState.PARRY_SUCCESS, CombatState.GUARD_BROKEN].has(combat_state)
 
 func auto_advance_state() -> void:
 	match combat_state:
@@ -153,7 +160,6 @@ func auto_advance_state() -> void:
 		CombatState.ATTACKING:
 			change_state(CombatState.RECOVERING)
 		CombatState.RECOVERING:
-			# Se estamos em lockout forçado, sair direto para IDLE ao fim do timer
 			if _forced_lockout_active:
 				_forced_lockout_active = false
 			if _force_recover_timer >= 0.0:
@@ -167,12 +173,10 @@ func auto_advance_state() -> void:
 				state_timer = attack.recovery_soft if attack else 0.0
 				if buffer_timer > 0.0: buffer_timer = max(buffer_timer, chain_grace)
 				if (_queued_heavy_cfg != null and _can_chain_next_on_soft(attack)):
-					# chain para HEAVY
 					on_attack_finished(did_parry_succeed)
 					combo_in_progress = true
 					combo_timeout_timer = combo_timeout_duration
 					current_attack_direction = _queued_heavy_dir
-					# iniciar pesado agora
 					_start_heavy_from_buffer()
 					return
 				elif queued_action == ActionType.ATTACK and _can_chain_next_on_soft(attack):
@@ -194,9 +198,10 @@ func auto_advance_state() -> void:
 		CombatState.PARRY_ACTIVE:
 			if did_parry_succeed: change_state(CombatState.PARRY_SUCCESS)
 			else: change_state(CombatState.IDLE)
+		CombatState.GUARD_BROKEN:
+			change_state(CombatState.IDLE)
 
 func _finish_recover_and_exit() -> void:
-	# Se for lockout forçado, não aplicar lógica de combo/chain
 	if _forced_lockout_active or _force_recover_timer >= 0.0:
 		_forced_lockout_active = false
 		_force_recover_timer = -1.0
@@ -274,7 +279,6 @@ func _on_enter_state(state: CombatState) -> void:
 			state_timer = dur
 			queued_action = ActionType.NONE
 			buffer_timer = 0.0
-			# se estava com HEAVY enfileirado, limpa
 			_queued_heavy_cfg = null
 			_queued_heavy_dir = Vector2.ZERO
 
@@ -285,6 +289,19 @@ func _on_enter_state(state: CombatState) -> void:
 				parry_success_lockout_override = -1.0
 			state_timer = dur
 			play_stream.emit(sfx_parry_success)
+
+		CombatState.GUARD_BROKEN:
+			var dur := guard_broken_duration
+			if guard_broken_lockout_override >= 0.0:
+				dur = guard_broken_lockout_override
+				guard_broken_lockout_override = -1.0
+			state_timer = dur
+			queued_action = ActionType.NONE
+			buffer_timer = 0.0
+			_queued_heavy_cfg = null
+			_queued_heavy_dir = Vector2.ZERO
+			_override_attack = null
+			# (sem SFX por padrão; você pode tocar um no Player/Enemy)
 
 		CombatState.IDLE:
 			recovering_phase = 0
@@ -312,7 +329,7 @@ func try_execute_buffer() -> void:
 		if try_attack_heavy(_queued_heavy_cfg, _queued_heavy_dir, true):
 			_queued_heavy_cfg = null
 			_queued_heavy_dir = Vector2.ZERO
-			_clear_buffer() # limpa leve que porventura estava junto
+			_clear_buffer()
 		return
 
 	match queued_action:
@@ -325,14 +342,13 @@ func try_execute_buffer() -> void:
 				_clear_buffer()
 
 func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
-	if combat_state == CombatState.STUNNED:
+	if combat_state == CombatState.STUNNED or combat_state == CombatState.GUARD_BROKEN:
 		return false
 
 	var seq: Array = (_iface["get_attack_sequence"] as Callable).call()
 	if seq.is_empty():
 		return false
 
-	# Usa o ataque atual da sequência (sem override)
 	var attack = (_override_attack if _override_attack != null else _current_attack())
 	if not attack or not _iface.has_stamina.call(attack.stamina_cost):
 		return false
@@ -341,7 +357,6 @@ func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 		current_attack_direction = dir
 		combo_timeout_timer = combo_timeout_duration
 		combo_in_progress = true
-		# se houver override (heavy), STARTUP usará ele
 		change_state(CombatState.STARTUP)
 		return true
 	elif combat_state == CombatState.RECOVERING and recovering_phase == 2:
@@ -360,16 +375,13 @@ func try_attack(from_buffer := false, dir := Vector2.ZERO) -> bool:
 		buffer_timer = input_buffer_duration
 	return false
 
-# === NOVO: iniciar HEAVY ===
+# === Iniciar HEAVY ===
 func try_attack_heavy(cfg: AttackConfig, dir := Vector2.ZERO, from_buffer := false) -> bool:
-	if combat_state == CombatState.STUNNED:
+	if combat_state == CombatState.STUNNED or combat_state == CombatState.GUARD_BROKEN:
 		return false
-	if cfg == null:
-		return false
-	if not _iface.has_stamina.call(cfg.stamina_cost):
-		return false
+	if cfg == null: return false
+	if not _iface.has_stamina.call(cfg.stamina_cost): return false
 
-	# IDLE → inicia imediato com override
 	if combat_state == CombatState.IDLE:
 		_override_attack = cfg
 		current_attack_direction = dir
@@ -378,7 +390,6 @@ func try_attack_heavy(cfg: AttackConfig, dir := Vector2.ZERO, from_buffer := fal
 		change_state(CombatState.STARTUP)
 		return true
 
-	# Em RECOVERING fase 2 → chain se permitido
 	var curr: AttackConfig = _current_attack()
 	if combat_state == CombatState.RECOVERING and recovering_phase == 2 and _can_chain_next_on_soft(curr):
 		on_attack_finished(false)
@@ -390,7 +401,6 @@ func try_attack_heavy(cfg: AttackConfig, dir := Vector2.ZERO, from_buffer := fal
 		change_state(CombatState.STARTUP)
 		return true
 
-	# Caso contrário, bufferiza pesado
 	if not from_buffer:
 		_queued_heavy_cfg = cfg
 		_queued_heavy_dir = dir
@@ -398,15 +408,13 @@ func try_attack_heavy(cfg: AttackConfig, dir := Vector2.ZERO, from_buffer := fal
 	return false
 
 func _start_heavy_from_buffer() -> void:
-	if _queued_heavy_cfg == null:
-		return
+	if _queued_heavy_cfg == null: return
 	_override_attack = _queued_heavy_cfg
 	_queued_heavy_cfg = null
 	change_state(CombatState.STARTUP)
 
 func on_attack_finished(was_parried: bool) -> void:
 	var attack = _current_attack()
-	# Decide combo antes de limpar o override
 	if was_parried or (attack and attack.ends_combo):
 		combo_index = 0
 		combo_in_progress = false
@@ -414,7 +422,6 @@ func on_attack_finished(was_parried: bool) -> void:
 		var seq: Array = (_iface["get_attack_sequence"] as Callable).call()
 		if not seq.is_empty():
 			combo_index = (combo_index + 1) % seq.size()
-	# HEAVY finalizado → limpa override
 	_override_attack = null
 
 func can_transition_to_parry() -> bool:
@@ -428,11 +435,11 @@ func can_transition_to_parry() -> bool:
 		CombatState.ATTACKING: return attack and attack.can_cancel_to_parry_on_active
 		CombatState.RECOVERING: return false
 		CombatState.STUNNED: return true
+		CombatState.GUARD_BROKEN: return false
 		_: return false
 
 func try_parry(from_buffer := false, dir := Vector2.ZERO) -> bool:
 	if not can_transition_to_parry():
-		# Se falhou por cooldown, NÃO bufferiza (ignora input)
 		if not from_buffer and not has_effect(EFFECT_PARRY_COOLDOWN):
 			queued_action = ActionType.PARRY
 			queued_direction = dir
@@ -451,6 +458,27 @@ func force_stun(duration: float, as_parried := true) -> void:
 	stun_lockout_override = max(0.0, duration)
 	change_state(CombatState.STUNNED)
 
+# --- GUARD BROKEN ---
+func force_guard_broken(duration := -1.0) -> void:
+	var dur := guard_broken_duration if duration < 0.0 else duration
+	guard_broken_lockout_override = dur
+	queued_action = ActionType.NONE
+	buffer_timer = 0.0
+	_queued_heavy_cfg = null
+	_queued_heavy_dir = Vector2.ZERO
+	_override_attack = null
+	change_state(CombatState.GUARD_BROKEN)
+
+func is_guard_broken() -> bool:
+	return combat_state == CombatState.GUARD_BROKEN
+
+# --- Resolução de Finisher (após acertar alguém em GUARD_BROKEN) ---
+func resolve_finisher(attacker: CombatController, defender: CombatController) -> void:
+	# Ambos entram em lockout (neutro) e se separam
+	attacker.force_lockout(finisher_attacker_lockout)
+	defender.force_lockout(finisher_defender_lockout)
+	request_push_apart.emit(finisher_push_px)
+
 func on_parried() -> void:
 	stun_kind = StunKind.PARRIED
 	change_state(CombatState.STUNNED)
@@ -464,7 +492,6 @@ func can_act() -> bool:
 	return combat_state in [CombatState.IDLE, CombatState.RECOVERING]
 
 func _current_attack():
-	# Se houver override (HEAVY), ele manda:
 	if _override_attack != null:
 		return _override_attack
 	var seq: Array = _iface.get_attack_sequence.call()
@@ -478,7 +505,6 @@ func _clear_buffer() -> void:
 	queued_action = ActionType.NONE
 	queued_direction = Vector2.ZERO
 	buffer_timer = 0.0
-	# não mexe no buffer pesado aqui; ele tem ciclo próprio
 
 func get_current_attack():
 	return _current_attack()
@@ -493,18 +519,16 @@ func _check_attack_step(t: float, prev_t: float) -> void:
 
 # ---------------- Helpers p/ parry e lockouts ----------------
 
-# Lockout "seco": ignora a lógica normal de RECOVERING (mantido p/ outros usos)
 func force_lockout(duration: float) -> void:
 	_force_recover_timer = max(0.0, duration)
 	_forced_lockout_active = true
 	queued_action = ActionType.NONE
 	buffer_timer = 0.0
-	# cancela qualquer heavy enfileirado
 	_queued_heavy_cfg = null
 	_queued_heavy_dir = Vector2.ZERO
 	change_state(CombatState.RECOVERING)
 
-# Parry LEVE: vira o turno (atacante STUNNED longo; defensor PARRY_SUCCESS curto)
+# Parry LEVE
 func resolve_parry_light(attacker: CombatController, defender: CombatController) -> void:
 	defender.did_parry_succeed = true
 	defender.last_parry_was_heavy = false
@@ -513,7 +537,7 @@ func resolve_parry_light(attacker: CombatController, defender: CombatController)
 		defender.change_state(CombatState.PARRY_SUCCESS)
 	attacker.force_stun(parry_light_lockout_attacker, true)
 
-# Parry PESADO: neutro — ambos com mesmo lockout; afastamento
+# Parry PESADO: neutro
 func resolve_parry_heavy_neutral(attacker: CombatController, defender: CombatController) -> void:
 	defender.did_parry_succeed = true
 	defender.last_parry_was_heavy = true
