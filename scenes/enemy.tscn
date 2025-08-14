@@ -1,18 +1,28 @@
-[gd_scene load_steps=54 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=64 format=3 uid="uid://bd2t2qkjkliam"]
 
-[ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/enemy.gd" id="1_md0e3"]
+[ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
 [ext_resource type="Texture2D" uid="uid://ox35kql0byrc" path="res://assets/player_attack-Sheet.png" id="2_nenq2"]
-[ext_resource type="Script" uid="uid://b17ee834ggrbu" path="res://scripts/combat_controller.gd" id="3_4ra3w"]
+[ext_resource type="AudioStream" uid="uid://bcfa1sky1hlx5" path="res://audio/block.wav" id="2_rogs8"]
+[ext_resource type="Script" uid="uid://b17ee834ggrbu" path="res://scripts/combat/combat_controller.gd" id="3_4ra3w"]
 [ext_resource type="Texture2D" uid="uid://bsud8yd4gfb7b" path="res://assets/Enemy_Attack_1.png" id="3_w8i8w"]
+[ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="3_wrm80"]
 [ext_resource type="Texture2D" uid="uid://h5poapapcf0x" path="res://assets/new/atk 1.png" id="3_wtq4b"]
+[ext_resource type="AudioStream" uid="uid://2wbhcodhwk6e" path="res://audio/die.wav" id="4_6awcb"]
 [ext_resource type="Texture2D" uid="uid://cc6rflvgy3vfx" path="res://assets/Enemy_Attack_2.png" id="4_otmr2"]
 [ext_resource type="Texture2D" uid="uid://cppy6ykfvvktv" path="res://assets/Enemy_Attack_3.png" id="5_wtq4b"]
 [ext_resource type="Texture2D" uid="uid://bbb6485jka1h6" path="res://assets/new/hit.png" id="6_wtq4b"]
-[ext_resource type="Script" uid="uid://0i0csel48jdr" path="res://scripts/attack_hitbox.gd" id="6_xwavj"]
+[ext_resource type="Script" uid="uid://0i0csel48jdr" path="res://scripts/combat/hitbox/attack_hitbox.gd" id="6_xwavj"]
 [ext_resource type="Texture2D" uid="uid://b7o6ntlcgo5fk" path="res://assets/new/parry.png" id="7_j0cyh"]
 [ext_resource type="Texture2D" uid="uid://ckqcjiwbpo5f6" path="res://assets/new/idle.png" id="8_wtq4b"]
 [ext_resource type="Texture2D" uid="uid://sdkm3twcoboj" path="res://assets/new/shield.png" id="11_j0cyh"]
+[ext_resource type="Script" uid="uid://cmyfb1ctqic7b" path="res://scripts/combat/components/audio_outlet.gd" id="12_ile5s"]
+[ext_resource type="Script" uid="uid://biohrn10on4a4" path="res://scripts/combat/components/stats.gd" id="15_1x4g4"]
+[ext_resource type="Script" uid="uid://c1k2ov1xkueas" path="res://scripts/combat/components/animation_driver.gd" id="16_2pwtc"]
+[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="16_6awcb"]
+[ext_resource type="Script" uid="uid://bqisijj67a3tv" path="res://scripts/combat/components/attack_stepper.gd" id="17_rogs8"]
+[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
+[ext_resource type="Script" uid="uid://co7hq7vicwny6" path="res://scripts/actors/enemy_brain.gd" id="18_wrm80"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
 size = Vector2(100, 145)
@@ -418,7 +428,9 @@ size = Vector2(100, 145)
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1_md0e3")
-parry_chance = 0.5
+sfx_block = ExtResource("2_rogs8")
+sfx_hit = ExtResource("3_wrm80")
+sfx_die = ExtResource("4_6awcb")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_md0e3")
@@ -426,8 +438,8 @@ shape = SubResource("RectangleShape2D_md0e3")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 material = SubResource("ShaderMaterial_ipns3")
 sprite_frames = SubResource("SpriteFrames_g0wcc")
-animation = &"stunned_parry"
-frame_progress = 0.28429
+animation = &"stunned_block_b"
+frame_progress = 0.497781
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
@@ -441,6 +453,8 @@ shape = SubResource("RectangleShape2D_4ra3w")
 
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("3_4ra3w")
+sfx_parry_active = ExtResource("16_6awcb")
+sfx_parry_success = ExtResource("17_wjec0")
 metadata/_custom_type_script = "uid://b17ee834ggrbu"
 
 [node name="AttackHitbox" type="Area2D" parent="."]
@@ -450,3 +464,27 @@ script = ExtResource("6_xwavj")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
 shape = SubResource("RectangleShape2D_lsnsy")
+
+[node name="Stats" type="Node" parent="."]
+script = ExtResource("15_1x4g4")
+metadata/_custom_type_script = "uid://biohrn10on4a4"
+
+[node name="AnimationDriver" type="Node" parent="."]
+script = ExtResource("16_2pwtc")
+sprite_path = NodePath("../AnimatedSprite2D")
+metadata/_custom_type_script = "uid://c1k2ov1xkueas"
+
+[node name="AudioOutlet" type="Node" parent="."]
+script = ExtResource("12_ile5s")
+player_path = NodePath("../AudioEnemy")
+metadata/_custom_type_script = "uid://cmyfb1ctqic7b"
+
+[node name="AttackStepper" type="Node" parent="."]
+script = ExtResource("17_rogs8")
+body_path = NodePath("..")
+metadata/_custom_type_script = "uid://bqisijj67a3tv"
+
+[node name="EnemyBrain" type="Node" parent="."]
+script = ExtResource("18_wrm80")
+enemy_path = NodePath("..")
+metadata/_custom_type_script = "uid://co7hq7vicwny6"

@@ -8,4 +8,4 @@ func _ready():
 	
 func update():
 	if enemy:
-		value = clamp(enemy.current_health, min_value, max_value)
+		value = clamp(enemy.stats.current_health, min_value, max_value)

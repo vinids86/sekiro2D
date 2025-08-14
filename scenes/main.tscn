@@ -5,12 +5,12 @@
 [ext_resource type="PackedScene" uid="uid://5aqapyppbkdg" path="res://scenes/player.tscn" id="2_sugp2"]
 [ext_resource type="Texture2D" uid="uid://cmpxu72ks47x3" path="res://assets/under_stamina.png" id="4_tefeu"]
 [ext_resource type="Texture2D" uid="uid://cwv3m6q2qjgf1" path="res://assets/progress_stamina.png" id="5_o6xl0"]
-[ext_resource type="Script" uid="uid://xyxpjfmn1vpc" path="res://scripts/stamina_bar.gd" id="6_tipki"]
+[ext_resource type="Script" uid="uid://xyxpjfmn1vpc" path="res://scripts/ui/stamina_bar.gd" id="6_tipki"]
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
-[ext_resource type="Script" uid="uid://cd6klghkngeh5" path="res://scripts/health_bar.gd" id="8_85g3d"]
+[ext_resource type="Script" uid="uid://cd6klghkngeh5" path="res://scripts/ui/health_bar.gd" id="8_85g3d"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
-[ext_resource type="Script" uid="uid://dtd7fr57sp82i" path="res://scripts/enemy_stamina_bar.gd" id="9_choun"]
-[ext_resource type="Script" uid="uid://cy2yvj6sm53jd" path="res://scripts/enemy_health_bar.gd" id="10_ya4ey"]
+[ext_resource type="Script" uid="uid://dtd7fr57sp82i" path="res://scripts/ui/enemy_stamina_bar.gd" id="9_choun"]
+[ext_resource type="Script" uid="uid://cy2yvj6sm53jd" path="res://scripts/ui/enemy_health_bar.gd" id="10_ya4ey"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ya4ey"]
 size = Vector2(1152, 40)
@@ -35,7 +35,6 @@ position = Vector2(460, 285)
 
 [node name="Enemy" parent="." instance=ExtResource("9_85g3d")]
 position = Vector2(601, 285)
-player_path = NodePath("../Player")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

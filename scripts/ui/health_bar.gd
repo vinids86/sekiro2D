@@ -4,8 +4,8 @@ extends TextureProgressBar
 
 func _ready():
 	update()
-	player.stamina_changed.connect(update)
+	player.health_changed.connect(update)
 	
 func update():
 	if player:
-		value = clamp(player.current_stamina, min_value, max_value)
+		value = clamp(player.stats.current_health, min_value, max_value)
