@@ -1,4 +1,4 @@
-[gd_scene load_steps=68 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=72 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/player.gd" id="1_onrkg"]
 [ext_resource type="AudioStream" uid="uid://bcfa1sky1hlx5" path="res://audio/block.wav" id="2_4r5pv"]
@@ -45,6 +45,22 @@ region = Rect2(0, 0, 128, 128)
 [sub_resource type="AtlasTexture" id="AtlasTexture_qfm1y"]
 atlas = ExtResource("4_y4r1p")
 region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4gjji"]
+atlas = ExtResource("3_f1ej7")
+region = Rect2(960, 0, 320, 180)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u2ulf"]
+atlas = ExtResource("3_f1ej7")
+region = Rect2(1280, 0, 320, 180)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_74r1k"]
+atlas = ExtResource("3_f1ej7")
+region = Rect2(0, 0, 320, 180)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8svfe"]
+atlas = ExtResource("3_f1ej7")
+region = Rect2(1600, 0, 320, 180)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jc3p3"]
 atlas = ExtResource("7_3v2ag")
@@ -243,6 +259,33 @@ animations = [{
 "loop": true,
 "name": &"guard_broken",
 "speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4gjji")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u2ulf")
+}],
+"loop": true,
+"name": &"heavy_attack",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_74r1k")
+}],
+"loop": true,
+"name": &"heavy_recover",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8svfe")
+}],
+"loop": true,
+"name": &"heavy_startup",
+"speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -513,7 +556,7 @@ shape = SubResource("RectangleShape2D_hqtel")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_dw050")
-animation = &"stunned_block_a"
+animation = &"heavy_startup"
 
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("4_dqkch")

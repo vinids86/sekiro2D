@@ -27,10 +27,16 @@ signal health_changed
 
 var last_direction := "left"
 var stunned_block_toggle := false
-var should_attack_after_parry := false
+
+# Pressão contínua após parry de leve (ataca até acabar stamina ou ser parryado)
+var pressuring_after_parry := false
+var _pending_auto_attack := false
 
 var attack_sequence: Array[AttackConfig] = []
 var exhausted_lock_timer := 0.0
+
+# Guarda último agressor p/ afastamento no parry pesado
+var _last_attacker_node: Node2D = null
 
 func _ready() -> void:
 	attack_sequence = AttackConfig.default_sequence()
@@ -50,6 +56,8 @@ func _ready() -> void:
 	controller.connect("state_changed", _on_state_changed_with_dir)
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
 	controller.attack_step.connect(func(dist): stepper.start_step(dist, last_direction == "left"))
+	# Afastamento solicitado após parry pesado
+	controller.request_push_apart.connect(_on_request_push_apart)
 
 	stats.health_changed.connect(func(_c,_m): health_changed.emit())
 	stats.stamina_changed.connect(func(_c,_m): stamina_changed.emit())
@@ -89,10 +97,15 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 		CombatController.CombatState.IDLE:
 			anim.play_state_anim("idle")
 			attack_hitbox.disable()
-			if should_attack_after_parry:
-				should_attack_after_parry = false
-				var attack_vector := get_vector_from_label(last_direction)
-				call_deferred("_delayed_attack", attack_vector)
+			# Loop de pressão após parry leve: tenta atacar enquanto houver stamina
+			if pressuring_after_parry and not _pending_auto_attack:
+				var next: AttackConfig = controller.get_current_attack()
+				if next and stats.has_stamina(next.stamina_cost):
+					_pending_auto_attack = true
+					var attack_vector := get_vector_from_label(last_direction)
+					call_deferred("_auto_attack_from_pressure", attack_vector)
+				else:
+					pressuring_after_parry = false
 
 		CombatController.CombatState.STARTUP:
 			if attack: anim.play_exact(attack.startup_animation)
@@ -105,8 +118,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 		CombatController.CombatState.RECOVERING:
 			if attack: anim.play_exact(attack.recovery_animation)
 			attack_hitbox.disable()
-			if not controller.did_parry_succeed:
-				should_attack_after_parry = true
+			# (não arma nada aqui; quem decide é PARRY_SUCCESS/IDLE acima)
 
 		CombatController.CombatState.PARRY_ACTIVE:
 			anim.play_exact("parry")
@@ -118,14 +130,21 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			stunned_block_toggle = not stunned_block_toggle
 			controller.stun_kind = CombatController.StunKind.NONE
 			anim.play_exact(a)
+			# Se fui parryado, cancela pressão (para respeitar “até eu ser parryado”)
+			pressuring_after_parry = false
 
 		CombatController.CombatState.PARRY_SUCCESS:
 			anim.play_exact("parry_success")
 			attack_hitbox.disable()
-			should_attack_after_parry = true
+			# Se parry foi de LEVE → inicia/continua pressão; PESADO → neutro (sem pressão)
+			pressuring_after_parry = not controller.last_parry_was_heavy
 
 	# flip centralizado no AnimationDriver
 	anim.set_direction_label(last_direction)
+
+func _auto_attack_from_pressure(attack_vector: Vector2) -> void:
+	_pending_auto_attack = false
+	controller.try_attack(false, attack_vector)
 
 func get_label_from_vector(dir: Vector2) -> String:
 	if dir == Vector2.ZERO:
@@ -175,19 +194,74 @@ func is_exhausted() -> bool:
 		return true
 	return stats.is_exhausted(controller.block_stamina_cost)
 
+# ============================ COMBATE: RECEBER ATAQUE ============================
+
 func receive_attack(attacker: Node) -> void:
+	_last_attacker_node = attacker as Node2D
+
 	var c := get_combat_controller()
-	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE:
-		c.did_parry_succeed = true
-		if attacker and attacker.has_method("on_parried"):
-			attacker.on_parried()
+	var atk_cc: CombatController = null
+	var atk_cfg: AttackConfig = null
+
+	if attacker and attacker.has_node("CombatController"):
+		atk_cc = attacker.get_node("CombatController") as CombatController
+		if atk_cc:
+			atk_cfg = atk_cc.get_current_attack()
+
+	# I-FRAMES: durante PARRY_SUCCESS não recebe hit nem auto-block
+	if c.combat_state == CombatController.CombatState.PARRY_SUCCESS:
 		return
-	if has_stamina(c.block_stamina_cost):
+
+	# 1) PARRY ativo → resolver por tipo (com janela efetiva)
+	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE and atk_cfg and atk_cfg.parryable:
+		var factor := atk_cfg.parry_window_factor if atk_cfg.parry_window_factor != 0.0 else 1.0
+		var eff := c.parry_window * factor
+		if c.is_within_parry_window(eff):
+			c.did_parry_succeed = true
+			if atk_cfg.kind == AttackConfig.AttackKind.HEAVY:
+				c.resolve_parry_heavy_neutral(atk_cc, c)
+			else:
+				c.resolve_parry_light(atk_cc, c)
+			return
+
+	# 2) AUTO-BLOCK: só contra leves que não bypassam
+	var can_autoblock := false
+	if atk_cfg:
+		var is_light := (atk_cfg.kind == AttackConfig.AttackKind.NORMAL)
+		can_autoblock = is_light and not atk_cfg.bypass_auto_block
+
+	if can_autoblock and has_stamina(c.block_stamina_cost):
 		audio_out.play_stream(sfx_block)
 		c.on_blocked()
 		return
+
+	# 3) HIT real → aplicar dano/stamina
+	if atk_cfg:
+		_apply_attack_effects(atk_cfg)
+	else:
+		audio_out.play_stream(sfx_hit)
+		take_damage(20)
+
+func _apply_attack_effects(cfg: AttackConfig) -> void:
+	# Pressão extra de stamina
+	if cfg.stamina_damage_extra > 0.0:
+		stats.consume_stamina(cfg.stamina_damage_extra)
+		stamina_changed.emit()
+
+	# Dano base: stamina absorve antes; sem stamina → vida
+	if stats.current_stamina > 0.0:
+		stats.consume_stamina(cfg.damage)
+		stamina_changed.emit()
+	else:
+		stats.take_damage(cfg.damage)
+		flash_hit_color()
+		health_changed.emit()
+		if stats.current_health <= 0.0:
+			die()
+
 	audio_out.play_stream(sfx_hit)
-	take_damage(20)
+
+# ============================ Utilidades ============================
 
 func take_damage(amount: float) -> void:
 	stats.take_damage(amount)
@@ -201,6 +275,8 @@ func die() -> void:
 
 func on_parried() -> void:
 	controller.on_parried()
+	# se fui parryado, interrompe pressão
+	pressuring_after_parry = false
 
 func on_blocked() -> void:
 	controller.on_blocked()
@@ -214,3 +290,15 @@ func flash_hit_color(duration := 0.1) -> void:
 		flash_material.set("shader_parameter/flash", true)
 		await get_tree().create_timer(duration).timeout
 		flash_material.set("shader_parameter/flash", false)
+
+# Afastamento simples após parry pesado (neutro)
+func _on_request_push_apart(pixels: float) -> void:
+	if _last_attacker_node == null or not is_instance_valid(_last_attacker_node):
+		return
+	var a := _last_attacker_node.global_position
+	var b := global_position
+	var dir := (b - a).normalized()
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	_last_attacker_node.global_position -= dir * pixels
+	global_position += dir * pixels

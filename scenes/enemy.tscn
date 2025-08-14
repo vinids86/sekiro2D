@@ -478,6 +478,7 @@ metadata/_custom_type_script = "uid://bqisijj67a3tv"
 [node name="EnemyBrain" type="Node" parent="."]
 script = ExtResource("18_wrm80")
 enemy_path = NodePath("..")
+parry_chance = 1.0
 metadata/_custom_type_script = "uid://co7hq7vicwny6"
 
 [node name="ScreenClamp" type="Node" parent="."]

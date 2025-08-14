@@ -12,6 +12,10 @@ signal health_changed
 @export var sfx_hit: AudioStream
 @export var sfx_die: AudioStream
 
+# HEAVY via hold
+@export var heavy_attack: AttackConfig
+@export var heavy_hold_threshold := 0.33
+
 @onready var controller: CombatController = $CombatController
 @onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
 @onready var attack_hitbox: Area2D = $AttackHitbox
@@ -35,45 +39,48 @@ var attack_sequence: Array[AttackConfig] = []
 # Timers auxiliares
 var exhausted_lock_timer := 0.0
 
+# Guarda o último agressor para aplicar afastamento após parry pesado
+var _last_attacker_node: Node2D = null
+
+# --- Estado do hold para HEAVY ---
+var _attack_hold_active := false
+var _attack_hold_timer := 0.0
+var _attack_hold_dir := Vector2.ZERO
+var _heavy_sent := false
+
 func _ready() -> void:
-	# sequência default (você pode trocar depois por resource no editor)
 	attack_sequence = AttackConfig.default_sequence()
 
-	# Interface para desacoplar o controller
 	controller.setup(self, {
 		"get_attack_sequence": func() -> Array: return attack_sequence,
 		"has_stamina": func(cost: float) -> bool: return stats.has_stamina(cost),
 		"consume_stamina": func(cost: float) -> void: stats.consume_stamina(cost)
 	})
 
-	# sinais do controller
 	controller.play_stream.connect(func(s: AudioStream): audio_out.play_stream(s))
 	controller.connect("state_changed", _on_state_changed_with_dir)
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
 	controller.attack_step.connect(func(dist): stepper.start_step(dist, last_direction == "left"))
+	controller.request_push_apart.connect(_on_request_push_apart)
 
-	# sinais dos stats → propagar para HUD externa se estiver conectada a Player
 	stats.health_changed.connect(func(_c,_m): health_changed.emit())
 	stats.stamina_changed.connect(func(_c,_m): stamina_changed.emit())
 
-	# garantir pose inicial coerente
+	if heavy_attack == null:
+		heavy_attack = AttackConfig.heavy_preset()
+
 	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
 
 func _physics_process(delta: float) -> void:
-	# recuperação de stamina via componente
 	stats.tick(delta)
-
-	# aplica "step" do ataque (empurrão curto) via componente
 	stepper.physics_tick(delta)
 
-	# movimento livre só quando IDLE
 	var can_move := controller.combat_state == CombatController.CombatState.IDLE
 	var input_dir := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
 
 	if can_move:
 		velocity.x = input_dir * speed
 	else:
-		# se não estiver em step ativo, congela
 		if not _is_step_active():
 			velocity.x = 0.0
 
@@ -81,18 +88,16 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	clamp2d.physics_tick()
 
-	# animação livre (idle/walk) só no IDLE; demais estados o AnimationDriver decide
 	if can_move:
 		var moving := absf(velocity.x) > 0.1
 		var base := "walk" if moving else "idle"
 		anim.set_exhausted(is_exhausted())
 		anim.play_state_anim(base)
 
-	# flip é centralizado no AnimationDriver
 	anim.set_direction_label(last_direction)
 
 func _process(delta: float) -> void:
-	# buffer de direção (igual seu código antigo)
+	# buffer de direção
 	var dir := get_current_input_direction()
 	if dir != Vector2.ZERO:
 		input_direction_buffer = dir
@@ -106,24 +111,59 @@ func _process(delta: float) -> void:
 	if exhausted_lock_timer > 0.0:
 		exhausted_lock_timer -= delta
 
-	handle_input()
+	# atualização do hold de ataque pesado
+	_update_attack_hold(delta)
 
-func handle_input() -> void:
+	# outros inputs
+	handle_input_parry_only()
+
+func handle_input_parry_only() -> void:
 	var input_dir := get_current_input_direction()
 
 	# atualizar facing quando puder andar
 	if input_dir != Vector2.ZERO and controller.combat_state == CombatController.CombatState.IDLE:
 		last_direction = get_label_from_vector(input_dir)
 
-	if Input.is_action_just_pressed("attack"):
-		var started := controller.try_attack(false, input_direction_buffer)
-		if not started:
-			controller.queued_direction = input_direction_buffer
-
+	# parry permanece no botão próprio
 	if Input.is_action_just_pressed("parry"):
 		var started := controller.try_parry(false, input_dir)
 		if not started:
 			controller.queued_direction = input_dir
+
+func _update_attack_hold(delta: float) -> void:
+	# início do hold
+	if Input.is_action_just_pressed("attack"):
+		_attack_hold_active = true
+		_attack_hold_timer = 0.0
+		_heavy_sent = false
+
+		# trava a direção do ataque no momento do press (usa buffer ou facing)
+		var dir := input_direction_buffer
+		if dir == Vector2.ZERO:
+			dir = get_current_input_direction()
+		if dir == Vector2.ZERO:
+			dir = Vector2(1, 0) if last_direction == "right" else Vector2(-1, 0)
+		_attack_hold_dir = dir
+
+	# mantendo pressionado
+	if _attack_hold_active and Input.is_action_pressed("attack"):
+		_attack_hold_timer += delta
+		# se passou do threshold e ainda não disparamos o HEAVY → dispara
+		if not _heavy_sent and _attack_hold_timer >= heavy_hold_threshold:
+			_heavy_sent = true
+			_attack_hold_active = false
+			if heavy_attack and controller.has_method("try_attack_heavy"):
+				controller.try_attack_heavy(heavy_attack, _attack_hold_dir)
+			else:
+				# fallback (se ainda não aplicamos o patch no controller): leve
+				controller.try_attack(false, _attack_hold_dir)
+		return
+
+	# soltou antes do threshold → leve
+	if _attack_hold_active and Input.is_action_just_released("attack"):
+		_attack_hold_active = false
+		if not _heavy_sent:
+			controller.try_attack(false, _attack_hold_dir)
 
 func get_current_input_direction() -> Vector2:
 	return Vector2(
@@ -148,14 +188,11 @@ func update_attack_hitbox_position(direction: String) -> void:
 	attack_hitbox.position = offset
 
 func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction: Vector2) -> void:
-	# direção de ataque define o facing se houver
 	if attack_direction != Vector2.ZERO:
 		last_direction = "right" if attack_direction.x >= 0.0 else "left"
 
-	# manter hitbox na frente
 	update_attack_hitbox_position(last_direction)
 
-	# animações por estado via AnimationDriver
 	var attack = controller.get_current_attack()
 	anim.set_direction_label(last_direction)
 	anim.set_exhausted(is_exhausted())
@@ -173,6 +210,7 @@ func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction
 			anim.play_exact("parry")
 		CombatController.CombatState.PARRY_SUCCESS:
 			anim.play_exact("parry_success")
+			attack_hitbox.disable() # blindagem
 		CombatController.CombatState.STUNNED:
 			var a := ("stunned_parry" if controller.stun_kind == CombatController.StunKind.PARRIED
 				else ("stunned_block_b" if stunned_block_toggle else "stunned_block_a"))
@@ -185,11 +223,9 @@ func _on_hitbox_active_changed(on: bool) -> void:
 	else: attack_hitbox.disable()
 
 func _is_step_active() -> bool:
-	# AttackStepper cuida do velocity.x durante o step;
-	# aqui só checamos se o controller está em ATTACKING e o stepper com timer > 0.
 	return controller.combat_state == CombatController.CombatState.ATTACKING
 
-# ======= Interface esperada pelo CombatController (seus nomes mantidos) =======
+# ======= Interface esperada pelo CombatController =======
 
 func get_combat_controller() -> CombatController:
 	return controller
@@ -200,7 +236,6 @@ func has_stamina(amount: float) -> bool:
 func consume_stamina(amount: float) -> void:
 	var before := stats.current_stamina
 	stats.consume_stamina(amount)
-	# opcional: trave ações por um curto período ao cruzar o threshold
 	if before >= controller.block_stamina_cost and stats.current_stamina < controller.block_stamina_cost:
 		exhausted_lock_timer = exhausted_lock_duration
 
@@ -209,19 +244,72 @@ func is_exhausted() -> bool:
 		return true
 	return stats.is_exhausted(controller.block_stamina_cost)
 
+# ============================ COMBATE: RECEBER ATAQUE ============================
+
 func receive_attack(attacker: Node) -> void:
+	_last_attacker_node = attacker as Node2D
+
 	var c := get_combat_controller()
-	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE:
-		c.did_parry_succeed = true
-		if attacker and attacker.has_method("on_parried"):
-			attacker.on_parried()
+	var atk_cc: CombatController = null
+	var atk_cfg: AttackConfig = null
+
+	if attacker and attacker.has_node("CombatController"):
+		atk_cc = attacker.get_node("CombatController") as CombatController
+		if atk_cc:
+			atk_cfg = atk_cc.get_current_attack()
+
+	# I-FRAMES curtos: durante PARRY_SUCCESS não recebe hit nem auto-block
+	if c.combat_state == CombatController.CombatState.PARRY_SUCCESS:
 		return
-	if has_stamina(c.block_stamina_cost):
+
+	# 1) Se estou em PARRY_ACTIVE → testar janela efetiva por tipo
+	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE and atk_cfg and atk_cfg.parryable:
+		var factor := atk_cfg.parry_window_factor if atk_cfg.parry_window_factor != 0.0 else 1.0
+		var eff := c.parry_window * factor
+		if c.is_within_parry_window(eff):
+			c.did_parry_succeed = true
+			if atk_cfg.kind == AttackConfig.AttackKind.HEAVY:
+				c.resolve_parry_heavy_neutral(atk_cc, c)
+			else:
+				c.resolve_parry_light(atk_cc, c)
+			return
+
+	# 2) AUTO-BLOCK só vale contra leves e quando o golpe NÃO bypassa auto-block
+	var can_autoblock := false
+	if atk_cfg:
+		var is_light := (atk_cfg.kind == AttackConfig.AttackKind.NORMAL)
+		can_autoblock = is_light and not atk_cfg.bypass_auto_block
+
+	if can_autoblock and has_stamina(c.block_stamina_cost):
 		audio_out.play_stream(sfx_block)
 		c.on_blocked()
 		return
+
+	# 3) HIT REAL: aplicar pressão de stamina + dano
+	if atk_cfg:
+		_apply_attack_effects(atk_cfg)
+	else:
+		audio_out.play_stream(sfx_hit)
+		take_damage(20)
+
+func _apply_attack_effects(cfg: AttackConfig) -> void:
+	if cfg.stamina_damage_extra > 0.0:
+		stats.consume_stamina(cfg.stamina_damage_extra)
+		stamina_changed.emit()
+
+	if stats.current_stamina > 0.0:
+		stats.consume_stamina(cfg.damage)
+		stamina_changed.emit()
+	else:
+		stats.take_damage(cfg.damage)
+		flash_hit_color()
+		health_changed.emit()
+		if stats.current_health <= 0.0:
+			die()
+
 	audio_out.play_stream(sfx_hit)
-	take_damage(20)
+
+# ============================ Utilidades ============================
 
 func take_damage(amount: float) -> void:
 	stats.take_damage(amount)
@@ -239,11 +327,20 @@ func on_parried() -> void:
 func on_blocked() -> void:
 	controller.on_blocked()
 
-func _on_cc_play_stream(stream: AudioStream) -> void:
-	audio_out.play_stream(stream)
-
 func flash_hit_color(duration := 0.1) -> void:
 	if flash_material:
 		flash_material.set("shader_parameter/flash", true)
 		await get_tree().create_timer(duration).timeout
 		flash_material.set("shader_parameter/flash", false)
+
+# Afastamento simples após parry pesado (neutro)
+func _on_request_push_apart(pixels: float) -> void:
+	if _last_attacker_node == null or not is_instance_valid(_last_attacker_node):
+		return
+	var a := _last_attacker_node.global_position
+	var b := global_position
+	var dir := (b - a).normalized()
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	_last_attacker_node.global_position -= dir * pixels
+	global_position += dir * pixels
