@@ -23,6 +23,7 @@ signal health_changed
 @onready var anim: AnimationDriver = $AnimationDriver
 @onready var audio_out: AudioOutlet = $AudioOutlet
 @onready var stepper: AttackStepper = $AttackStepper
+@onready var clamp2d: ScreenClamp = $ScreenClamp
 
 var last_direction := "right"
 var input_direction_buffer := Vector2.ZERO
@@ -78,6 +79,7 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = 0.0
 	move_and_slide()
+	clamp2d.physics_tick()
 
 	# animação livre (idle/walk) só no IDLE; demais estados o AnimationDriver decide
 	if can_move:

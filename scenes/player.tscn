@@ -1,4 +1,4 @@
-[gd_scene load_steps=70 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=68 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/player.gd" id="1_onrkg"]
 [ext_resource type="AudioStream" uid="uid://bcfa1sky1hlx5" path="res://audio/block.wav" id="2_4r5pv"]
@@ -12,7 +12,6 @@
 [ext_resource type="Texture2D" uid="uid://bbb6485jka1h6" path="res://assets/new/hit.png" id="6_jej6c"]
 [ext_resource type="Texture2D" uid="uid://ckqcjiwbpo5f6" path="res://assets/new/idle.png" id="7_3v2ag"]
 [ext_resource type="Script" uid="uid://0i0csel48jdr" path="res://scripts/combat/hitbox/attack_hitbox.gd" id="7_fjrip"]
-[ext_resource type="Texture2D" uid="uid://sdkm3twcoboj" path="res://assets/new/shield.png" id="9_3v2ag"]
 [ext_resource type="Texture2D" uid="uid://b1uu6430axjox" path="res://assets/new/walk.png" id="9_d2wvv"]
 [ext_resource type="Texture2D" uid="uid://b7o6ntlcgo5fk" path="res://assets/new/parry.png" id="10_jej6c"]
 [ext_resource type="Script" uid="uid://c1k2ov1xkueas" path="res://scripts/combat/components/animation_driver.gd" id="11_a8ls1"]
@@ -21,6 +20,7 @@
 [ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="15_i4ail"]
 [ext_resource type="Script" uid="uid://bqisijj67a3tv" path="res://scripts/combat/components/attack_stepper.gd" id="16_4r5pv"]
 [ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="16_a38lo"]
+[ext_resource type="Script" uid="uid://jo83fk4qbngt" path="res://scripts/combat/components/screen_clamp.gd" id="22_a38lo"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hqtel"]
 size = Vector2(100, 145)
@@ -177,14 +177,6 @@ region = Rect2(1280, 0, 320, 180)
 [sub_resource type="AtlasTexture" id="AtlasTexture_apa73"]
 atlas = ExtResource("3_f1ej7")
 region = Rect2(1600, 0, 320, 180)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_u2ulf"]
-atlas = ExtResource("9_3v2ag")
-region = Rect2(600, 0, 300, 160)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_4gjji"]
-atlas = ExtResource("9_3v2ag")
-region = Rect2(300, 0, 300, 160)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_4r5pv"]
 atlas = ExtResource("9_d2wvv")
@@ -446,7 +438,10 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_u2ulf")
+"texture": SubResource("AtlasTexture_a38lo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6e8lb")
 }],
 "loop": true,
 "name": &"stunned_block_a",
@@ -454,11 +449,14 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_4gjji")
+"texture": SubResource("AtlasTexture_a38lo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6e8lb")
 }],
 "loop": true,
 "name": &"stunned_block_b",
-"speed": 5.0
+"speed": 3.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -515,8 +513,7 @@ shape = SubResource("RectangleShape2D_hqtel")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_dw050")
-animation = &"startup_3"
-frame_progress = 0.970869
+animation = &"stunned_block_a"
 
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("4_dqkch")
@@ -543,9 +540,6 @@ collision_mask = 0
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("RectangleShape2D_fjrip")
 
-[node name="Camera2D" type="Camera2D" parent="."]
-position_smoothing_enabled = true
-
 [node name="Stats" type="Node" parent="."]
 script = ExtResource("15_fulsm")
 metadata/_custom_type_script = "uid://biohrn10on4a4"
@@ -564,3 +558,8 @@ metadata/_custom_type_script = "uid://c1k2ov1xkueas"
 script = ExtResource("13_qfm1y")
 player_path = NodePath("../AudioPlayer")
 metadata/_custom_type_script = "uid://cmyfb1ctqic7b"
+
+[node name="ScreenClamp" type="Node" parent="."]
+script = ExtResource("22_a38lo")
+body_path = NodePath("..")
+metadata/_custom_type_script = "uid://jo83fk4qbngt"

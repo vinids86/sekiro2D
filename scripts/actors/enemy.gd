@@ -23,6 +23,7 @@ signal health_changed
 @onready var audio_out: AudioOutlet = $AudioOutlet
 @onready var stepper: AttackStepper = $AttackStepper
 @onready var brain: EnemyBrain = $EnemyBrain
+@onready var clamp2d: ScreenClamp = $ScreenClamp
 
 var last_direction := "left"
 var stunned_block_toggle := false
@@ -64,6 +65,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 	velocity.y = 0.0
 	move_and_slide()
+	clamp2d.physics_tick()
 
 func _process(delta: float) -> void:
 	if exhausted_lock_timer > 0.0:

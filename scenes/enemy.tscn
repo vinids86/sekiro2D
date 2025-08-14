@@ -1,4 +1,4 @@
-[gd_scene load_steps=64 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=62 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
@@ -15,7 +15,6 @@
 [ext_resource type="Script" uid="uid://0i0csel48jdr" path="res://scripts/combat/hitbox/attack_hitbox.gd" id="6_xwavj"]
 [ext_resource type="Texture2D" uid="uid://b7o6ntlcgo5fk" path="res://assets/new/parry.png" id="7_j0cyh"]
 [ext_resource type="Texture2D" uid="uid://ckqcjiwbpo5f6" path="res://assets/new/idle.png" id="8_wtq4b"]
-[ext_resource type="Texture2D" uid="uid://sdkm3twcoboj" path="res://assets/new/shield.png" id="11_j0cyh"]
 [ext_resource type="Script" uid="uid://cmyfb1ctqic7b" path="res://scripts/combat/components/audio_outlet.gd" id="12_ile5s"]
 [ext_resource type="Script" uid="uid://biohrn10on4a4" path="res://scripts/combat/components/stats.gd" id="15_1x4g4"]
 [ext_resource type="Script" uid="uid://c1k2ov1xkueas" path="res://scripts/combat/components/animation_driver.gd" id="16_2pwtc"]
@@ -23,6 +22,7 @@
 [ext_resource type="Script" uid="uid://bqisijj67a3tv" path="res://scripts/combat/components/attack_stepper.gd" id="17_rogs8"]
 [ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
 [ext_resource type="Script" uid="uid://co7hq7vicwny6" path="res://scripts/actors/enemy_brain.gd" id="18_wrm80"]
+[ext_resource type="Script" uid="uid://jo83fk4qbngt" path="res://scripts/combat/components/screen_clamp.gd" id="24_wjec0"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
 size = Vector2(100, 145)
@@ -139,14 +139,6 @@ region = Rect2(0, 64, 128, 64)
 [sub_resource type="AtlasTexture" id="AtlasTexture_qiusc"]
 atlas = ExtResource("2_nenq2")
 region = Rect2(0, 128, 128, 64)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_wtq4b"]
-atlas = ExtResource("11_j0cyh")
-region = Rect2(300, 0, 300, 160)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_t3vcr"]
-atlas = ExtResource("11_j0cyh")
-region = Rect2(600, 0, 300, 160)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qaulx"]
 atlas = ExtResource("7_j0cyh")
@@ -375,10 +367,10 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_wtq4b")
+"texture": SubResource("AtlasTexture_qaulx")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_t3vcr")
+"texture": SubResource("AtlasTexture_0lg75")
 }],
 "loop": true,
 "name": &"stunned_block_a",
@@ -393,7 +385,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"stunned_block_b",
-"speed": 5.0
+"speed": 3.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -439,7 +431,6 @@ shape = SubResource("RectangleShape2D_md0e3")
 material = SubResource("ShaderMaterial_ipns3")
 sprite_frames = SubResource("SpriteFrames_g0wcc")
 animation = &"stunned_block_b"
-frame_progress = 0.497781
 flip_h = true
 
 [node name="Hutbox" type="Area2D" parent="."]
@@ -488,3 +479,8 @@ metadata/_custom_type_script = "uid://bqisijj67a3tv"
 script = ExtResource("18_wrm80")
 enemy_path = NodePath("..")
 metadata/_custom_type_script = "uid://co7hq7vicwny6"
+
+[node name="ScreenClamp" type="Node" parent="."]
+script = ExtResource("24_wjec0")
+body_path = NodePath("..")
+metadata/_custom_type_script = "uid://jo83fk4qbngt"

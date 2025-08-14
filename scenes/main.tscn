@@ -19,8 +19,8 @@ size = Vector2(1152, 40)
 
 [node name="Background" type="Sprite2D" parent="."]
 z_index = -1
-position = Vector2(-119, -39)
-scale = Vector2(0.333333, 0.3125)
+position = Vector2(-580, -320)
+scale = Vector2(0.303, 0.3)
 texture = ExtResource("1_ya4ey")
 centered = false
 region_rect = Rect2(0, 0, 1152, 648)
@@ -31,10 +31,10 @@ volume_db = -20.311
 autoplay = true
 
 [node name="Player" parent="." instance=ExtResource("2_sugp2")]
-position = Vector2(460, 285)
+position = Vector2(-111, 0)
 
 [node name="Enemy" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(601, 285)
+position = Vector2(87, 0)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
@@ -97,7 +97,9 @@ enemy = NodePath("../../Enemy")
 [node name="Ground" type="StaticBody2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
-position = Vector2(575, 378)
+position = Vector2(0, 93)
 shape = SubResource("RectangleShape2D_ya4ey")
 
 [node name="Sprite2D" type="Sprite2D" parent="Ground"]
+
+[node name="Camera2D" type="Camera2D" parent="." groups=["main_camera"]]
