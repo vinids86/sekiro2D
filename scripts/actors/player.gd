@@ -3,6 +3,7 @@ class_name Player
 
 signal stamina_changed
 signal health_changed
+signal special_changed
 
 @export var speed: float = 200.0
 @export var direction_buffer_duration: float = 0.2
@@ -19,6 +20,8 @@ signal health_changed
 @export var finisher_attack: AttackConfig
 @export var finisher_max_distance: float = 120.0
 @export var finisher_require_facing: bool = true
+
+@export var special_sequence_primary: Array[AttackConfig] = []
 
 @onready var controller: CombatController = $CombatController
 @onready var attack_hitbox: Area2D = $AttackHitbox
@@ -79,16 +82,21 @@ func _ready() -> void:
 
 	stats.health_changed.connect(func(_c: float,_m: float) -> void: health_changed.emit())
 	stats.stamina_changed.connect(func(_c: float,_m: float) -> void: stamina_changed.emit())
+	stats.special_changed.connect(func(_c: float,_m: float) -> void: special_changed.emit())
 
 	if heavy_attack == null:
 		heavy_attack = AttackConfig.heavy_preset()
 	if finisher_attack == null:
 		finisher_attack = AttackConfig.finisher_preset()
+	if special_sequence_primary.is_empty():
+		special_sequence_primary = AttackConfig.special_sequence()
 
 	_on_state_changed_with_dir(controller.combat_state, Vector2(1, 0))
 
 func _physics_process(delta: float) -> void:
-	stats.tick(delta)
+	if controller.combat_state == CombatTypes.CombatState.IDLE:
+		stats.tick(delta)
+
 	stepper.physics_tick(delta)
 
 	var can_move: bool = controller.combat_state == CombatTypes.CombatState.IDLE
@@ -129,8 +137,10 @@ func _process(delta: float) -> void:
 	if exhausted_lock_timer > 0.0:
 		exhausted_lock_timer -= delta
 
+	_handle_special_input()
 	# atualização do hold de ataque pesado / finisher
 	_update_attack_hold(delta)
+
 
 	# outros inputs (parry + dodge)
 	handle_input_parry_and_dodge()
@@ -160,6 +170,9 @@ func handle_input_parry_and_dodge() -> void:
 func _update_attack_hold(delta: float) -> void:
 	# início do hold / prioridade: FINISHER
 	if Input.is_action_just_pressed("attack"):
+		if Input.is_action_pressed("special_modifier"):
+			# Deixa o handler do especial cuidar. Evita disparar hold por engano.
+			return
 		if _try_finisher_input():
 			return
 
@@ -419,3 +432,20 @@ func should_update_facing(new_state: int, attack_direction: Vector2) -> bool:
 		or new_state == CombatTypes.CombatState.DODGE_RECOVERING
 	)
 	return has_direction and not is_dodge_state
+
+func _handle_special_input() -> void:
+	if Input.is_action_just_pressed("special_attack_1"):
+		if special_sequence_primary.is_empty():
+			push_warning("special_sequence_primary vazio")
+			return
+
+		var dir: Vector2 = input_direction_buffer
+		if dir == Vector2.ZERO:
+			dir = get_current_input_direction()
+		if dir == Vector2.ZERO:
+			if last_direction == "right":
+				dir = Vector2(1, 0)
+			else:
+				dir = Vector2(-1, 0)
+
+		controller.start_forced_sequence(special_sequence_primary.duplicate(), dir)

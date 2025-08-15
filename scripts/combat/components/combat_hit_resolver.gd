@@ -45,18 +45,23 @@ func process_incoming_hit(attacker: Node) -> void:
 
 	# 3) Parry dentro da janela efetiva (com fator do ataque)
 	if cc.combat_state == CombatTypes.CombatState.PARRY_ACTIVE and atk_cfg.parryable:
-		var factor: float = 1.0
-		if atk_cfg.parry_window_factor != 0.0:
-			factor = atk_cfg.parry_window_factor
-		var eff: float = cc.parry_window * factor
+		var eff: float = cc.parry_window
+		# se tiver fator por golpe, aplique aqui
 		if cc.is_within_parry_window(eff):
-			var is_heavy: bool = (atk_cfg.kind == AttackConfig.AttackKind.HEAVY)
-			# marca sucesso dentro do próprio resolver de parry
-			if is_heavy:
-				cc.resolve_parry_heavy_neutral(atk_cc, cc)
-			else:
-				cc.resolve_parry_light(atk_cc, cc)
-			return
+			match atk_cfg.parry_behavior:
+				AttackConfig.ParryBehavior.INTERRUPT_ON_PARRY:
+					if atk_cfg.kind == AttackConfig.AttackKind.HEAVY:
+						cc.resolve_parry_heavy_neutral(atk_cc, cc)
+					else:
+						cc.resolve_parry_light(atk_cc, cc)
+					return
+				AttackConfig.ParryBehavior.DEFLECT_ONLY:
+					cc.resolve_parry_deflect_only(atk_cc, cc)
+					return
+
+				AttackConfig.ParryBehavior.UNPARRYABLE:
+					# trata como hit normal/auto-block
+					cc.parry.set_success(false)
 
 	# 4) Auto-block: só para NORMAL que não bypass e se houver stamina
 	var is_light: bool = (atk_cfg.kind == AttackConfig.AttackKind.NORMAL)

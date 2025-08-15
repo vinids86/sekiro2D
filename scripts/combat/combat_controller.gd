@@ -35,6 +35,7 @@ const EFFECT_DODGE_COOLDOWN: String = "dodge_cooldown"
 
 # PARRY_SUCCESS (defensor)
 @export var parry_success_base_lockout: float = 0.4
+@export var parry_deflect_lockout: float = 0.22  # menor que o parry normal, ajuste fino depois
 
 # --- Guard Broken & Finisher ---
 @export var guard_broken_duration: float = 1.9
@@ -65,6 +66,8 @@ const EFFECT_DODGE_COOLDOWN: String = "dodge_cooldown"
 @onready var lockouts: LockoutManager = LockoutManager.new()
 
 # ---------------- Estado interno ----------------
+const EFFECT_SUPPRESS_ATTACK: String = "suppress_attack"
+
 var owner_node: Node
 var current_attack_direction: Vector2 = Vector2.ZERO
 
@@ -73,6 +76,10 @@ enum ActionType { NONE, ATTACK, PARRY, DODGE }
 var combo_timeout_timer: float = 0.0
 var combo_in_progress: bool = false
 var combo_index: int = 0
+
+var force_play_all: bool = false
+var forced_sequence: Array[AttackConfig] = []
+var forced_index: int = 0
 
 # Timers/flags auxiliares
 var recovering_phase: int = 0
@@ -183,10 +190,21 @@ func auto_advance_state() -> void:
 			var attack: AttackConfig = get_current_attack()
 			if recovering_phase == 1:
 				recovering_phase = 2
-				var soft: float = (attack.recovery_soft if attack != null else 0.0)
-				fsm.state_timer = soft
+				fsm.state_timer = (attack.recovery_soft if attack != null else 0.0)
 				if _buffer.buffer_timer > 0.0:
 					_buffer.buffer_timer = maxf(_buffer.buffer_timer, chain_grace)
+
+				# 1º: sequência forçada
+				if force_play_all and can_chain_next_on_soft(attack):
+					actions.on_attack_finished(parry.did_succeed)
+					forced_index += 1
+					if forced_index < forced_sequence.size():
+						_override_attack = forced_sequence[forced_index]
+						change_state(CombatTypes.CombatState.STARTUP)
+						return
+					force_play_all = false
+					forced_sequence = []
+					_override_attack = null
 
 				if has_heavy() and can_chain_next_on_soft(attack):
 					actions.on_attack_finished(parry.did_succeed)
@@ -289,9 +307,23 @@ func _on_exit_state(state: CombatTypes.CombatState) -> void:
 			_exit_dodge_chain()
 		_:
 			pass
+			
+func start_forced_sequence(seq: Array[AttackConfig], dir: Vector2) -> void:
+	if seq.is_empty():
+		push_warning("start_forced_sequence: sequence is empty")
+		return
+	force_play_all = true
+	# cópia rasa do array (mantém as mesmas AttackConfig, só duplica o container)
+	forced_sequence = (seq.duplicate() as Array[AttackConfig])
+	forced_index = 0
+	current_attack_direction = dir
+	_override_attack = forced_sequence[0]
+	change_state(CombatTypes.CombatState.STARTUP)
 
 # ======================= AÇÕES: WRAPPERS =======================
 func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
+	if not can_attack():
+		return false
 	return actions.try_attack(from_buffer, dir)
 
 func try_attack_heavy(cfg: AttackConfig, dir: Vector2 = Vector2.ZERO, from_buffer: bool = false) -> bool:
@@ -354,6 +386,14 @@ func resolve_finisher(attacker: CombatController, defender: CombatController) ->
 	defender.force_lockout(finisher_defender_lockout)
 	attacker.request_push_apart.emit(finisher_push_px)
 	defender.request_push_apart.emit(finisher_push_px)
+	
+
+func resolve_parry_deflect_only(attacker: CombatController, defender: CombatController) -> void:
+	# Feedback para o defensor (PARRY_SUCCESS), mas SEM cancelar o atacante
+	defender.parry.set_success(true)
+	defender.lockouts.set_parry_success_override(defender.parry_deflect_lockout)
+	if defender.combat_state == CombatTypes.CombatState.PARRY_ACTIVE:
+		defender.change_state(CombatTypes.CombatState.PARRY_SUCCESS)
 
 func on_parried() -> void:
 	stun_kind = CombatTypes.StunKind.PARRIED
@@ -369,6 +409,14 @@ func on_hit() -> void:
 		return
 	stun_kind = CombatTypes.StunKind.NONE
 	change_state(CombatTypes.CombatState.STUNNED)
+
+func can_attack() -> bool:
+	# Bloqueia ataque se estiver sob lockout forçado OU efeito de supressão
+	if lockouts.is_forced_active():
+		return false
+	if has_effect(EFFECT_SUPPRESS_ATTACK):
+		return false
+	return can_act()
 
 func can_act() -> bool:
 	return combat_state == CombatTypes.CombatState.IDLE or combat_state == CombatTypes.CombatState.RECOVERING

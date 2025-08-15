@@ -3,16 +3,20 @@ class_name Stats
 
 signal stamina_changed(current: float, max_value: float)
 signal health_changed(current: float, max_value: float)
+signal special_changed(current: float, max_value: float)
 signal died
 
 @export var max_health := 100.0
 @export var max_stamina := 100.0
+@export var max_special := 100.0
 @export var stamina_recovery_rate := 20.0     # por segundo
 @export var stamina_recovery_delay := 2.0     # segundos sem recuperar após gasto
 @export var exhausted_threshold := 10.0       # opcional: limiar (pode ser sincronizado com block_stamina_cost)
 
 var current_health := 0.0
 var current_stamina := 0.0
+var current_special := 0.0
+
 var _stamina_recovery_timer := 0.0
 
 func _ready() -> void:

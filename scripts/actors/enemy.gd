@@ -84,7 +84,9 @@ func _ready() -> void:
 	_on_state_changed_with_dir(controller.combat_state, Vector2(-1, 0))
 
 func _physics_process(delta: float) -> void:
-	stats.tick(delta)
+	if controller.combat_state == CombatTypes.CombatState.IDLE:
+		stats.tick(delta)
+
 	stepper.physics_tick(delta)
 
 	# Se não está livre para se mover e não está em step, fica parado

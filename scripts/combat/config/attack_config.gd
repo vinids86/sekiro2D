@@ -52,7 +52,9 @@ func total_time() -> float:
 # Identidade / Tags
 # ------------------------------------------------------------------------------------
 enum AttackKind { NORMAL, HEAVY, GRAB, SPECIAL }
+enum ParryBehavior { INTERRUPT_ON_PARRY, DEFLECT_ONLY, UNPARRYABLE }
 @export var kind: AttackKind = AttackKind.NORMAL
+@export var parry_behavior: ParryBehavior = ParryBehavior.INTERRUPT_ON_PARRY
 @export var ends_combo: bool = false                  # true → reseta combo ao finalizar
 
 # ------------------------------------------------------------------------------------
@@ -70,7 +72,7 @@ static func new_simple(
 	_startup: float, _active: float, _rec_hard: float, _rec_soft: float, _stamina: float,
 	_startup_anim: StringName = &"", _attack_anim: StringName = &"", _recovery_anim: StringName = &"",
 	_sound: AudioStream = null,
-	_step_px: float = 0.0, _step_t: float = 0.0
+	_step_px: float = 0.0, _step_t: float = 0.0, _parry_behavior: ParryBehavior = ParryBehavior.INTERRUPT_ON_PARRY,
 ) -> AttackConfig:
 	var c: AttackConfig = AttackConfig.new()
 	c.startup = _startup
@@ -84,23 +86,24 @@ static func new_simple(
 	c.attack_sound = _sound
 	c.step_distance_px = _step_px
 	c.step_time_in_active = _step_t
+	c.parry_behavior = _parry_behavior
 	return c
 
 static func default_sequence() -> Array[AttackConfig]:
 	var a1: AttackConfig = AttackConfig.new_simple(
-		0.4, 0.1, 0.25, 0.05, 2.0,
+		0.4, 0.1, 0.25, 0.05, 0.0,
 		&"startup_1", &"attack_1", &"recover_1",
 		preload("res://audio/attack_1.wav"),
 		20.0, 0.02
 	)
 	var a2: AttackConfig = AttackConfig.new_simple(
-		0.28, 0.1, 0.24, 0.06, 3.0,
+		0.28, 0.1, 0.24, 0.06, 0.0,
 		&"startup_2", &"attack_2", &"recover_2",
 		preload("res://audio/attack_2.wav"),
 		24.0, 0.02
 	)
 	var a3: AttackConfig = AttackConfig.new_simple(
-		0.26, 0.12, 0.26, 0.08, 3.0,
+		0.26, 0.12, 0.26, 0.08, 0.0,
 		&"startup_3", &"attack_3", &"recover_3",
 		preload("res://audio/attack_3.wav"),
 		26.0, 0.03
@@ -114,7 +117,7 @@ static func heavy_preset() -> AttackConfig:
 		0.20,  # active levemente maior
 		0.60,  # recovery_hard
 		0.10,  # recovery_soft
-		30.0   # stamina_cost
+		0.0   # stamina_cost
 	)
 	c.kind = AttackKind.HEAVY
 	c.damage = 40.0
@@ -152,3 +155,25 @@ static func finisher_preset() -> AttackConfig:
 	c.step_distance_px = 64.0
 	c.step_time_in_active = 0.01
 	return c
+
+static func special_sequence() -> Array[AttackConfig]:
+	var a1: AttackConfig = AttackConfig.new_simple(
+		0.4, 0.1, 0.25, 0.05, 0.0,
+		&"startup_1", &"attack_1", &"recover_1",
+		preload("res://audio/attack_1.wav"),
+		20.0, 0.02, ParryBehavior.DEFLECT_ONLY,
+	)
+	var a2: AttackConfig = AttackConfig.new_simple(
+		0.28, 0.1, 0.24, 0.06, 0.0,
+		&"startup_2", &"attack_2", &"recover_2",
+		preload("res://audio/attack_2.wav"),
+		24.0, 0.02, ParryBehavior.DEFLECT_ONLY,
+	)
+	var a3: AttackConfig = AttackConfig.new_simple(
+		0.26, 0.12, 0.26, 0.08, 0.0,
+		&"startup_3", &"attack_3", &"recover_3",
+		preload("res://audio/attack_3.wav"),
+		26.0, 0.03, ParryBehavior.DEFLECT_ONLY,
+	)
+	var seq: Array[AttackConfig] = [a1, a2, a3]
+	return seq

@@ -677,9 +677,16 @@ size = Vector2(100, 145)
 collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_onrkg")
+speed = null
+direction_buffer_duration = null
+exhausted_lock_duration = null
 sfx_block = ExtResource("2_4r5pv")
 sfx_hit = ExtResource("3_60mlk")
 sfx_die = ExtResource("4_i4ail")
+heavy_hold_threshold = null
+finisher_max_distance = null
+finisher_require_facing = null
+special_sequence_primary = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_hqtel")

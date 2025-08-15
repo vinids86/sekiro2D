@@ -207,7 +207,6 @@ func _do_pressure_attack() -> void:
 	var enemy_pos: Vector2 = (_enemy as Node2D).global_position
 	var player_pos: Vector2 = (_player as Node2D).global_position
 	var dir: Vector2 = (player_pos - enemy_pos).normalized()
-
 	var did_start: bool = false
 	var want_heavy: bool = (heavy_attack != null and _pressure_count >= pressure_heavy_every - 1)
 	if want_heavy:
