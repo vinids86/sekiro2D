@@ -21,7 +21,7 @@ func setup(
 	play_block_sfx_cb = play_block_sfx
 
 func process_incoming_hit(attacker: Node) -> void:
-	# CC do atacante (falha rápido)
+	# CC do atacante (falha rápido — preferes ver o erro)
 	var atk_cc_node: Node = attacker.get_node(^"CombatController")
 	var atk_cc: CombatController = atk_cc_node as CombatController
 	assert(atk_cc != null, "Attacker.CombatController não é CombatController")
@@ -29,11 +29,11 @@ func process_incoming_hit(attacker: Node) -> void:
 	var atk_cfg: AttackConfig = atk_cc.get_current_attack()
 	assert(atk_cfg != null, "Attacker não possui AttackConfig ativo no momento do hit")
 
-	# 0) I‑frames: parry_success
+	# 0) I-frames: PARRY_SUCCESS não recebe nada (inclui autoblock)
 	if cc.combat_state == CombatTypes.CombatState.PARRY_SUCCESS:
 		return
 
-	# 1) I‑frames de esquiva por tipo
+	# 1) I-frames de esquiva por tipo
 	if cc.combat_state == CombatTypes.CombatState.DODGE_ACTIVE:
 		if cc.is_dodge_invulnerable_to(atk_cfg.kind):
 			return
@@ -43,21 +43,22 @@ func process_incoming_hit(attacker: Node) -> void:
 		atk_cc.resolve_finisher(atk_cc, cc)
 		return
 
-	# 3) Parry janela efetiva
+	# 3) Parry dentro da janela efetiva (com fator do ataque)
 	if cc.combat_state == CombatTypes.CombatState.PARRY_ACTIVE and atk_cfg.parryable:
 		var factor: float = 1.0
 		if atk_cfg.parry_window_factor != 0.0:
 			factor = atk_cfg.parry_window_factor
 		var eff: float = cc.parry_window * factor
 		if cc.is_within_parry_window(eff):
-			cc.did_parry_succeed = true
-			if atk_cfg.kind == AttackConfig.AttackKind.HEAVY:
+			var is_heavy: bool = (atk_cfg.kind == AttackConfig.AttackKind.HEAVY)
+			# marca sucesso dentro do próprio resolver de parry
+			if is_heavy:
 				cc.resolve_parry_heavy_neutral(atk_cc, cc)
 			else:
 				cc.resolve_parry_light(atk_cc, cc)
 			return
 
-	# 4) Auto‑block (ataque leve, sem bypass, e com stamina)
+	# 4) Auto-block: só para NORMAL que não bypass e se houver stamina
 	var is_light: bool = (atk_cfg.kind == AttackConfig.AttackKind.NORMAL)
 	var can_autoblock: bool = is_light and (not atk_cfg.bypass_auto_block)
 	if can_autoblock and has_stamina_cb.call(cc.block_stamina_cost):
@@ -65,6 +66,6 @@ func process_incoming_hit(attacker: Node) -> void:
 		cc.on_blocked()
 		return
 
-	# 5) Hit real
+	# 5) Hit real: aplica efeitos do ataque e entra em hitstun
 	apply_effects_cb.call(atk_cfg)
 	cc.on_hit()

@@ -7,7 +7,6 @@ signal health_changed
 @export var speed: float = 200.0
 @export var direction_buffer_duration: float = 0.2
 @export var exhausted_lock_duration: float = 0.35
-@export var attack_step_duration: float = 0.06
 @export var sfx_block: AudioStream
 @export var sfx_hit: AudioStream
 @export var sfx_die: AudioStream
@@ -16,13 +15,12 @@ signal health_changed
 @export var heavy_attack: AttackConfig
 @export var heavy_hold_threshold: float = 0.33
 
-# FINISHER (executa quando alvo estiver em GUARD_BROKEN)
+# FINISHER
 @export var finisher_attack: AttackConfig
 @export var finisher_max_distance: float = 120.0
 @export var finisher_require_facing: bool = true
 
 @onready var controller: CombatController = $CombatController
-@onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var flash_material: ShaderMaterial = sprite.material as ShaderMaterial
@@ -44,7 +42,7 @@ var attack_sequence: Array[AttackConfig] = []
 # Timers auxiliares
 var exhausted_lock_timer: float = 0.0
 
-# Guarda o último agressor para aplicar afastamento após parry pesado
+# Guarda o último agressor
 var _last_attacker_node: Node2D = null
 
 # --- Estado do hold para HEAVY ---
@@ -144,11 +142,9 @@ func handle_input_parry_and_dodge() -> void:
 	if input_dir != Vector2.ZERO and controller.combat_state == CombatTypes.CombatState.IDLE:
 		last_direction = get_label_from_vector(input_dir)
 
-	# parry
+	# parry (não escrever no buffer manualmente — o try_parry já bufferiza quando necessário)
 	if Input.is_action_just_pressed("parry"):
-		var p_started: bool = controller.try_parry(false, input_dir)
-		if not p_started:
-			controller.queued_direction = input_dir
+		controller.try_parry(false, input_dir)
 
 	# dodge (movimento de corpo, sem dash)
 	if Input.is_action_just_pressed("dodge"):
@@ -159,13 +155,11 @@ func handle_input_parry_and_dodge() -> void:
 				dodge_dir = Vector2(-1, 0)
 			else:
 				dodge_dir = Vector2(1, 0)
-		# try_dodge já bufferiza se não puder agora
 		controller.try_dodge(false, dodge_dir)
 
 func _update_attack_hold(delta: float) -> void:
 	# início do hold / prioridade: FINISHER
 	if Input.is_action_just_pressed("attack"):
-		# tenta finisher antes de tudo
 		if _try_finisher_input():
 			return
 
@@ -173,7 +167,6 @@ func _update_attack_hold(delta: float) -> void:
 		_attack_hold_timer = 0.0
 		_heavy_sent = false
 
-		# trava a direção do ataque no momento do press (usa buffer ou facing)
 		var dir: Vector2 = input_direction_buffer
 		if dir == Vector2.ZERO:
 			dir = get_current_input_direction()
@@ -187,7 +180,6 @@ func _update_attack_hold(delta: float) -> void:
 	# mantendo pressionado
 	if _attack_hold_active and Input.is_action_pressed("attack"):
 		_attack_hold_timer += delta
-		# se passou do threshold e ainda não disparamos o HEAVY → dispara
 		if not _heavy_sent and _attack_hold_timer >= heavy_hold_threshold:
 			_heavy_sent = true
 			_attack_hold_active = false
@@ -203,7 +195,6 @@ func _update_attack_hold(delta: float) -> void:
 		if not _heavy_sent:
 			controller.try_attack(false, _attack_hold_dir)
 
-# Tenta achar um alvo GUARD_BROKEN válido na frente
 func _find_guard_broken_target() -> Dictionary:
 	var me: Node2D = self as Node2D
 	var best_node: Node2D = null
@@ -241,7 +232,6 @@ func _find_guard_broken_target() -> Dictionary:
 		return {"node": best_node, "dir": vec}
 	return {}
 
-# Se houver alvo em GUARD_BROKEN, dispara finisher imediatamente
 func _try_finisher_input() -> bool:
 	if finisher_attack == null or not controller.has_method("try_attack_heavy"):
 		return false
@@ -342,7 +332,6 @@ func _is_step_active() -> bool:
 	return controller.combat_state == CombatTypes.CombatState.ATTACKING
 
 # ======= Interface esperada pelo CombatController =======
-
 func get_combat_controller() -> CombatController:
 	return controller
 
@@ -361,13 +350,11 @@ func is_exhausted() -> bool:
 	return stats.is_exhausted(controller.block_stamina_cost)
 
 # ============================ COMBATE: RECEBER ATAQUE ============================
-
 func receive_attack(attacker: Node) -> void:
 	_last_attacker_node = attacker as Node2D
 	controller.process_incoming_hit(attacker)
 
 # ============================ Utilidades ============================
-
 func take_damage(amount: float) -> void:
 	stats.take_damage(amount)
 	flash_hit_color()
@@ -403,15 +390,12 @@ func _on_request_push_apart(pixels: float) -> void:
 	global_position += dir * pixels
 
 func _apply_attack_effects(cfg: AttackConfig) -> void:
-	# Guarda stamina antes do hit
 	var stamina_before: float = stats.current_stamina
 
-	# Pressão extra de stamina (antes do dano base)
 	if cfg.stamina_damage_extra > 0.0:
 		stats.consume_stamina(cfg.stamina_damage_extra)
 		stamina_changed.emit()
 
-	# Dano base: stamina absorve antes; sem stamina → vida
 	if stats.current_stamina > 0.0:
 		stats.consume_stamina(cfg.damage)
 		stamina_changed.emit()
@@ -424,7 +408,6 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 
 	audio_out.play_stream(sfx_hit)
 
-	# Se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN
 	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
 		controller.force_guard_broken()
 

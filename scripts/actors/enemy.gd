@@ -6,7 +6,6 @@ signal health_changed
 
 @export var speed: float = 100.0
 @export var exhausted_lock_duration: float = 0.35
-@export var attack_step_duration: float = 0.06
 @export var sfx_block: AudioStream
 @export var sfx_hit: AudioStream
 @export var sfx_die: AudioStream
@@ -18,7 +17,6 @@ signal health_changed
 @export var finisher_require_facing: bool = true
 
 @onready var controller: CombatController = $CombatController
-@onready var audio_enemy: AudioStreamPlayer2D = $AudioEnemy
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var flash_material: ShaderMaterial = sprite.material as ShaderMaterial
@@ -72,7 +70,7 @@ func _ready() -> void:
 	controller.state_changed.connect(_on_state_changed_with_dir)
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
 
-	# Mantém seu step (avança só em ataques)
+	# step só em ataques
 	controller.attack_step.connect(func(dist: float) -> void:
 		stepper.start_step(dist, last_direction == "left")
 	)
@@ -89,7 +87,7 @@ func _physics_process(delta: float) -> void:
 	stats.tick(delta)
 	stepper.physics_tick(delta)
 
-	# Sem knockback: se não está livre para se mover e não está em step, fica parado
+	# Se não está livre para se mover e não está em step, fica parado
 	if controller.combat_state != CombatTypes.CombatState.IDLE and not _is_step_active():
 		velocity.x = 0.0
 
@@ -190,15 +188,6 @@ func get_label_from_vector(dir: Vector2) -> String:
 		return "right"
 	return "left"
 
-func get_vector_from_label(label: String) -> Vector2:
-	match label:
-		"left":
-			return Vector2(-1, 0)
-		"right":
-			return Vector2(1, 0)
-		_:
-			return Vector2.ZERO
-
 func update_attack_hitbox_position(direction: String) -> void:
 	var offset: Vector2 = Vector2.ZERO
 	match direction:
@@ -220,7 +209,6 @@ func _is_step_active() -> bool:
 	return controller.combat_state == CombatTypes.CombatState.ATTACKING
 
 # ======= Interface esperada pelo CombatController =======
-
 func get_combat_controller() -> CombatController:
 	return controller
 
@@ -239,13 +227,11 @@ func is_exhausted() -> bool:
 	return stats.is_exhausted(controller.block_stamina_cost)
 
 # ============================ COMBATE: RECEBER ATAQUE ============================
-
 func receive_attack(attacker: Node) -> void:
 	_last_attacker_node = attacker as Node2D
 	controller.process_incoming_hit(attacker)
 
 # ============================ Utilidades ============================
-
 func take_damage(amount: float) -> void:
 	stats.take_damage(amount)
 	flash_hit_color()
@@ -286,15 +272,12 @@ func _on_request_push_apart(pixels: float) -> void:
 
 func _apply_attack_effects(cfg: AttackConfig) -> void:
 	var c: CombatController = get_combat_controller()
-	# Guarda stamina antes do hit
 	var stamina_before: float = stats.current_stamina
 
-	# Pressão extra de stamina (antes do dano base)
 	if cfg.stamina_damage_extra > 0.0:
 		stats.consume_stamina(cfg.stamina_damage_extra)
 		stamina_changed.emit()
 
-	# Dano base: stamina absorve antes; sem stamina → vida
 	if stats.current_stamina > 0.0:
 		stats.consume_stamina(cfg.damage)
 		stamina_changed.emit()
@@ -307,6 +290,5 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 
 	audio_out.play_stream(sfx_hit)
 
-	# Se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN
 	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
 		c.force_guard_broken()

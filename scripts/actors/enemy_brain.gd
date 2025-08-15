@@ -12,10 +12,10 @@ class_name EnemyBrain
 @export var heavy_parry_chance_factor: float = 0.5
 
 # Pressão após parry leve
-@export var pressure_heavy_every: int = 30      # a cada N leves, 1 heavy
-@export var action_min_interval: float = 0.05  # evita dupla chamada no mesmo frame
+@export var pressure_heavy_every: int = 3
+@export var action_min_interval: float = 0.05
 
-# HEAVY/FINISHER usados pelo inimigo (plugue os AttackConfigs aqui!)
+# HEAVY/FINISHER
 @export var heavy_attack: AttackConfig
 @export var finisher_attack: AttackConfig
 @export var finisher_max_distance: float = 120.0
@@ -43,11 +43,9 @@ func _ready() -> void:
 		return
 
 	_ec = _enemy.get_combat_controller()
-	if _ec != null:
-		if not _ec.state_changed.is_connected(_on_enemy_state_changed):
-			_ec.state_changed.connect(_on_enemy_state_changed)
+	if _ec != null and not _ec.state_changed.is_connected(_on_enemy_state_changed):
+		_ec.state_changed.connect(_on_enemy_state_changed)
 
-	# defaults caso não plugue via inspector
 	if heavy_attack == null:
 		heavy_attack = AttackConfig.heavy_preset()
 	if finisher_attack == null:
@@ -71,28 +69,23 @@ func _process(delta: float) -> void:
 	if pc == null:
 		return
 
-	# 1) FINISHER tem prioridade absoluta
+	# 1) FINISHER tem prioridade
 	if _try_finisher_if_possible(pc):
 		return
 
-	# 2) Parry reativo ao ataque do player
+	# 2) Parry reativo
 	_try_parry_tick(pc)
 
 # ---------- CALLBACK DO CONTROLLER DO INIMIGO ----------
 func _on_enemy_state_changed(new_state: int, _dir: Vector2) -> void:
-	# Começar/terminar pressão conforme parry/stun
 	if new_state == CombatTypes.CombatState.PARRY_SUCCESS:
-		# pressiona somente se foi parry de ataque LEVE
-		_pressuring = not _ec.last_parry_was_heavy
+		_pressuring = not _ec.parry.last_was_heavy
 		if _pressuring:
 			_pressure_count = 0
-
 	elif new_state == CombatTypes.CombatState.STUNNED:
-		# levou parry/bloqueio forte → cancela pressão
 		_pressuring = false
 		_pressure_count = 0
 
-	# Quando ficar livre (IDLE), se estiver pressionando, ataca
 	if new_state == CombatTypes.CombatState.IDLE and _pressuring:
 		if _act_cd <= 0.0 and _ec.can_act():
 			call_deferred("_do_pressure_attack")
@@ -133,12 +126,11 @@ func _try_finisher_if_possible(pc: CombatController) -> bool:
 
 # ---------- PARRY ----------
 func _try_parry_tick(pc: CombatController) -> void:
-	# cooldown/validações básicas
 	if _parry_cd > 0.0:
 		return
 
+	# detectar mudança p/ STARTUP
 	if pc.combat_state == CombatTypes.CombatState.STARTUP:
-		# detectar mudança de estado do player p/ STARTUP → resetar flag
 		if pc.combat_state != _last_player_state:
 			_tried_this_startup = false
 		_last_player_state = pc.combat_state
@@ -146,7 +138,6 @@ func _try_parry_tick(pc: CombatController) -> void:
 		_last_player_state = pc.combat_state
 		return
 
-	# já tentou neste STARTUP?
 	if _tried_this_startup:
 		return
 
@@ -161,7 +152,6 @@ func _try_parry_tick(pc: CombatController) -> void:
 		if enemy_on_right != player_attacking_right:
 			return
 
-	# ataque atual do player
 	var p_attack: AttackConfig = pc.get_current_attack() as AttackConfig
 	if p_attack == null:
 		return
@@ -209,7 +199,6 @@ func _try_parry_with_delay(delay: float, chance: float) -> void:
 
 # ---------- PRESSÃO (leve/leve/HEAVY) ----------
 func _do_pressure_attack() -> void:
-	# validações
 	if not _pressuring or not _ec.can_act():
 		return
 	if _player == null:
@@ -219,7 +208,6 @@ func _do_pressure_attack() -> void:
 	var player_pos: Vector2 = (_player as Node2D).global_position
 	var dir: Vector2 = (player_pos - enemy_pos).normalized()
 
-	# tenta HEAVY a cada N
 	var did_start: bool = false
 	var want_heavy: bool = (heavy_attack != null and _pressure_count >= pressure_heavy_every - 1)
 	if want_heavy:
@@ -227,14 +215,12 @@ func _do_pressure_attack() -> void:
 		if did_start:
 			_pressure_count = 0
 	else:
-		# leve (usa ataque corrente da sequência do inimigo)
 		var next: AttackConfig = _ec.get_current_attack() as AttackConfig
 		if next != null:
 			did_start = _ec.try_attack(false, dir)
 			if did_start:
 				_pressure_count = min(_pressure_count + 1, pressure_heavy_every - 1)
 
-	# se não conseguiu atacar, encerra pressão; senão, impõe intervalo mínimo
 	if not did_start:
 		_pressuring = false
 		_pressure_count = 0
@@ -243,6 +229,5 @@ func _do_pressure_attack() -> void:
 
 func bind_controller(ec: CombatController) -> void:
 	_ec = ec
-	if _ec != null:
-		if not _ec.state_changed.is_connected(_on_enemy_state_changed):
-			_ec.state_changed.connect(_on_enemy_state_changed)
+	if _ec != null and not _ec.state_changed.is_connected(_on_enemy_state_changed):
+		_ec.state_changed.connect(_on_enemy_state_changed)

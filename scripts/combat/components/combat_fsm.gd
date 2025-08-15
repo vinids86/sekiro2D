@@ -1,7 +1,7 @@
 extends RefCounted
 class_name CombatFSM
 
-# Sinal: usa int para máxima compatibilidade nas conexões (Player/Enemy)
+# Sinal tipado para máxima compatibilidade
 signal state_changed(state: int, attack_direction: Vector2)
 
 # Estado atual espelhado do controller
@@ -56,11 +56,14 @@ func can_transition_from(from_state: CombatTypes.CombatState, to_state: CombatTy
 	var allowed: Array = transitions.get(from_state, [])
 	return allowed.has(to_state)
 
-# (opcional, se você já usava esse nome)
 func can_transition(to_state: CombatTypes.CombatState) -> bool:
 	return can_transition_from(current_state, to_state)
 
 func change_state(new_state: CombatTypes.CombatState) -> void:
+	# (debug) bloqueia transições inválidas aqui também
+	if _debug_logs and not can_transition_from(current_state, new_state):
+		push_warning("FSM: transição inválida %s -> %s" % [str(current_state), str(new_state)])
+
 	# Sair do estado atual
 	if _on_exit_cb.is_valid():
 		_on_exit_cb.call(current_state)
@@ -70,8 +73,7 @@ func change_state(new_state: CombatTypes.CombatState) -> void:
 	if _on_enter_cb.is_valid():
 		_on_enter_cb.call(new_state)
 
-	# Definir direção emitida no sinal:
-	# Para DODGE_* emitimos ZERO; caso contrário, usamos a direção atual do ataque no controller.
+	# Direção emitida no sinal: dodge emite ZERO; demais usam direção atual do ataque
 	var emit_dir: Vector2 = Vector2.ZERO
 	var is_dodge: bool = (
 		new_state == CombatTypes.CombatState.DODGE_STARTUP
@@ -90,3 +92,7 @@ func tick(delta: float) -> void:
 		if state_timer <= 0.0 and _can_auto_advance_cb.is_valid() and _auto_advance_cb.is_valid():
 			if _can_auto_advance_cb.call():
 				_auto_advance_cb.call()
+
+# Helper opcional para clareza
+func reset_timer(seconds: float) -> void:
+	state_timer = maxf(seconds, 0.0)

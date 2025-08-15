@@ -42,13 +42,12 @@ const EFFECT_DODGE_COOLDOWN: String = "dodge_cooldown"
 @export var finisher_defender_lockout: float = 0.9
 @export var finisher_push_px: float = 64.0
 
-# --- Esquiva (i-frames + animação, sem deslocamento) ---
+# --- Esquiva ---
 @export var dodge_startup: float = 0.08
 @export var dodge_active_duration: float = 0.16
 @export var dodge_recovery: float = 0.22
 @export var dodge_stamina_cost: float = 8.0
 @export var dodge_cooldown: float = 0.35
-# Quais tipos a esquiva evita
 @export var dodge_avoid_normal: bool = true
 @export var dodge_avoid_heavy: bool = true
 @export var dodge_avoid_grab: bool = false
@@ -57,44 +56,29 @@ const EFFECT_DODGE_COOLDOWN: String = "dodge_cooldown"
 @export var sfx_dodge_startup: AudioStream
 @export var sfx_dodge_recover: AudioStream
 
+@onready var _effects: StatusEffects = StatusEffects.new()
+@onready var _buffer: InputBuffer = InputBuffer.new()
+
+@onready var timeline: AttackTimeline = AttackTimeline.new()
+@onready var parry: ParrySystem = ParrySystem.new()
+
+@onready var lockouts: LockoutManager = LockoutManager.new()
+
 # ---------------- Estado interno ----------------
 var owner_node: Node
-
 var current_attack_direction: Vector2 = Vector2.ZERO
 
 enum ActionType { NONE, ATTACK, PARRY, DODGE }
-var queued_action: ActionType = ActionType.NONE
-var queued_direction: Vector2 = Vector2.ZERO
-var buffer_timer: float = 0.0
 
 var combo_timeout_timer: float = 0.0
 var combo_in_progress: bool = false
 var combo_index: int = 0
 
-var status_effects: Dictionary = {}
-var did_parry_succeed: bool = false
-var last_parry_was_heavy: bool = false
-
 # Timers/flags auxiliares
 var recovering_phase: int = 0
-var _force_recover_timer: float = -1.0
-var _forced_lockout_active: bool = false
 
-# Dados do ataque ativo
-var step_emitted: bool = false
-var active_clock: float = 0.0
-var _prev_active_clock: float = 0.0
-var parry_clock: float = 0.0
-
-# Overrides/Lockouts
-var parry_success_lockout_override: float = -1.0
-var stun_lockout_override: float = -1.0
-var guard_broken_lockout_override: float = -1.0
-
-# HEAVY override/buffer
+# Próximo ataque a executar (heavy ou override externo)
 var _override_attack: AttackConfig = null
-var _queued_heavy_cfg: AttackConfig = null
-var _queued_heavy_dir: Vector2 = Vector2.ZERO
 
 # --- Interface injetada (setup) ---
 var _iface: Dictionary = {
@@ -130,7 +114,6 @@ func setup(owner: Node, iface: Dictionary = {}) -> void:
 	)
 	fsm.sync_from_controller(combat_state)
 
-	# Sinal do FSM agora é (state: int, dir: Vector2)
 	fsm.state_changed.connect(func(s: int, dir: Vector2) -> void:
 		state_changed.emit(s, dir)
 	)
@@ -144,51 +127,35 @@ func setup(owner: Node, iface: Dictionary = {}) -> void:
 	)
 
 	actions.setup(self)
+	timeline.step.connect(func(dist: float) -> void:
+		attack_step.emit(dist)
+	)
+	_effects.expired.connect(_on_effect_expired)
 
 # ======================= LOOP =======================
 func _ready() -> void:
 	set_process(true)
 
 func _process(delta: float) -> void:
-	# Buffer window
-	if buffer_timer > 0.0:
-		buffer_timer -= delta
-		if buffer_timer <= 0.0:
-			_clear_buffer_and_heavy()
+	_buffer.tick(delta)
 
-	# Executar buffer quando possível
-	if can_act():
-		if queued_action != ActionType.NONE or _queued_heavy_cfg != null:
-			actions.try_execute_buffer()
+	if can_act() and _buffer.has_buffer():
+		actions.try_execute_buffer()
 
-	# Timers de estado (FSM)
 	fsm.tick(delta)
+	_effects.tick(delta)
 
-	# Efeitos temporários
-	var expired: Array = []
-	for k in status_effects.keys():
-		status_effects[k] -= delta
-		if status_effects[k] <= 0.0:
-			expired.append(k)
-	for k in expired:
-		status_effects.erase(k)
-
-	# Timeout de combo
 	if combo_in_progress:
 		combo_timeout_timer -= delta
 		if combo_timeout_timer <= 0.0:
 			combo_index = 0
 			combo_in_progress = false
 
-	# Relógio da fase ativa do ataque
 	if combat_state == CombatTypes.CombatState.ATTACKING:
-		_prev_active_clock = active_clock
-		active_clock += delta
-		_check_attack_step(active_clock, _prev_active_clock)
+		timeline.tick(delta, get_current_attack())
 
-	# Relógio do parry window
 	if combat_state == CombatTypes.CombatState.PARRY_ACTIVE:
-		parry_clock += delta
+		parry.tick(delta)
 
 # ======================= FSM: API =======================
 func can_auto_advance() -> bool:
@@ -207,36 +174,33 @@ func auto_advance_state() -> void:
 			change_state(CombatTypes.CombatState.RECOVERING)
 
 		CombatTypes.CombatState.RECOVERING:
-			if _forced_lockout_active:
-				_forced_lockout_active = false
-			if _force_recover_timer >= 0.0:
-				_force_recover_timer = -1.0
+			# se era lockout forçado, ao fim do timer sai direto
+			if lockouts.is_forced_active():
+				lockouts.finish_force_recover()
 				change_state(CombatTypes.CombatState.IDLE)
 				return
 
-			var attack: AttackConfig = _current_attack() as AttackConfig
+			var attack: AttackConfig = get_current_attack()
 			if recovering_phase == 1:
 				recovering_phase = 2
-				var soft: float = 0.0
-				if attack != null:
-					soft = attack.recovery_soft
+				var soft: float = (attack.recovery_soft if attack != null else 0.0)
 				fsm.state_timer = soft
-				if buffer_timer > 0.0:
-					buffer_timer = max(buffer_timer, chain_grace)
+				if _buffer.buffer_timer > 0.0:
+					_buffer.buffer_timer = maxf(_buffer.buffer_timer, chain_grace)
 
-				if _queued_heavy_cfg != null and _can_chain_next_on_soft(attack):
-					actions.on_attack_finished(did_parry_succeed)
+				if has_heavy() and can_chain_next_on_soft(attack):
+					actions.on_attack_finished(parry.did_succeed)
 					combo_in_progress = true
 					combo_timeout_timer = combo_timeout_duration
-					current_attack_direction = _queued_heavy_dir
+					current_attack_direction = peek_heavy_dir()
 					_start_heavy_from_buffer()
 					return
-				elif queued_action == ActionType.ATTACK and _can_chain_next_on_soft(attack):
-					actions.on_attack_finished(did_parry_succeed)
+				elif _buffer.queued_action == ActionType.ATTACK and can_chain_next_on_soft(attack):
+					actions.on_attack_finished(parry.did_succeed)
 					combo_in_progress = true
 					combo_timeout_timer = combo_timeout_duration
-					current_attack_direction = queued_direction
-					_clear_buffer()
+					current_attack_direction = _buffer.queued_direction
+					clear_buffer()
 					change_state(CombatTypes.CombatState.STARTUP)
 					return
 				elif fsm.state_timer <= 0.0:
@@ -251,7 +215,7 @@ func auto_advance_state() -> void:
 			change_state(CombatTypes.CombatState.IDLE)
 
 		CombatTypes.CombatState.PARRY_ACTIVE:
-			if did_parry_succeed:
+			if parry.did_succeed:
 				change_state(CombatTypes.CombatState.PARRY_SUCCESS)
 			else:
 				change_state(CombatTypes.CombatState.IDLE)
@@ -269,7 +233,6 @@ func auto_advance_state() -> void:
 			change_state(CombatTypes.CombatState.IDLE)
 
 func change_state(new_state: CombatTypes.CombatState) -> void:
-	# FSM é o árbitro das transições
 	if fsm == null:
 		return
 	if not fsm.can_transition_from(combat_state, new_state):
@@ -279,112 +242,53 @@ func change_state(new_state: CombatTypes.CombatState) -> void:
 	combat_state = new_state
 
 	if debug_logs:
-		var owner_name: String = "<?>"
-		if owner_node != null:
-			owner_name = owner_node.name
+		var owner_name: String = (owner_node.name if owner_node != null else "<?>")
 		print("%s mudando estado: %s → %s" % [
 			owner_name,
 			CombatTypes.CombatState.keys()[prev],
 			CombatTypes.CombatState.keys()[new_state]
 		])
 
-	# Delegar a transição ao FSM (ele chama _on_exit/_on_enter e emite state_changed)
 	fsm.change_state(new_state)
 
 # ======================= FSM: ENTER/EXIT =======================
 func _on_enter_state(state: CombatTypes.CombatState) -> void:
-	did_parry_succeed = false
-	var attack: AttackConfig = _current_attack()
+	var attack: AttackConfig = get_current_attack()
 
 	match state:
 		CombatTypes.CombatState.STARTUP:
-			if attack != null:
-				fsm.state_timer = attack.startup
-				_iface["consume_stamina"].call(attack.stamina_cost)
-
+			_enter_startup(attack)
 		CombatTypes.CombatState.ATTACKING:
-			if attack != null:
-				fsm.state_timer = attack.active_duration
-				active_clock = 0.0
-				_prev_active_clock = 0.0
-				step_emitted = false
-				hitbox_active_changed.emit(true)
-				if attack.attack_sound != null:
-					play_stream.emit(attack.attack_sound)
-
+			_enter_attacking(attack)
 		CombatTypes.CombatState.RECOVERING:
-			var forced: float = _force_recover_timer
-			if forced >= 0.0:
-				_forced_lockout_active = true
-				recovering_phase = 0
-				fsm.state_timer = forced
-				_override_attack = null
-			else:
-				recovering_phase = 1
-				var hard: float = 0.0
-				if attack != null:
-					hard = attack.recovery_hard
-				fsm.state_timer = hard
-				if buffer_timer > 0.0:
-					buffer_timer = max(buffer_timer, chain_grace)
-
+			_enter_recovering(attack)
 		CombatTypes.CombatState.PARRY_ACTIVE:
-			fsm.state_timer = parry_window
-			parry_clock = 0.0
-			play_stream.emit(sfx_parry_active)
-
+			_enter_parry_active()
 		CombatTypes.CombatState.STUNNED:
-			var dur: float = block_stun
-			if stun_lockout_override >= 0.0:
-				dur = stun_lockout_override
-				stun_lockout_override = -1.0
-			fsm.state_timer = dur
-			_clear_buffer_and_heavy()
-			_override_attack = null
-
+			_enter_stunned()
 		CombatTypes.CombatState.PARRY_SUCCESS:
-			var dur_ps: float = parry_success_base_lockout
-			if parry_success_lockout_override >= 0.0:
-				dur_ps = parry_success_lockout_override
-				parry_success_lockout_override = -1.0
-			fsm.state_timer = dur_ps
-			play_stream.emit(sfx_parry_success)
-
+			_enter_parry_success()
 		CombatTypes.CombatState.GUARD_BROKEN:
-			var dur_gb: float = guard_broken_duration
-			if guard_broken_lockout_override >= 0.0:
-				dur_gb = guard_broken_lockout_override
-				guard_broken_lockout_override = -1.0
-			fsm.state_timer = dur_gb
-			_clear_buffer_and_heavy()
-			_override_attack = null
-
+			_enter_guard_broken()
 		CombatTypes.CombatState.DODGE_STARTUP:
-			fsm.state_timer = dodge_startup
-			_iface["consume_stamina"].call(dodge_stamina_cost)
-			play_stream.emit(sfx_dodge_startup)
-
+			_enter_dodge_startup()
 		CombatTypes.CombatState.DODGE_ACTIVE:
-			fsm.state_timer = dodge_active_duration
-
+			_enter_dodge_active()
 		CombatTypes.CombatState.DODGE_RECOVERING:
-			fsm.state_timer = dodge_recovery
-			play_stream.emit(sfx_dodge_recover)
-
+			_enter_dodge_recovering()
 		CombatTypes.CombatState.IDLE:
-			recovering_phase = 0
-			await get_tree().process_frame
-			actions.try_execute_buffer()
+			_enter_idle()
 
 func _on_exit_state(state: CombatTypes.CombatState) -> void:
 	match state:
-		CombatTypes.CombatState.STARTUP, CombatTypes.CombatState.ATTACKING, CombatTypes.CombatState.PARRY_ACTIVE, CombatTypes.CombatState.DODGE_ACTIVE, CombatTypes.CombatState.DODGE_RECOVERING:
-			if state == CombatTypes.CombatState.PARRY_ACTIVE:
-				apply_effect(EFFECT_PARRY_COOLDOWN, parry_cooldown)
-			if state == CombatTypes.CombatState.ATTACKING:
-				hitbox_active_changed.emit(false)
-			if state == CombatTypes.CombatState.DODGE_ACTIVE or state == CombatTypes.CombatState.DODGE_RECOVERING:
-				apply_effect(EFFECT_DODGE_COOLDOWN, dodge_cooldown)
+		CombatTypes.CombatState.ATTACKING:
+			_exit_attacking()
+		CombatTypes.CombatState.PARRY_ACTIVE:
+			_exit_parry_active()
+		CombatTypes.CombatState.DODGE_ACTIVE, CombatTypes.CombatState.DODGE_RECOVERING:
+			_exit_dodge_chain()
+		_:
+			pass
 
 # ======================= AÇÕES: WRAPPERS =======================
 func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
@@ -430,15 +334,15 @@ func force_stun(duration: float, as_parried: bool = true) -> void:
 		stun_kind = CombatTypes.StunKind.PARRIED
 	else:
 		stun_kind = CombatTypes.StunKind.BLOCKED
-	stun_lockout_override = maxf(duration, 0.0)
+	lockouts.set_stun_override(maxf(duration, 0.0))
 	change_state(CombatTypes.CombatState.STUNNED)
 
 func force_guard_broken(duration: float = -1.0) -> void:
 	var dur: float = guard_broken_duration
 	if duration >= 0.0:
 		dur = duration
-	guard_broken_lockout_override = dur
-	_clear_buffer_and_heavy()
+	lockouts.set_guard_broken_override(dur)
+	clear_all_buffers()
 	_override_attack = null
 	change_state(CombatTypes.CombatState.GUARD_BROKEN)
 
@@ -470,114 +374,193 @@ func can_act() -> bool:
 	return combat_state == CombatTypes.CombatState.IDLE or combat_state == CombatTypes.CombatState.RECOVERING
 
 func apply_effect(name: String, duration: float) -> void:
-	status_effects[name] = duration
+	_effects.apply(name, duration)
 
 func has_effect(name: String) -> bool:
-	return status_effects.has(name)
-
-func enter_hitstun(duration: float, kind: CombatTypes.StunKind) -> void:
-	if combat_state == CombatTypes.CombatState.PARRY_SUCCESS:
-		return
-	stun_kind = kind
-	stun_lockout_override = maxf(duration, 0.0)
-	change_state(CombatTypes.CombatState.STUNNED)
+	return _effects.has(name)
 
 # ======================= ATAQUE ATUAL / CHAIN =======================
-func get_current_attack():
-	return _current_attack()
-
-func _current_attack():
+func get_current_attack() -> AttackConfig:
 	if _override_attack != null:
 		return _override_attack
 	var seq: Array = _iface["get_attack_sequence"].call()
 	if seq.is_empty():
 		return null
-	return seq[combo_index]
+	return seq[combo_index] as AttackConfig
 
-func _can_chain_next_on_soft(attack) -> bool:
+func can_chain_next_on_soft(attack: AttackConfig) -> bool:
 	return attack != null and attack.can_chain_next_attack_on_soft_recovery
 
+func override_next_attack(cfg: AttackConfig) -> void:
+	_override_attack = cfg
+
 func _start_heavy_from_buffer() -> void:
-	if _queued_heavy_cfg == null:
+	if not has_heavy():
 		return
-	_override_attack = _queued_heavy_cfg
-	_queued_heavy_cfg = null
+	_override_attack = peek_heavy_cfg()
+	clear_heavy()
 	change_state(CombatTypes.CombatState.STARTUP)
 
 func _finish_recover_and_exit() -> void:
-	if _forced_lockout_active or _force_recover_timer >= 0.0:
-		_forced_lockout_active = false
-		_force_recover_timer = -1.0
-		_override_attack = null
-		change_state(CombatTypes.CombatState.IDLE)
-		return
+	actions.on_attack_finished(parry.did_succeed)
 
-	actions.on_attack_finished(did_parry_succeed)
-	if _queued_heavy_cfg != null and buffer_timer > 0.0:
-		current_attack_direction = _queued_heavy_dir
+	if has_heavy() and _buffer.buffer_timer > 0.0:
+		current_attack_direction = peek_heavy_dir()
 		_start_heavy_from_buffer()
-	elif queued_action == ActionType.ATTACK and buffer_timer > 0.0:
-		current_attack_direction = queued_direction
-		_clear_buffer()
+	elif _buffer.queued_action == ActionType.ATTACK and _buffer.buffer_timer > 0.0:
+		current_attack_direction = _buffer.queued_direction
+		clear_buffer()
 		change_state(CombatTypes.CombatState.STARTUP)
 	else:
 		change_state(CombatTypes.CombatState.IDLE)
 
-func _check_attack_step(t: float, prev_t: float) -> void:
-	var atk = _current_attack()
-	if atk == null:
-		return
-	if step_emitted:
-		return
-	if atk.step_distance_px == 0.0:
-		return
-	if not (prev_t < atk.step_time_in_active and t >= atk.step_time_in_active):
-		return
-	step_emitted = true
-	attack_step.emit(atk.step_distance_px)
+# ======================= BUFFER: API PÚBLICA =======================
+func queue_action(action: int, dir: Vector2, duration: float) -> void:
+	_buffer.push_action(action, dir, duration)
 
-# ======================= BUFFER HELPERS =======================
-func _clear_buffer() -> void:
-	queued_action = ActionType.NONE
-	queued_direction = Vector2.ZERO
-	buffer_timer = 0.0
+func queue_heavy(cfg: AttackConfig, dir: Vector2, duration: float) -> void:
+	_buffer.push_heavy(cfg, dir, duration)
 
-func _clear_heavy_queue() -> void:
-	_queued_heavy_cfg = null
-	_queued_heavy_dir = Vector2.ZERO
+func has_buffer() -> bool:
+	return _buffer.has_buffer()
 
-func _clear_buffer_and_heavy() -> void:
-	_clear_buffer()
-	_clear_heavy_queue()
+func clear_buffer() -> void:
+	_buffer.clear_action()
+
+func clear_heavy() -> void:
+	_buffer.clear_heavy()
+
+func clear_all_buffers() -> void:
+	_buffer.clear_all()
+
+func peek_action() -> int:
+	return _buffer.queued_action
+
+func peek_direction() -> Vector2:
+	return _buffer.queued_direction
+
+func buffer_time_left() -> float:
+	return _buffer.buffer_timer
+
+func has_heavy() -> bool:
+	return _buffer.queued_heavy_cfg != null
+
+func peek_heavy_cfg() -> AttackConfig:
+	return _buffer.queued_heavy_cfg
+
+func peek_heavy_dir() -> Vector2:
+	return _buffer.queued_heavy_dir
 
 # ======================= LOCKOUT HELPER =======================
 func force_lockout(duration: float) -> void:
-	_force_recover_timer = maxf(duration, 0.0)
-	_forced_lockout_active = true
-	_clear_buffer_and_heavy()
+	lockouts.begin_force_recover(maxf(duration, 0.0))
+	clear_all_buffers()
 	_override_attack = null
 	change_state(CombatTypes.CombatState.RECOVERING)
 
 func is_within_parry_window(effective_window: float) -> bool:
 	if combat_state != CombatTypes.CombatState.PARRY_ACTIVE:
 		return false
-	return parry_clock <= effective_window
+	return parry.within(effective_window)
 
 # --- RESOLVERS DE PARRY (exigidos pelo CombatHitResolver) ---
 func resolve_parry_light(attacker: CombatController, defender: CombatController) -> void:
-	defender.did_parry_succeed = true
-	defender.last_parry_was_heavy = false
-	defender.parry_success_lockout_override = defender.parry_light_lockout_defender
+	defender.parry.set_success(false)
+	defender.lockouts.set_parry_success_override(defender.parry_light_lockout_defender)
 	if defender.combat_state == CombatTypes.CombatState.PARRY_ACTIVE:
 		defender.change_state(CombatTypes.CombatState.PARRY_SUCCESS)
 	attacker.force_stun(parry_light_lockout_attacker, true)
 
 func resolve_parry_heavy_neutral(attacker: CombatController, defender: CombatController) -> void:
-	defender.did_parry_succeed = true
-	defender.last_parry_was_heavy = true
-	defender.parry_success_lockout_override = defender.parry_heavy_neutral_lockout
+	defender.parry.set_success(true)
+	defender.lockouts.set_parry_success_override(defender.parry_heavy_neutral_lockout)
 	if defender.combat_state == CombatTypes.CombatState.PARRY_ACTIVE:
 		defender.change_state(CombatTypes.CombatState.PARRY_SUCCESS)
 	attacker.force_stun(parry_heavy_neutral_lockout, true)
 	attacker.request_push_apart.emit(parry_heavy_pushback_pixels)
 	defender.request_push_apart.emit(parry_heavy_pushback_pixels)
+
+func _on_effect_expired(name: String) -> void:
+	if debug_logs:
+		print("Effect expired: ", name)
+
+func _enter_startup(attack: AttackConfig) -> void:
+	if attack != null:
+		fsm.state_timer = attack.startup
+		_iface["consume_stamina"].call(attack.stamina_cost)
+
+func _enter_attacking(attack: AttackConfig) -> void:
+	if attack != null:
+		fsm.state_timer = attack.active_duration
+		timeline.start()
+		hitbox_active_changed.emit(true)
+		if attack.attack_sound != null:
+			play_stream.emit(attack.attack_sound)
+
+func _enter_recovering(attack: AttackConfig) -> void:
+	var forced: float = lockouts.pop_force_recover()
+	if forced >= 0.0:
+		recovering_phase = 0
+		fsm.state_timer = forced
+		_override_attack = null
+		return
+
+	recovering_phase = 1
+	var hard: float = 0.0
+	if attack != null:
+		hard = attack.recovery_hard
+	fsm.state_timer = hard
+	if _buffer.buffer_timer > 0.0:
+		_buffer.buffer_timer = maxf(_buffer.buffer_timer, chain_grace)
+
+func _enter_parry_active() -> void:
+	fsm.state_timer = parry_window
+	parry.begin()
+	play_stream.emit(sfx_parry_active)
+
+func _enter_stunned() -> void:
+	var dur: float = lockouts.consume_stun_duration(block_stun)
+	fsm.state_timer = dur
+	clear_all_buffers()
+	_override_attack = null
+
+func _enter_parry_success() -> void:
+	var dur_ps: float = lockouts.consume_parry_success_duration(parry_success_base_lockout)
+	fsm.state_timer = dur_ps
+	play_stream.emit(sfx_parry_success)
+
+func _enter_guard_broken() -> void:
+	var dur_gb: float = lockouts.consume_guard_broken_duration(guard_broken_duration)
+	fsm.state_timer = dur_gb
+	clear_all_buffers()
+	_override_attack = null
+
+func _enter_dodge_startup() -> void:
+	fsm.state_timer = dodge_startup
+	_iface["consume_stamina"].call(dodge_stamina_cost)
+	play_stream.emit(sfx_dodge_startup)
+
+func _enter_dodge_active() -> void:
+	fsm.state_timer = dodge_active_duration
+
+func _enter_dodge_recovering() -> void:
+	fsm.state_timer = dodge_recovery
+	play_stream.emit(sfx_dodge_recover)
+
+func _enter_idle() -> void:
+	recovering_phase = 0
+	# dar 1 frame para outros componentes enfileirarem entradas
+	await get_tree().process_frame
+	actions.try_execute_buffer()
+
+func _exit_attacking() -> void:
+	# Desliga hitbox ao sair da fase ativa
+	hitbox_active_changed.emit(false)
+
+func _exit_parry_active() -> void:
+	# Entra em cooldown de parry ao sair da janela
+	apply_effect(EFFECT_PARRY_COOLDOWN, parry_cooldown)
+
+func _exit_dodge_chain() -> void:
+	# Qualquer saída de DODGE_* aplica cooldown de dodge
+	apply_effect(EFFECT_DODGE_COOLDOWN, dodge_cooldown)
