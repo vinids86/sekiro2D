@@ -4,22 +4,22 @@ class_name Player
 signal stamina_changed
 signal health_changed
 
-@export var speed := 200.0
-@export var direction_buffer_duration := 0.2
-@export var exhausted_lock_duration := 0.35
-@export var attack_step_duration := 0.06
+@export var speed: float = 200.0
+@export var direction_buffer_duration: float = 0.2
+@export var exhausted_lock_duration: float = 0.35
+@export var attack_step_duration: float = 0.06
 @export var sfx_block: AudioStream
 @export var sfx_hit: AudioStream
 @export var sfx_die: AudioStream
 
 # HEAVY via hold
 @export var heavy_attack: AttackConfig
-@export var heavy_hold_threshold := 0.33
+@export var heavy_hold_threshold: float = 0.33
 
 # FINISHER (executa quando alvo estiver em GUARD_BROKEN)
 @export var finisher_attack: AttackConfig
-@export var finisher_max_distance := 120.0
-@export var finisher_require_facing := true
+@export var finisher_max_distance: float = 120.0
+@export var finisher_require_facing: bool = true
 
 @onready var controller: CombatController = $CombatController
 @onready var audio_player: AudioStreamPlayer2D = $AudioPlayer
@@ -34,60 +34,70 @@ signal health_changed
 @onready var stepper: AttackStepper = $AttackStepper
 @onready var clamp2d: ScreenClamp = $ScreenClamp
 
-var last_direction := "right"
-var input_direction_buffer := Vector2.ZERO
-var direction_buffer_timer := 0.0
-var stunned_block_toggle := false
+var last_direction: String = "right"
+var input_direction_buffer: Vector2 = Vector2.ZERO
+var direction_buffer_timer: float = 0.0
+var stunned_block_toggle: bool = false
 
 var attack_sequence: Array[AttackConfig] = []
 
 # Timers auxiliares
-var exhausted_lock_timer := 0.0
+var exhausted_lock_timer: float = 0.0
 
 # Guarda o último agressor para aplicar afastamento após parry pesado
 var _last_attacker_node: Node2D = null
 
 # --- Estado do hold para HEAVY ---
-var _attack_hold_active := false
-var _attack_hold_timer := 0.0
-var _attack_hold_dir := Vector2.ZERO
-var _heavy_sent := false
+var _attack_hold_active: bool = false
+var _attack_hold_timer: float = 0.0
+var _attack_hold_dir: Vector2 = Vector2.ZERO
+var _heavy_sent: bool = false
 
 func _ready() -> void:
+	assert(controller != null, "Player.controller não encontrado")
+	assert(audio_out != null, "Player.audio_out não encontrado")
+	assert(sfx_block != null, "Player.sfx_block não configurado")
+	assert(sfx_hit != null, "Player.sfx_hit não configurado")
+
 	attack_sequence = AttackConfig.default_sequence()
 
 	controller.setup(self, {
 		"get_attack_sequence": func() -> Array: return attack_sequence,
 		"has_stamina": func(cost: float) -> bool: return stats.has_stamina(cost),
-		"consume_stamina": func(cost: float) -> void: stats.consume_stamina(cost)
+		"consume_stamina": func(cost: float) -> void: stats.consume_stamina(cost),
+		"apply_attack_effects": func(cfg: AttackConfig) -> void: _apply_attack_effects(cfg),
+		"play_block_sfx": func() -> void: audio_out.play_stream(sfx_block),
 	})
 
-	controller.play_stream.connect(func(s: AudioStream): audio_out.play_stream(s))
-	controller.connect("state_changed", _on_state_changed_with_dir)
+	controller.play_stream.connect(func(s: AudioStream) -> void: audio_out.play_stream(s))
+	controller.state_changed.connect(_on_state_changed_with_dir)
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
-	controller.attack_step.connect(func(dist): stepper.start_step(dist, last_direction == "left"))
+
+	controller.attack_step.connect(func(dist: float) -> void:
+		stepper.start_step(dist, last_direction == "left")
+	)
+
 	controller.request_push_apart.connect(_on_request_push_apart)
 
-	stats.health_changed.connect(func(_c,_m): health_changed.emit())
-	stats.stamina_changed.connect(func(_c,_m): stamina_changed.emit())
+	stats.health_changed.connect(func(_c: float,_m: float) -> void: health_changed.emit())
+	stats.stamina_changed.connect(func(_c: float,_m: float) -> void: stamina_changed.emit())
 
 	if heavy_attack == null:
 		heavy_attack = AttackConfig.heavy_preset()
-
-	if finisher_attack== null:
+	if finisher_attack == null:
 		finisher_attack = AttackConfig.finisher_preset()
 
-	_on_state_changed_with_dir(controller.combat_state, controller.combat_state, Vector2(1, 0))
+	_on_state_changed_with_dir(controller.combat_state, Vector2(1, 0))
 
 func _physics_process(delta: float) -> void:
 	stats.tick(delta)
 	stepper.physics_tick(delta)
 
-	var can_move := controller.combat_state == CombatController.CombatState.IDLE
-	var input_dir := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	var can_move: bool = controller.combat_state == CombatTypes.CombatState.IDLE
+	var input_dir_val: float = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
 
 	if can_move:
-		velocity.x = input_dir * speed
+		velocity.x = input_dir_val * speed
 	else:
 		if not _is_step_active():
 			velocity.x = 0.0
@@ -97,8 +107,10 @@ func _physics_process(delta: float) -> void:
 	clamp2d.physics_tick()
 
 	if can_move:
-		var moving := absf(velocity.x) > 0.1
-		var base := "walk" if moving else "idle"
+		var moving: bool = absf(velocity.x) > 0.1
+		var base: String = "idle"
+		if moving:
+			base = "walk"
 		anim.set_exhausted(is_exhausted())
 		anim.play_state_anim(base)
 
@@ -106,7 +118,7 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	# buffer de direção
-	var dir := get_current_input_direction()
+	var dir: Vector2 = get_current_input_direction()
 	if dir != Vector2.ZERO:
 		input_direction_buffer = dir
 		direction_buffer_timer = direction_buffer_duration
@@ -119,24 +131,36 @@ func _process(delta: float) -> void:
 	if exhausted_lock_timer > 0.0:
 		exhausted_lock_timer -= delta
 
-	# atualização do hold de ataque pesado
+	# atualização do hold de ataque pesado / finisher
 	_update_attack_hold(delta)
 
-	# outros inputs
-	handle_input_parry_only()
+	# outros inputs (parry + dodge)
+	handle_input_parry_and_dodge()
 
-func handle_input_parry_only() -> void:
-	var input_dir := get_current_input_direction()
+func handle_input_parry_and_dodge() -> void:
+	var input_dir: Vector2 = get_current_input_direction()
 
 	# atualizar facing quando puder andar
-	if input_dir != Vector2.ZERO and controller.combat_state == CombatController.CombatState.IDLE:
+	if input_dir != Vector2.ZERO and controller.combat_state == CombatTypes.CombatState.IDLE:
 		last_direction = get_label_from_vector(input_dir)
 
-	# parry permanece no botão próprio
+	# parry
 	if Input.is_action_just_pressed("parry"):
-		var started := controller.try_parry(false, input_dir)
-		if not started:
+		var p_started: bool = controller.try_parry(false, input_dir)
+		if not p_started:
 			controller.queued_direction = input_dir
+
+	# dodge (movimento de corpo, sem dash)
+	if Input.is_action_just_pressed("dodge"):
+		var dodge_dir: Vector2 = input_dir
+		if dodge_dir == Vector2.ZERO:
+			# sem input → backstep (oposto do facing)
+			if last_direction == "right":
+				dodge_dir = Vector2(-1, 0)
+			else:
+				dodge_dir = Vector2(1, 0)
+		# try_dodge já bufferiza se não puder agora
+		controller.try_dodge(false, dodge_dir)
 
 func _update_attack_hold(delta: float) -> void:
 	# início do hold / prioridade: FINISHER
@@ -150,11 +174,14 @@ func _update_attack_hold(delta: float) -> void:
 		_heavy_sent = false
 
 		# trava a direção do ataque no momento do press (usa buffer ou facing)
-		var dir := input_direction_buffer
+		var dir: Vector2 = input_direction_buffer
 		if dir == Vector2.ZERO:
 			dir = get_current_input_direction()
 		if dir == Vector2.ZERO:
-			dir = Vector2(1, 0) if last_direction == "right" else Vector2(-1, 0)
+			if last_direction == "right":
+				dir = Vector2(1, 0)
+			else:
+				dir = Vector2(-1, 0)
 		_attack_hold_dir = dir
 
 	# mantendo pressionado
@@ -164,7 +191,7 @@ func _update_attack_hold(delta: float) -> void:
 		if not _heavy_sent and _attack_hold_timer >= heavy_hold_threshold:
 			_heavy_sent = true
 			_attack_hold_active = false
-			if heavy_attack and controller.has_method("try_attack_heavy"):
+			if heavy_attack != null and controller.has_method("try_attack_heavy"):
 				controller.try_attack_heavy(heavy_attack, _attack_hold_dir)
 			else:
 				controller.try_attack(false, _attack_hold_dir)
@@ -178,32 +205,39 @@ func _update_attack_hold(delta: float) -> void:
 
 # Tenta achar um alvo GUARD_BROKEN válido na frente
 func _find_guard_broken_target() -> Dictionary:
-	var me := self as Node2D
+	var me: Node2D = self as Node2D
 	var best_node: Node2D = null
-	var best_dist := INF
-	var dir_label := last_direction
+	var best_dist: float = INF
+	var dir_label: String = last_direction
 	for n in get_tree().get_nodes_in_group("enemy"):
-		if not is_instance_valid(n): continue
-		var e := n as Node2D
-		if e == null: continue
-		if not e.has_method("get_combat_controller"): continue
+		if not is_instance_valid(n):
+			continue
+		var e: Node2D = n as Node2D
+		if e == null:
+			continue
+		if not e.has_method("get_combat_controller"):
+			continue
 		var ecc: CombatController = e.get_combat_controller()
-		if ecc == null or not ecc.is_guard_broken(): continue
+		if ecc == null or not ecc.is_guard_broken():
+			continue
 
-		var dx := e.global_position.x - me.global_position.x
-		var dist := absf(dx)
-		if dist > finisher_max_distance: continue
+		var dx: float = e.global_position.x - me.global_position.x
+		var dist: float = absf(dx)
+		if dist > finisher_max_distance:
+			continue
 
 		if finisher_require_facing:
-			if dir_label == "right" and dx < 0.0: continue
-			if dir_label == "left" and dx > 0.0: continue
+			if dir_label == "right" and dx < 0.0:
+				continue
+			if dir_label == "left" and dx > 0.0:
+				continue
 
 		if dist < best_dist:
 			best_dist = dist
 			best_node = e
 
-	if best_node:
-		var vec := (best_node.global_position - me.global_position).normalized()
+	if best_node != null:
+		var vec: Vector2 = (best_node.global_position - me.global_position).normalized()
 		return {"node": best_node, "dir": vec}
 	return {}
 
@@ -211,7 +245,7 @@ func _find_guard_broken_target() -> Dictionary:
 func _try_finisher_input() -> bool:
 	if finisher_attack == null or not controller.has_method("try_attack_heavy"):
 		return false
-	var target := _find_guard_broken_target()
+	var target: Dictionary = _find_guard_broken_target()
 	if target.is_empty():
 		return false
 	var dir: Vector2 = target["dir"]
@@ -227,10 +261,12 @@ func get_current_input_direction() -> Vector2:
 func get_label_from_vector(dir: Vector2) -> String:
 	if dir == Vector2.ZERO:
 		return last_direction
-	return "right" if dir.x > 0.0 else "left"
+	if dir.x > 0.0:
+		return "right"
+	return "left"
 
 func update_attack_hitbox_position(direction: String) -> void:
-	var offset := Vector2.ZERO
+	var offset: Vector2 = Vector2.ZERO
 	match direction:
 		"left":
 			offset = Vector2(-45, 0)
@@ -240,43 +276,70 @@ func update_attack_hitbox_position(direction: String) -> void:
 			attack_hitbox.rotation_degrees = 0
 	attack_hitbox.position = offset
 
-func _on_state_changed_with_dir(old_state: int, new_state: int, attack_direction: Vector2) -> void:
-	if attack_direction != Vector2.ZERO:
-		last_direction = "right" if attack_direction.x >= 0.0 else "left"
+func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> void:
+	if should_update_facing(new_state, attack_direction):
+		if attack_direction.x >= 0.0:
+			last_direction = "right"
+		else:
+			last_direction = "left"
 
 	update_attack_hitbox_position(last_direction)
 
-	var attack = controller.get_current_attack()
+	var attack: AttackConfig = controller.get_current_attack() as AttackConfig
 	anim.set_direction_label(last_direction)
 	anim.set_exhausted(is_exhausted())
 
 	match new_state:
-		CombatController.CombatState.IDLE:
+		CombatTypes.CombatState.IDLE:
 			anim.play_state_anim("idle")
-		CombatController.CombatState.STARTUP:
-			if attack: anim.play_exact(attack.startup_animation)
-		CombatController.CombatState.ATTACKING:
-			if attack: anim.play_exact(attack.attack_animation)
-		CombatController.CombatState.RECOVERING:
-			if attack: anim.play_exact(attack.recovery_animation)
-		CombatController.CombatState.PARRY_ACTIVE:
+		CombatTypes.CombatState.STARTUP:
+			if attack != null:
+				anim.play_exact(attack.startup_animation)
+		CombatTypes.CombatState.ATTACKING:
+			if attack != null:
+				anim.play_exact(attack.attack_animation)
+		CombatTypes.CombatState.RECOVERING:
+			if attack != null:
+				anim.play_exact(attack.recovery_animation)
+		CombatTypes.CombatState.PARRY_ACTIVE:
 			anim.play_exact("parry")
-		CombatController.CombatState.PARRY_SUCCESS:
+		CombatTypes.CombatState.PARRY_SUCCESS:
 			anim.play_exact("parry_success")
 			attack_hitbox.disable()
-		CombatController.CombatState.STUNNED:
-			var a := ("stunned_parry" if controller.stun_kind == CombatController.StunKind.PARRIED
-				else ("stunned_block_b" if stunned_block_toggle else "stunned_block_a"))
-			stunned_block_toggle = not stunned_block_toggle
-			controller.stun_kind = CombatController.StunKind.NONE
-			anim.play_exact(a)
+		CombatTypes.CombatState.STUNNED:
+			var anim_name: String = ""
+			match controller.stun_kind:
+				CombatTypes.StunKind.PARRIED:
+					anim_name = "stunned_parry"
+				CombatTypes.StunKind.BLOCKED:
+					if stunned_block_toggle:
+						anim_name = "stunned_block_b"
+					else:
+						anim_name = "stunned_block_a"
+					stunned_block_toggle = not stunned_block_toggle
+				CombatTypes.StunKind.NONE:
+					anim_name = "stunned_hit"
+
+			controller.stun_kind = CombatTypes.StunKind.NONE
+			anim.play_exact(anim_name)
+
+		CombatTypes.CombatState.DODGE_STARTUP:
+			anim.play_exact("dodge_startup")
+		CombatTypes.CombatState.DODGE_ACTIVE:
+			anim.play_exact("dodge")
+		CombatTypes.CombatState.DODGE_RECOVERING:
+			anim.play_exact("dodge_recover")
+		CombatTypes.CombatState.GUARD_BROKEN:
+			anim.play_exact("guard_broken")
 
 func _on_hitbox_active_changed(on: bool) -> void:
-	if on: attack_hitbox.enable()
-	else: attack_hitbox.disable()
+	if on:
+		attack_hitbox.enable()
+	else:
+		attack_hitbox.disable()
 
 func _is_step_active() -> bool:
-	return controller.combat_state == CombatController.CombatState.ATTACKING
+	return controller.combat_state == CombatTypes.CombatState.ATTACKING
 
 # ======= Interface esperada pelo CombatController =======
 
@@ -287,7 +350,7 @@ func has_stamina(amount: float) -> bool:
 	return stats.has_stamina(amount)
 
 func consume_stamina(amount: float) -> void:
-	var before := stats.current_stamina
+	var before: float = stats.current_stamina
 	stats.consume_stamina(amount)
 	if before >= controller.block_stamina_cost and stats.current_stamina < controller.block_stamina_cost:
 		exhausted_lock_timer = exhausted_lock_duration
@@ -301,61 +364,47 @@ func is_exhausted() -> bool:
 
 func receive_attack(attacker: Node) -> void:
 	_last_attacker_node = attacker as Node2D
+	controller.process_incoming_hit(attacker)
 
-	var c := get_combat_controller()
-	var atk_cc: CombatController = null
-	var atk_cfg: AttackConfig = null
+# ============================ Utilidades ============================
 
-	if attacker and attacker.has_node("CombatController"):
-		atk_cc = attacker.get_node("CombatController") as CombatController
-		if atk_cc:
-			atk_cfg = atk_cc.get_current_attack()
+func take_damage(amount: float) -> void:
+	stats.take_damage(amount)
+	flash_hit_color()
+	if stats.current_health <= 0.0:
+		die()
 
-	# I-FRAMES curtos: durante PARRY_SUCCESS não recebe hit nem auto-block
-	if c.combat_state == CombatController.CombatState.PARRY_SUCCESS:
+func die() -> void:
+	audio_out.play_stream(sfx_die)
+	queue_free()
+
+func on_parried() -> void:
+	controller.on_parried()
+
+func on_blocked() -> void:
+	controller.on_blocked()
+
+func flash_hit_color(duration: float = 0.1) -> void:
+	if flash_material:
+		flash_material.set("shader_parameter/flash", true)
+		await get_tree().create_timer(duration).timeout
+		flash_material.set("shader_parameter/flash", false)
+
+# Afastamento simples após parry pesado (neutro)
+func _on_request_push_apart(pixels: float) -> void:
+	if _last_attacker_node == null or not is_instance_valid(_last_attacker_node):
 		return
-
-	# Se eu estou GUARD_BROKEN: ignora parry/autoblock; toma o hit e consome com finisher
-	if c.combat_state == CombatController.CombatState.GUARD_BROKEN and atk_cfg:
-		_apply_attack_effects(atk_cfg)
-		if atk_cc:
-			atk_cc.resolve_finisher(atk_cc, c)
-		return
-
-	# 1) Se estou em PARRY_ACTIVE → testar janela efetiva por tipo
-	if c.combat_state == CombatController.CombatState.PARRY_ACTIVE and atk_cfg and atk_cfg.parryable:
-		var factor := atk_cfg.parry_window_factor if atk_cfg.parry_window_factor != 0.0 else 1.0
-		var eff := c.parry_window * factor
-		if c.is_within_parry_window(eff):
-			c.did_parry_succeed = true
-			if atk_cfg.kind == AttackConfig.AttackKind.HEAVY:
-				c.resolve_parry_heavy_neutral(atk_cc, c)
-			else:
-				c.resolve_parry_light(atk_cc, c)
-			return
-
-	# 2) AUTO-BLOCK só vale contra leves e quando o golpe NÃO bypassa auto-block
-	var can_autoblock := false
-	if atk_cfg:
-		var is_light := (atk_cfg.kind == AttackConfig.AttackKind.NORMAL)
-		can_autoblock = is_light and not atk_cfg.bypass_auto_block
-
-	if can_autoblock and has_stamina(c.block_stamina_cost):
-		audio_out.play_stream(sfx_block)
-		c.on_blocked()
-		return
-
-	# 3) HIT REAL: aplicar pressão de stamina + dano
-	if atk_cfg:
-		_apply_attack_effects(atk_cfg)
-	else:
-		audio_out.play_stream(sfx_hit)
-		take_damage(20)
+	var a: Vector2 = _last_attacker_node.global_position
+	var b: Vector2 = global_position
+	var dir: Vector2 = (b - a).normalized()
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	_last_attacker_node.global_position -= dir * pixels
+	global_position += dir * pixels
 
 func _apply_attack_effects(cfg: AttackConfig) -> void:
-	var c := get_combat_controller()
 	# Guarda stamina antes do hit
-	var stamina_before := stats.current_stamina
+	var stamina_before: float = stats.current_stamina
 
 	# Pressão extra de stamina (antes do dano base)
 	if cfg.stamina_damage_extra > 0.0:
@@ -377,40 +426,13 @@ func _apply_attack_effects(cfg: AttackConfig) -> void:
 
 	# Se for HEAVY e o hit fez a stamina cair a zero, entra em GUARD_BROKEN
 	if cfg.kind == AttackConfig.AttackKind.HEAVY and stamina_before > 0.0 and stats.current_stamina <= 0.0:
-		c.force_guard_broken()
+		controller.force_guard_broken()
 
-# ============================ Utilidades ============================
-
-func take_damage(amount: float) -> void:
-	stats.take_damage(amount)
-	flash_hit_color()
-	if stats.current_health <= 0.0:
-		die()
-
-func die() -> void:
-	audio_out.play_stream(sfx_die)
-	queue_free()
-
-func on_parried() -> void:
-	controller.on_parried()
-
-func on_blocked() -> void:
-	controller.on_blocked()
-
-func flash_hit_color(duration := 0.1) -> void:
-	if flash_material:
-		flash_material.set("shader_parameter/flash", true)
-		await get_tree().create_timer(duration).timeout
-		flash_material.set("shader_parameter/flash", false)
-
-# Afastamento simples após parry pesado (neutro)
-func _on_request_push_apart(pixels: float) -> void:
-	if _last_attacker_node == null or not is_instance_valid(_last_attacker_node):
-		return
-	var a := _last_attacker_node.global_position
-	var b := global_position
-	var dir := (b - a).normalized()
-	if dir == Vector2.ZERO:
-		dir = Vector2.RIGHT
-	_last_attacker_node.global_position -= dir * pixels
-	global_position += dir * pixels
+func should_update_facing(new_state: int, attack_direction: Vector2) -> bool:
+	var has_direction: bool = attack_direction != Vector2.ZERO
+	var is_dodge_state: bool = (
+		new_state == CombatTypes.CombatState.DODGE_STARTUP
+		or new_state == CombatTypes.CombatState.DODGE_ACTIVE
+		or new_state == CombatTypes.CombatState.DODGE_RECOVERING
+	)
+	return has_direction and not is_dodge_state

@@ -1,104 +1,198 @@
 extends Node
 class_name EnemyBrain
 
-@export var enemy_path: NodePath          # referencie o Enemy (CharacterBody2D)
-@export var parry_chance := 0.6
-@export var parry_check_cooldown := 0.4
-@export var max_check_distance := 140.0
-@export var require_facing_match := true  # só tenta parry se player estiver de frente
+# ---------- CONFIG GERAL ----------
+@export var enemy_path: NodePath
 
-# Ajuste de chance contra HEAVY: 0.5 => metade da chance
-@export var heavy_parry_chance_factor := 0.5
+# Parry
+@export var parry_chance: float = 0.6
+@export var parry_check_cooldown: float = 0.4
+@export var max_check_distance: float = 140.0
+@export var require_facing_match: bool = true
+@export var heavy_parry_chance_factor: float = 0.5
 
-var _enemy: Node
+# Pressão após parry leve
+@export var pressure_heavy_every: int = 30      # a cada N leves, 1 heavy
+@export var action_min_interval: float = 0.05  # evita dupla chamada no mesmo frame
+
+# HEAVY/FINISHER usados pelo inimigo (plugue os AttackConfigs aqui!)
+@export var heavy_attack: AttackConfig
+@export var finisher_attack: AttackConfig
+@export var finisher_max_distance: float = 120.0
+@export var finisher_require_facing: bool = true
+@export var finisher_retry_cooldown: float = 0.25
+
+# ---------- ESTADOS PRIVADOS ----------
+var _enemy: Enemy
 var _player: Node
-var _cooldown := 0.0
+var _ec: CombatController
 
-# controle para não tentar múltiplas vezes no mesmo STARTUP
-var _tried_this_startup := false
-var _last_player_state := -1
+var _parry_cd: float = 0.0
+var _act_cd: float = 0.0
+var _finisher_cd: float = 0.0
+
+var _tried_this_startup: bool = false
+var _last_player_state: CombatTypes.CombatState = CombatTypes.CombatState.IDLE
+
+var _pressuring: bool = false
+var _pressure_count: int = 0
 
 func _ready() -> void:
-	_enemy = get_node(enemy_path)
-	# Player será setado via enemy.gd chamando set_player() em runtime.
+	_enemy = get_node(enemy_path) as Enemy
+	if _enemy == null:
+		return
+
+	_ec = _enemy.get_combat_controller()
+	if _ec != null:
+		if not _ec.state_changed.is_connected(_on_enemy_state_changed):
+			_ec.state_changed.connect(_on_enemy_state_changed)
+
+	# defaults caso não plugue via inspector
+	if heavy_attack == null:
+		heavy_attack = AttackConfig.heavy_preset()
+	if finisher_attack == null:
+		finisher_attack = AttackConfig.finisher_preset()
 
 func set_player(p: Node) -> void:
 	_player = p
 
 func _process(delta: float) -> void:
-	if _cooldown > 0.0:
-		_cooldown -= delta
-		return
-	if not _enemy or not _player:
+	if _parry_cd > 0.0:
+		_parry_cd -= delta
+	if _act_cd > 0.0:
+		_act_cd -= delta
+	if _finisher_cd > 0.0:
+		_finisher_cd -= delta
+
+	if _enemy == null or _player == null or _ec == null:
 		return
 
-	var ec: CombatController = _enemy.get_combat_controller()
 	var pc: CombatController = _player.get_combat_controller()
-	if not ec or not pc:
+	if pc == null:
 		return
 
-	# detectar transição do player para STARTUP para resetar a flag
-	if pc.combat_state != _last_player_state:
+	# 1) FINISHER tem prioridade absoluta
+	if _try_finisher_if_possible(pc):
+		return
+
+	# 2) Parry reativo ao ataque do player
+	_try_parry_tick(pc)
+
+# ---------- CALLBACK DO CONTROLLER DO INIMIGO ----------
+func _on_enemy_state_changed(new_state: int, _dir: Vector2) -> void:
+	# Começar/terminar pressão conforme parry/stun
+	if new_state == CombatTypes.CombatState.PARRY_SUCCESS:
+		# pressiona somente se foi parry de ataque LEVE
+		_pressuring = not _ec.last_parry_was_heavy
+		if _pressuring:
+			_pressure_count = 0
+
+	elif new_state == CombatTypes.CombatState.STUNNED:
+		# levou parry/bloqueio forte → cancela pressão
+		_pressuring = false
+		_pressure_count = 0
+
+	# Quando ficar livre (IDLE), se estiver pressionando, ataca
+	if new_state == CombatTypes.CombatState.IDLE and _pressuring:
+		if _act_cd <= 0.0 and _ec.can_act():
+			call_deferred("_do_pressure_attack")
+
+# ---------- FINISHER ----------
+func _try_finisher_if_possible(pc: CombatController) -> bool:
+	if _finisher_cd > 0.0:
+		return false
+	if not pc.is_guard_broken():
+		return false
+	if not _ec.can_act():
+		return false
+	if finisher_attack == null:
+		return false
+
+	var enemy_pos: Vector2 = (_enemy as Node2D).global_position
+	var player_pos: Vector2 = (_player as Node2D).global_position
+
+	if enemy_pos.distance_to(player_pos) > finisher_max_distance:
+		return false
+
+	if finisher_require_facing:
+		var dx: float = player_pos.x - enemy_pos.x
+		var enemy_facing_right: bool = (_enemy.last_direction == "right")
+		if enemy_facing_right and dx < 0.0:
+			return false
+		if not enemy_facing_right and dx > 0.0:
+			return false
+
+	var dir: Vector2 = (player_pos - enemy_pos).normalized()
+	var started: bool = _ec.try_attack_heavy(finisher_attack, dir, false)
+	if started:
+		_finisher_cd = finisher_retry_cooldown
+		_act_cd = action_min_interval
+		if _ec.debug_logs:
+			print("EnemyBrain: FINISHER iniciado")
+	return started
+
+# ---------- PARRY ----------
+func _try_parry_tick(pc: CombatController) -> void:
+	# cooldown/validações básicas
+	if _parry_cd > 0.0:
+		return
+
+	if pc.combat_state == CombatTypes.CombatState.STARTUP:
+		# detectar mudança de estado do player p/ STARTUP → resetar flag
+		if pc.combat_state != _last_player_state:
+			_tried_this_startup = false
 		_last_player_state = pc.combat_state
-		_tried_this_startup = false
-
-	# só reage a STARTUP do player
-	if pc.combat_state != CombatController.CombatState.STARTUP:
+	else:
+		_last_player_state = pc.combat_state
 		return
 
-	# já tentei neste STARTUP? então não repete
+	# já tentou neste STARTUP?
 	if _tried_this_startup:
 		return
 
-	# pos dos atores (faça cast para Node2D para tipar corretamente)
+	# alcance + facing
 	var enemy_pos: Vector2 = (_enemy as Node2D).global_position
 	var player_pos: Vector2 = (_player as Node2D).global_position
-
-	# distância
 	if enemy_pos.distance_to(player_pos) > max_check_distance:
 		return
-
-	# (opcional) garantir que o player está atacando "na direção" do inimigo
 	if require_facing_match:
 		var enemy_on_right: bool = (enemy_pos.x - player_pos.x) > 0.0
 		var player_attacking_right: bool = (pc.current_attack_direction.x >= 0.0)
 		if enemy_on_right != player_attacking_right:
 			return
 
-	# pegar o ataque atual do player para cronometrar e ajustar chance
-	var p_attack: AttackConfig = pc.get_current_attack()
+	# ataque atual do player
+	var p_attack: AttackConfig = pc.get_current_attack() as AttackConfig
 	if p_attack == null:
 		return
 
-	var chance := parry_chance
+	var chance: float = parry_chance
 	if p_attack.kind == AttackConfig.AttackKind.HEAVY:
-		chance *= heavy_parry_chance_factor
+		chance = parry_chance * heavy_parry_chance_factor
 
-	# tente parry um pouco ANTES do fim do startup do player
-	# buffer de segurança: 0.06s (ajuste fino depois)
-	var delay: Variant = max(0.0, p_attack.startup - 0.06)
+	var delay: float = p_attack.startup - 0.06
+	if delay < 0.0:
+		delay = 0.0
 
-	# agendar tentativa única para este STARTUP
 	_tried_this_startup = true
-	_cooldown = parry_check_cooldown
+	_parry_cd = parry_check_cooldown
 	call_deferred("_try_parry_with_delay", delay, chance)
 
 func _try_parry_with_delay(delay: float, chance: float) -> void:
-	# Espera 'delay' mantendo a simplicidade
 	if delay > 0.0:
 		await get_tree().create_timer(delay).timeout
 
-	# Revalida condições mínimas (player ainda no mesmo ciclo de ataque?)
-	if not _enemy or not _player:
+	if _enemy == null or _player == null or _ec == null:
 		return
-	var ec: CombatController = _enemy.get_combat_controller()
 	var pc: CombatController = _player.get_combat_controller()
-	if not ec or not pc:
-		return
-	if pc.combat_state != CombatController.CombatState.STARTUP and pc.combat_state != CombatController.CombatState.ATTACKING:
+	if pc == null:
 		return
 
-	# Distância e facing ainda válidos?
+	# player ainda em STARTUP/ATTACKING?
+	if pc.combat_state != CombatTypes.CombatState.STARTUP and pc.combat_state != CombatTypes.CombatState.ATTACKING:
+		return
+
+	# alcance + facing revalidados
 	var enemy_pos: Vector2 = (_enemy as Node2D).global_position
 	var player_pos: Vector2 = (_player as Node2D).global_position
 	if enemy_pos.distance_to(player_pos) > max_check_distance:
@@ -109,7 +203,46 @@ func _try_parry_with_delay(delay: float, chance: float) -> void:
 		if enemy_on_right != player_attacking_right:
 			return
 
-	# Decide e tenta
 	if randf() < chance:
 		var dir: Vector2 = (player_pos - enemy_pos).normalized()
-		ec.try_parry(true, dir)
+		_ec.try_parry(true, dir)
+
+# ---------- PRESSÃO (leve/leve/HEAVY) ----------
+func _do_pressure_attack() -> void:
+	# validações
+	if not _pressuring or not _ec.can_act():
+		return
+	if _player == null:
+		return
+
+	var enemy_pos: Vector2 = (_enemy as Node2D).global_position
+	var player_pos: Vector2 = (_player as Node2D).global_position
+	var dir: Vector2 = (player_pos - enemy_pos).normalized()
+
+	# tenta HEAVY a cada N
+	var did_start: bool = false
+	var want_heavy: bool = (heavy_attack != null and _pressure_count >= pressure_heavy_every - 1)
+	if want_heavy:
+		did_start = _ec.try_attack_heavy(heavy_attack, dir, false)
+		if did_start:
+			_pressure_count = 0
+	else:
+		# leve (usa ataque corrente da sequência do inimigo)
+		var next: AttackConfig = _ec.get_current_attack() as AttackConfig
+		if next != null:
+			did_start = _ec.try_attack(false, dir)
+			if did_start:
+				_pressure_count = min(_pressure_count + 1, pressure_heavy_every - 1)
+
+	# se não conseguiu atacar, encerra pressão; senão, impõe intervalo mínimo
+	if not did_start:
+		_pressuring = false
+		_pressure_count = 0
+	else:
+		_act_cd = action_min_interval
+
+func bind_controller(ec: CombatController) -> void:
+	_ec = ec
+	if _ec != null:
+		if not _ec.state_changed.is_connected(_on_enemy_state_changed):
+			_ec.state_changed.connect(_on_enemy_state_changed)

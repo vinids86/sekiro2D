@@ -10,6 +10,7 @@ func _ready() -> void:
 	assert(_player, "AudioOutlet: player_path inválido")
 
 func play_stream(stream: AudioStream) -> void:
-	if stream == null: return
+	if stream == null:
+		return
 	_player.stream = stream
 	_player.play()
