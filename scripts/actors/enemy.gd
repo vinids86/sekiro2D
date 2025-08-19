@@ -51,7 +51,6 @@ func _ready() -> void:
 	if finisher_attack == null:
 		finisher_attack = AttackConfig.finisher_preset()
 
-	# encontra o player na árvore
 	var p: Node = get_tree().get_first_node_in_group("player")
 	if p != null:
 		brain.set_player(p)
@@ -70,12 +69,10 @@ func _ready() -> void:
 	controller.state_changed.connect(_on_state_changed_with_dir)
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
 
-	# step só em ataques
 	controller.attack_step.connect(func(dist: float) -> void:
 		stepper.start_step(dist, last_direction == "left")
 	)
 
-	# Afastamento solicitado após parry pesado
 	controller.request_push_apart.connect(_on_request_push_apart)
 
 	stats.health_changed.connect(func(_c: float, _m: float) -> void: health_changed.emit())
@@ -89,7 +86,6 @@ func _physics_process(delta: float) -> void:
 
 	stepper.physics_tick(delta)
 
-	# Se não está livre para se mover e não está em step, fica parado
 	if controller.combat_state != CombatTypes.CombatState.IDLE and not _is_step_active():
 		velocity.x = 0.0
 
@@ -106,7 +102,6 @@ func _process(delta: float) -> void:
 		anim.play_state_anim("idle")
 
 func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> void:
-	# não virar durante DODGE_* (mantém facing)
 	if attack_direction != Vector2.ZERO:
 		var is_dodge: bool = (
 			new_state == CombatTypes.CombatState.DODGE_STARTUP
@@ -137,13 +132,21 @@ func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> vo
 				anim.play_exact(attack.attack_animation)
 			attack_hitbox.enable()
 
-		CombatTypes.CombatState.RECOVERING:
+		CombatTypes.CombatState.RECOVERING_SOFT:
 			if attack != null:
 				anim.play_exact(attack.recovery_animation)
 			attack_hitbox.disable()
 
 		CombatTypes.CombatState.PARRY_ACTIVE:
 			anim.play_exact("parry")
+			attack_hitbox.disable()
+
+		CombatTypes.CombatState.PARRY_SUCCESS:
+			anim.play_exact("parry_success")
+			attack_hitbox.disable()
+
+		CombatTypes.CombatState.LOCKOUT:
+			anim.play_state_anim("idle")
 			attack_hitbox.disable()
 
 		CombatTypes.CombatState.STUNNED:
@@ -161,10 +164,6 @@ func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> vo
 					anim_name = "stunned_hit"
 			controller.stun_kind = CombatTypes.StunKind.NONE
 			anim.play_exact(anim_name)
-
-		CombatTypes.CombatState.PARRY_SUCCESS:
-			anim.play_exact("parry_success")
-			attack_hitbox.disable()
 
 		CombatTypes.CombatState.DODGE_STARTUP:
 			anim.play_exact("dodge_startup")
