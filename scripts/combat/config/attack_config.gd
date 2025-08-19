@@ -91,19 +91,19 @@ static func new_simple(
 
 static func default_sequence() -> Array[AttackConfig]:
 	var a1: AttackConfig = AttackConfig.new_simple(
-		0.4, 0.1, 0.25, 0.05, 0.0,
+		0.4, 0.1, 0.2, 0.4, 0.0,
 		&"startup_1", &"attack_1", &"recover_1",
 		preload("res://audio/attack_1.wav"),
 		20.0, 0.02
 	)
 	var a2: AttackConfig = AttackConfig.new_simple(
-		0.28, 0.1, 0.24, 0.06, 0.0,
+		0.4, 0.1, 0.2, 0.4, 0.0,
 		&"startup_2", &"attack_2", &"recover_2",
 		preload("res://audio/attack_2.wav"),
 		24.0, 0.02
 	)
 	var a3: AttackConfig = AttackConfig.new_simple(
-		0.26, 0.12, 0.26, 0.08, 0.0,
+		0.4, 0.1, 0.2, 0.4, 0.0,
 		&"startup_3", &"attack_3", &"recover_3",
 		preload("res://audio/attack_3.wav"),
 		26.0, 0.03
@@ -113,9 +113,9 @@ static func default_sequence() -> Array[AttackConfig]:
 
 static func heavy_preset() -> AttackConfig:
 	var c: AttackConfig = AttackConfig.new_simple(
-		0.80,  # startup maior (telegrafia)
-		0.20,  # active levemente maior
-		0.60,  # recovery_hard
+		0.20,  # startup maior (telegrafia)
+		0.14,  # active levemente maior
+		0.39,  # recovery_hard
 		0.10,  # recovery_soft
 		0.0   # stamina_cost
 	)
@@ -135,9 +135,9 @@ static func heavy_preset() -> AttackConfig:
 
 static func finisher_preset() -> AttackConfig:
 	var c: AttackConfig = AttackConfig.new_simple(
-		0.25, # startup (rápido, “decisivo”)
-		0.15, # active
-		0.60, # recovery_hard
+		0.08, # startup (rápido, “decisivo”)
+		0.20, # active
+		0.17, # recovery_hard
 		0.00, # recovery_soft (não emenda combo)
 		0.0   # stamina_cost (não bloquear execução por falta de stamina)
 	)
@@ -158,19 +158,19 @@ static func finisher_preset() -> AttackConfig:
 
 static func special_sequence() -> Array[AttackConfig]:
 	var a1: AttackConfig = AttackConfig.new_simple(
-		0.4, 0.1, 0.25, 0.05, 0.0,
+		0.4, 0.2, 0.35, 0.05, 0.0,
 		&"startup_1", &"attack_1", &"recover_1",
 		preload("res://audio/attack_1.wav"),
 		20.0, 0.02, ParryBehavior.DEFLECT_ONLY,
 	)
 	var a2: AttackConfig = AttackConfig.new_simple(
-		0.28, 0.1, 0.24, 0.06, 0.0,
+		0.28, 0.2, 0.34, 0.06, 0.0,
 		&"startup_2", &"attack_2", &"recover_2",
 		preload("res://audio/attack_2.wav"),
 		24.0, 0.02, ParryBehavior.DEFLECT_ONLY,
 	)
 	var a3: AttackConfig = AttackConfig.new_simple(
-		0.26, 0.12, 0.26, 0.08, 0.0,
+		0.26, 0.22, 0.36, 0.08, 0.0,
 		&"startup_3", &"attack_3", &"recover_3",
 		preload("res://audio/attack_3.wav"),
 		26.0, 0.03, ParryBehavior.DEFLECT_ONLY,
