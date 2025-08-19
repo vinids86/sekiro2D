@@ -35,6 +35,9 @@ signal special_changed
 @onready var stepper: AttackStepper = $AttackStepper
 @onready var clamp2d: ScreenClamp = $ScreenClamp
 
+# >>> AttackAnimator <<<
+@onready var attack_animator: AttackAnimator = $AttackAnimator
+
 var last_direction: String = "right"
 var input_direction_buffer: Vector2 = Vector2.ZERO
 var direction_buffer_timer: float = 0.0
@@ -59,6 +62,11 @@ func _ready() -> void:
 	assert(audio_out != null, "Player.audio_out não encontrado")
 	assert(sfx_block != null, "Player.sfx_block não configurado")
 	assert(sfx_hit != null, "Player.sfx_hit não configurado")
+	assert(attack_animator != null, "Player.attack_animator não encontrado")
+
+	# Garante ligação do sprite no AttackAnimator caso não tenha sido setado no inspector
+	if attack_animator.sprite == null:
+		attack_animator.sprite = sprite
 
 	attack_sequence = AttackConfig.default_sequence()
 
@@ -72,6 +80,8 @@ func _ready() -> void:
 
 	controller.play_stream.connect(func(s: AudioStream) -> void: audio_out.play_stream(s))
 	controller.state_changed.connect(_on_state_changed_with_dir)
+
+	# Mantemos o controle de hitbox pelo CombatController
 	controller.hitbox_active_changed.connect(_on_hitbox_active_changed)
 
 	controller.attack_step.connect(func(dist: float) -> void:
@@ -138,11 +148,7 @@ func _process(delta: float) -> void:
 		exhausted_lock_timer -= delta
 
 	_handle_special_input()
-	# atualização do hold de ataque pesado / finisher
 	_update_attack_hold(delta)
-
-
-	# outros inputs (parry + dodge)
 	handle_input_parry_and_dodge()
 
 func handle_input_parry_and_dodge() -> void:
@@ -152,15 +158,14 @@ func handle_input_parry_and_dodge() -> void:
 	if input_dir != Vector2.ZERO and controller.combat_state == CombatTypes.CombatState.IDLE:
 		last_direction = get_label_from_vector(input_dir)
 
-	# parry (não escrever no buffer manualmente — o try_parry já bufferiza quando necessário)
+	# parry
 	if Input.is_action_just_pressed("parry"):
 		controller.try_parry(false, input_dir)
 
-	# dodge (movimento de corpo, sem dash)
+	# dodge
 	if Input.is_action_just_pressed("dodge"):
 		var dodge_dir: Vector2 = input_dir
 		if dodge_dir == Vector2.ZERO:
-			# sem input → backstep (oposto do facing)
 			if last_direction == "right":
 				dodge_dir = Vector2(-1, 0)
 			else:
@@ -168,10 +173,8 @@ func handle_input_parry_and_dodge() -> void:
 		controller.try_dodge(false, dodge_dir)
 
 func _update_attack_hold(delta: float) -> void:
-	# início do hold / prioridade: FINISHER
 	if Input.is_action_just_pressed("attack"):
 		if Input.is_action_pressed("special_modifier"):
-			# Deixa o handler do especial cuidar. Evita disparar hold por engano.
 			return
 		if _try_finisher_input():
 			return
@@ -190,7 +193,6 @@ func _update_attack_hold(delta: float) -> void:
 				dir = Vector2(-1, 0)
 		_attack_hold_dir = dir
 
-	# mantendo pressionado
 	if _attack_hold_active and Input.is_action_pressed("attack"):
 		_attack_hold_timer += delta
 		if not _heavy_sent and _attack_hold_timer >= heavy_hold_threshold:
@@ -202,7 +204,6 @@ func _update_attack_hold(delta: float) -> void:
 				controller.try_attack(false, _attack_hold_dir)
 		return
 
-	# soltou antes do threshold → leve
 	if _attack_hold_active and Input.is_action_just_released("attack"):
 		_attack_hold_active = false
 		if not _heavy_sent:
@@ -294,22 +295,39 @@ func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> vo
 
 	match new_state:
 		CombatTypes.CombatState.IDLE:
+			_stop_attack_animator()
 			anim.play_state_anim("idle")
+
 		CombatTypes.CombatState.STARTUP:
+			# Agora o AttackAnimator cuida do visual do ataque
 			if attack != null:
-				anim.play_exact(attack.startup_animation)
+				var anims: AttackPhaseAnims = _make_phase_anims_from_attack(attack)
+				attack_animator.play_attack(anims, attack.startup, attack.active_duration, attack.recovery_hard)
+
 		CombatTypes.CombatState.ATTACKING:
-			if attack != null:
-				anim.play_exact(attack.attack_animation)
-		CombatTypes.CombatState.RECOVERING:
-			if attack != null:
-				anim.play_exact(attack.recovery_animation)
+			# Nada aqui: o AttackAnimator já está tocando a fase ACTIVE
+			pass
+
+		CombatTypes.CombatState.RECOVERING_SOFT:
+			# Nada aqui: o AttackAnimator já cobre a RECOVERY (tempo e frames)
+			pass
+
 		CombatTypes.CombatState.PARRY_ACTIVE:
+			_stop_attack_animator()
 			anim.play_exact("parry")
+
 		CombatTypes.CombatState.PARRY_SUCCESS:
+			_stop_attack_animator()
 			anim.play_exact("parry_success")
 			attack_hitbox.disable()
+
+		CombatTypes.CombatState.LOCKOUT:
+			_stop_attack_animator()
+			anim.play_state_anim("idle")
+			attack_hitbox.disable()
+
 		CombatTypes.CombatState.STUNNED:
+			_stop_attack_animator()
 			var anim_name: String = ""
 			match controller.stun_kind:
 				CombatTypes.StunKind.PARRIED:
@@ -322,18 +340,31 @@ func _on_state_changed_with_dir(new_state: int, attack_direction: Vector2) -> vo
 					stunned_block_toggle = not stunned_block_toggle
 				CombatTypes.StunKind.NONE:
 					anim_name = "stunned_hit"
-
 			controller.stun_kind = CombatTypes.StunKind.NONE
 			anim.play_exact(anim_name)
 
 		CombatTypes.CombatState.DODGE_STARTUP:
+			_stop_attack_animator()
 			anim.play_exact("dodge_startup")
+
 		CombatTypes.CombatState.DODGE_ACTIVE:
+			_stop_attack_animator()
 			anim.play_exact("dodge")
+
 		CombatTypes.CombatState.DODGE_RECOVERING:
+			_stop_attack_animator()
 			anim.play_exact("dodge_recover")
+
 		CombatTypes.CombatState.GUARD_BROKEN:
+			_stop_attack_animator()
 			anim.play_exact("guard_broken")
+
+func _stop_attack_animator() -> void:
+	if attack_animator != null:
+		attack_animator.set_process(false)
+	if sprite != null:
+		# o animator tinha setado 0.0; precisamos soltar o freio
+		sprite.speed_scale = 1.0
 
 func _on_hitbox_active_changed(on: bool) -> void:
 	if on:
@@ -449,3 +480,12 @@ func _handle_special_input() -> void:
 				dir = Vector2(-1, 0)
 
 		controller.start_forced_sequence(special_sequence_primary.duplicate(), dir)
+
+# ---------- Helpers de animação ----------
+func _make_phase_anims_from_attack(attack: AttackConfig) -> AttackPhaseAnims:
+	var res: AttackPhaseAnims = AttackPhaseAnims.new()
+	# Usa os nomes já definidos no AttackConfig
+	res.startup_anim = StringName(attack.startup_animation)
+	res.active_anim = StringName(attack.attack_animation)
+	res.recovery_anim = StringName(attack.recovery_animation)
+	return res
