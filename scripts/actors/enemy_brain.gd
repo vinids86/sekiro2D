@@ -11,6 +11,11 @@ class_name EnemyBrain
 @export var require_facing_match: bool = true
 @export var heavy_parry_chance_factor: float = 0.5
 
+# Regra: parry só no 2º STARTUP do atacante
+@export var second_hit_window: float = 1.2        # janela p/ manter a armação entre 1º e 2º
+@export var parry_timing_fudge: float = 0.06      # antecipa em relação ao startup do atacante
+@export var parry_default_delay: float = 0.02     # fallback se AttackConfig ainda não estiver pronto
+
 # Pressão após parry leve
 @export var pressure_heavy_every: int = 3
 @export var action_min_interval: float = 0.05
@@ -37,6 +42,10 @@ var _last_player_state: CombatTypes.CombatState = CombatTypes.CombatState.IDLE
 var _pressuring: bool = false
 var _pressure_count: int = 0
 
+# Armação para "2º golpe"
+var _second_primed: bool = false
+var _second_prime_timer: float = 0.0
+
 func _ready() -> void:
 	_enemy = get_node(enemy_path) as Enemy
 	if _enemy == null:
@@ -62,6 +71,13 @@ func _process(delta: float) -> void:
 	if _finisher_cd > 0.0:
 		_finisher_cd -= delta
 
+	# expira a armação do 2º golpe
+	if _second_primed:
+		_second_prime_timer -= delta
+		if _second_prime_timer <= 0.0:
+			_second_primed = false
+			_second_prime_timer = 0.0
+
 	if _enemy == null or _player == null or _ec == null:
 		return
 
@@ -73,7 +89,7 @@ func _process(delta: float) -> void:
 	if _try_finisher_if_possible(pc):
 		return
 
-	# 2) Parry reativo
+	# 2) Parry reativo (com regra do 2º)
 	_try_parry_tick(pc)
 
 # ---------- CALLBACK DO CONTROLLER DO INIMIGO ----------
@@ -82,7 +98,11 @@ func _on_enemy_state_changed(new_state: int, _dir: Vector2) -> void:
 		_pressuring = not _ec.parry.last_was_heavy
 		if _pressuring:
 			_pressure_count = 0
+		# limpa armação após um parry bem-sucedido
+		_second_primed = false
+		_second_prime_timer = 0.0
 	elif new_state == CombatTypes.CombatState.STUNNED:
+		# NÃO limpamos a armação; parry pode ocorrer em STUNNED conforme seu design
 		_pressuring = false
 		_pressure_count = 0
 
@@ -124,12 +144,12 @@ func _try_finisher_if_possible(pc: CombatController) -> bool:
 			print("EnemyBrain: FINISHER iniciado")
 	return started
 
-# ---------- PARRY ----------
+# ---------- PARRY (somente no 2º STARTUP) ----------
 func _try_parry_tick(pc: CombatController) -> void:
 	if _parry_cd > 0.0:
 		return
 
-	# detectar mudança p/ STARTUP
+	# detectar transição p/ STARTUP do ATACANTE
 	if pc.combat_state == CombatTypes.CombatState.STARTUP:
 		if pc.combat_state != _last_player_state:
 			_tried_this_startup = false
@@ -152,21 +172,36 @@ func _try_parry_tick(pc: CombatController) -> void:
 		if enemy_on_right != player_attacking_right:
 			return
 
+	# AttackConfig pode não estar pronto no frame do STARTUP
 	var p_attack: AttackConfig = pc.get_current_attack() as AttackConfig
-	if p_attack == null:
-		return
-
-	var chance: float = parry_chance
-	if p_attack.kind == AttackConfig.AttackKind.HEAVY:
-		chance = parry_chance * heavy_parry_chance_factor
-
-	var delay: float = p_attack.startup - 0.06
-	if delay < 0.0:
-		delay = 0.0
+	var delay: float = parry_default_delay
+	var window: float = second_hit_window
+	if p_attack != null:
+		var d: float = p_attack.startup - parry_timing_fudge
+		if d < 0.0:
+			d = 0.0
+		delay = d
+		var w: float = p_attack.total_time() + 0.10
+		if w > window:
+			window = w
 
 	_tried_this_startup = true
+
+	# 1º STARTUP válido → apenas arma (sem cooldown)
+	if not _second_primed:
+		_second_primed = true
+		_second_prime_timer = window
+		if _ec.debug_logs:
+			print("[EnemyBrain] Armado para parry no próximo STARTUP (2º)")
+		return
+
+	# 2º STARTUP → agenda parry (100% no 2º) e aplica cooldown agora
+	_second_primed = false
+	_second_prime_timer = 0.0
 	_parry_cd = parry_check_cooldown
-	call_deferred("_try_parry_with_delay", delay, chance)
+	if _ec.debug_logs:
+		print("[EnemyBrain] Parry AGENDADO (2º). delay=" + str(delay))
+	call_deferred("_try_parry_with_delay", delay, 1.0)
 
 func _try_parry_with_delay(delay: float, chance: float) -> void:
 	if delay > 0.0:
@@ -193,7 +228,14 @@ func _try_parry_with_delay(delay: float, chance: float) -> void:
 		if enemy_on_right != player_attacking_right:
 			return
 
-	if randf() < chance:
+	var do_parry: bool = false
+	if chance >= 1.0:
+		do_parry = true
+	else:
+		if randf() < chance:
+			do_parry = true
+
+	if do_parry:
 		var dir: Vector2 = (player_pos - enemy_pos).normalized()
 		_ec.try_parry(true, dir)
 
