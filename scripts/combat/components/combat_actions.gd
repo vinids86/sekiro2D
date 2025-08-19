@@ -12,10 +12,16 @@ func setup(controller: CombatController) -> void:
 func try_execute_buffer() -> void:
 	if cc == null:
 		return
+	# Importante: só executa buffer no IDLE.
+	# Em RECOVERING_SOFT quem decide encadear é o Controller.
+	if cc.combat_state != CombatTypes.CombatState.IDLE:
+		return
 
 	# 1) Heavy em buffer tem prioridade
 	if cc.has_heavy():
-		var ok_h: bool = try_attack_heavy(cc.peek_heavy_cfg(), cc.peek_heavy_dir(), true)
+		var cfg: AttackConfig = cc.peek_heavy_cfg()
+		var dir_h: Vector2 = cc.peek_heavy_dir()
+		var ok_h: bool = try_attack_heavy(cfg, dir_h, true)
 		if ok_h:
 			cc.clear_heavy()
 			cc.clear_buffer()
@@ -41,10 +47,10 @@ func try_execute_buffer() -> void:
 			if ok_d:
 				cc.clear_buffer()
 		_:
-			pass  # nada no buffer
+			pass
 
 # =========================================================
-# =============== ATAQUE LEVE / CHAIN =====================
+# =============== ATAQUE LEVE / INÍCIO ====================
 # =========================================================
 func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	if cc == null:
@@ -56,7 +62,7 @@ func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	if cc.combat_state == CombatTypes.CombatState.GUARD_BROKEN:
 		return false
 
-	# Ataque atual/config
+	# Sequência/Config
 	var seq: Array = cc._iface["get_attack_sequence"].call()
 	if seq.is_empty():
 		return false
@@ -65,13 +71,13 @@ func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	if attack == null:
 		return false
 
+	# Stamina
 	if not cc._iface["has_stamina"].call(attack.stamina_cost):
-		# sem stamina → bufferiza se não veio do buffer
 		if not from_buffer:
 			cc.queue_action(CombatController.ActionType.ATTACK, dir, cc.input_buffer_duration)
 		return false
 
-	# Início de combo a partir do IDLE
+	# Apenas inicia do IDLE (chain é responsabilidade do Controller em RECOVERING_SOFT)
 	if cc.combat_state == CombatTypes.CombatState.IDLE:
 		cc.current_attack_direction = dir
 		cc.combo_timeout_timer = cc.combo_timeout_duration
@@ -79,18 +85,7 @@ func try_attack(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 		cc.change_state(CombatTypes.CombatState.STARTUP)
 		return true
 
-	# Chain na soft-recovery (fase 2)
-	if cc.combat_state == CombatTypes.CombatState.RECOVERING and cc.recovering_phase == 2:
-		if cc.can_chain_next_on_soft(attack):
-			cc.on_attack_finished(false)
-			cc.combo_in_progress = true
-			cc.combo_timeout_timer = cc.combo_timeout_duration
-			cc.current_attack_direction = dir
-			cc.clear_buffer()
-			cc.change_state(CombatTypes.CombatState.STARTUP)
-			return true
-
-	# Não deu agora → bufferiza se não veio do buffer
+	# Se não pode agora → bufferiza se não veio do buffer
 	if not from_buffer:
 		cc.queue_action(CombatController.ActionType.ATTACK, dir, cc.input_buffer_duration)
 	return false
@@ -112,7 +107,7 @@ func try_attack_heavy(cfg: AttackConfig, dir: Vector2 = Vector2.ZERO, from_buffe
 			cc.queue_heavy(cfg, dir, cc.input_buffer_duration)
 		return false
 
-	# Início no IDLE
+	# Apenas inicia do IDLE (chain de heavy durante SOFT será feito pelo Controller)
 	if cc.combat_state == CombatTypes.CombatState.IDLE:
 		cc.override_next_attack(cfg)
 		cc.current_attack_direction = dir
@@ -121,25 +116,13 @@ func try_attack_heavy(cfg: AttackConfig, dir: Vector2 = Vector2.ZERO, from_buffe
 		cc.change_state(CombatTypes.CombatState.STARTUP)
 		return true
 
-	# Chain na soft-recovery
-	var curr: AttackConfig = cc.get_current_attack()
-	if cc.combat_state == CombatTypes.CombatState.RECOVERING and cc.recovering_phase == 2 and cc.can_chain_next_on_soft(curr):
-		cc.on_attack_finished(false)
-		cc.override_next_attack(cfg)
-		cc.combo_in_progress = true
-		cc.combo_timeout_timer = cc.combo_timeout_duration
-		cc.current_attack_direction = dir
-		cc.clear_buffer()
-		cc.change_state(CombatTypes.CombatState.STARTUP)
-		return true
-
-	# Não deu → bufferiza (mantém cfg + dir)
+	# Não deu agora → bufferiza (mantém cfg + dir)
 	if not from_buffer:
 		cc.queue_heavy(cfg, dir, cc.input_buffer_duration)
 	return false
 
 # =========================================================
-# ===================== PARRY =============================
+# ======================== PARRY ==========================
 # =========================================================
 func try_parry(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	if cc == null:
@@ -148,16 +131,16 @@ func try_parry(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	# Cooldown ou já ativo
 	if cc.combat_state == CombatTypes.CombatState.PARRY_ACTIVE:
 		return false
-	if cc.has_effect(CombatController.EFFECT_PARRY_COOLDOWN):
+	if cc.lockouts.is_parry_on_cooldown():
 		if not from_buffer:
 			cc.queue_action(CombatController.ActionType.PARRY, dir, cc.input_buffer_duration)
 		return false
+	# Requer 1 de stamina (ajuste conforme sua regra)
 	if not cc._iface["has_stamina"].call(1.0):
 		if not from_buffer:
 			cc.queue_action(CombatController.ActionType.PARRY, dir, cc.input_buffer_duration)
 		return false
 
-	# Em quais estados pode entrar em parry?
 	var attack: AttackConfig = cc.get_current_attack()
 	var can: bool = false
 	match cc.combat_state:
@@ -167,7 +150,7 @@ func try_parry(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 			can = (attack != null and attack.can_cancel_to_parry_on_startup)
 		CombatTypes.CombatState.ATTACKING:
 			can = (attack != null and attack.can_cancel_to_parry_on_active)
-		CombatTypes.CombatState.RECOVERING:
+		CombatTypes.CombatState.RECOVERING_HARD:
 			can = false
 		CombatTypes.CombatState.STUNNED:
 			can = true
@@ -177,7 +160,7 @@ func try_parry(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 			can = false
 
 	if not can:
-		if not from_buffer and not cc.has_effect(CombatController.EFFECT_PARRY_COOLDOWN):
+		if not from_buffer and not cc.lockouts.is_parry_on_cooldown():
 			cc.queue_action(CombatController.ActionType.PARRY, dir, cc.input_buffer_duration)
 		return false
 
@@ -187,13 +170,13 @@ func try_parry(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	return true
 
 # =========================================================
-# ===================== DODGE =============================
+# ======================== DODGE ==========================
 # =========================================================
 func try_dodge(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 	if cc == null:
 		return false
 
-	if cc.has_effect(CombatController.EFFECT_DODGE_COOLDOWN):
+	if cc.lockouts.is_dodge_on_cooldown():
 		if not from_buffer:
 			cc.queue_action(CombatController.ActionType.DODGE, dir, cc.input_buffer_duration)
 		return false
@@ -202,13 +185,12 @@ func try_dodge(from_buffer: bool = false, dir: Vector2 = Vector2.ZERO) -> bool:
 			cc.queue_action(CombatController.ActionType.DODGE, dir, cc.input_buffer_duration)
 		return false
 
-	# Só do IDLE por enquanto
+	# Por enquanto, dodge só a partir do IDLE
 	if cc.combat_state != CombatTypes.CombatState.IDLE:
 		if not from_buffer:
 			cc.queue_action(CombatController.ActionType.DODGE, dir, cc.input_buffer_duration)
 		return false
 
-	# Não altera facing nem current_attack_direction (dodge sem deslocamento)
 	cc.change_state(CombatTypes.CombatState.DODGE_STARTUP)
 	if not from_buffer:
 		cc.clear_buffer()
