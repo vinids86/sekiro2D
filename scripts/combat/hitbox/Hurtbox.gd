@@ -24,10 +24,7 @@ func _on_area_entered(area: Area2D) -> void:
 
 	var defender: Node2D = get_parent() as Node2D
 	if attacker == defender:
-		return # ignora auto-hit
-		
-	print("[HURTBOX]", defender.name, "recebeu de", attacker.name,
-		  "  atkLayer=", atk.collision_layer, "  hbMask=", collision_mask)
+		return
 
 	# --- aplica efeitos de gameplay no DEFENSOR ---
 	var health: Health = defender.get_node(^"Health") as Health
