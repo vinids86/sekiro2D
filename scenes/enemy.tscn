@@ -1,4 +1,4 @@
-[gd_scene load_steps=146 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=149 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -15,9 +15,9 @@
 [ext_resource type="Script" uid="uid://cqj4e3s0okuso" path="res://scripts/stats/health.gd" id="10_w8i8w"]
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="11_otmr2"]
 [ext_resource type="Script" uid="uid://cfihtbf31nc3x" path="res://scripts/combat/CombatController.gd" id="13_wtq4b"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
-size = Vector2(150, 350)
+[ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="16_ile5s"]
+[ext_resource type="Script" uid="uid://dc0cahseykajh" path="res://scripts/combat/hitbox/HitboxDriver.gd" id="17_1x4g4"]
+[ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/SfxDriver.gd" id="18_2pwtc"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
 shader = ExtResource("2_md484")
@@ -1525,16 +1525,19 @@ animations = [{
 }],
 "loop": true,
 "name": &"idle",
-"speed": 5.0
+"speed": 12.0
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lsnsy"]
 size = Vector2(100, 145)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
+size = Vector2(150, 350)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
 size = Vector2(150, 350)
 
-[node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health", "sfx_hit") groups=["enemy"]]
+[node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health", "sfx_hit") groups=["enemy", "fighter"]]
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1_md0e3")
@@ -1544,33 +1547,32 @@ hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
 sfx_hit = NodePath("SfxHit")
 
+[node name="Facing" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
+material = SubResource("ShaderMaterial_ipns3")
+sprite_frames = SubResource("SpriteFrames_md0e3")
+animation = &"idle"
+flip_h = true
+
+[node name="AttackHitbox" type="Area2D" parent="Facing"]
+collision_layer = 16
+collision_mask = 0
+monitoring = false
+script = ExtResource("3_5uy6h")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
+shape = SubResource("RectangleShape2D_lsnsy")
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 visible = false
 shape = SubResource("RectangleShape2D_md0e3")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-material = SubResource("ShaderMaterial_ipns3")
-sprite_frames = SubResource("SpriteFrames_md0e3")
-animation = &"hitstun"
-flip_h = true
-
-[node name="AttackHitbox" type="Area2D" parent="." node_paths=PackedStringArray("shape")]
-collision_layer = 8
-collision_mask = 2
-script = ExtResource("3_5uy6h")
-shape = NodePath("CollisionShape2D")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
-visible = false
-shape = SubResource("RectangleShape2D_lsnsy")
-
-[node name="Hurtbox" type="Area2D" parent="." node_paths=PackedStringArray("owner_node", "health", "controller") groups=["hurtbox"]]
+[node name="Hurtbox" type="Area2D" parent="." groups=["hurtbox"]]
 collision_layer = 4
-collision_mask = 0
+collision_mask = 8
 script = ExtResource("4_c4w8v")
-owner_node = NodePath("..")
-health = NodePath("../Health")
-controller = NodePath("../CombatController")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("RectangleShape2D_4ra3w")
@@ -1591,3 +1593,15 @@ metadata/_custom_type_script = "uid://s1v4ano08fya"
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("13_wtq4b")
 metadata/_custom_type_script = "uid://cfihtbf31nc3x"
+
+[node name="CombatAnimListener" type="Node" parent="."]
+script = ExtResource("16_ile5s")
+metadata/_custom_type_script = "uid://bcv08kia0pix4"
+
+[node name="HitboxDriver" type="Node" parent="."]
+script = ExtResource("17_1x4g4")
+metadata/_custom_type_script = "uid://dc0cahseykajh"
+
+[node name="SfxDriver" type="Node" parent="."]
+script = ExtResource("18_2pwtc")
+metadata/_custom_type_script = "uid://bqh02walasq6j"

@@ -12,20 +12,22 @@ func _init(p_sprite: AnimatedSprite2D) -> void:
 
 func _play_attack_body_impl(clip: StringName, frames: int, fps: float, total_seconds: float) -> void:
 	var clip_seconds: float = float(frames) / fps
-	var speed: float = clip_seconds / total_seconds
+	var speed: float = clip_seconds / total_seconds # dura exatamente total_seconds
 	_current_body = clip
 	_current_to_idle = StringName()
 	sprite.speed_scale = speed
-	sprite.play(clip)  # body_* com loop = false
+	sprite.play(clip)
 
 func _play_to_idle_impl(clip: StringName) -> void:
 	_current_to_idle = clip
-	sprite.speed_scale = 1.0  # duração natural do to_idle
-	sprite.play(clip)         # to_idle_* com loop = false
+	sprite.speed_scale = 1.0
+	sprite.play(clip)
 
 func _play_idle_impl(clip: StringName) -> void:
+	_current_body = StringName()
+	_current_to_idle = StringName()
 	sprite.speed_scale = 1.0
-	sprite.play(clip)         # idle com loop = true
+	sprite.play(clip)
 
 func _on_sprite_finished() -> void:
 	var finished: StringName = sprite.animation

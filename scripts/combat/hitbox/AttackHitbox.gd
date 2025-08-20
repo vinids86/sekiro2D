@@ -1,60 +1,35 @@
 extends Area2D
 class_name AttackHitbox
 
-@export var shape: CollisionShape2D
+@onready var shape: CollisionShape2D = $CollisionShape2D
 
-signal hit_hurtbox(hurtbox: Area2D, cfg: AttackConfig)
-
-var _active: bool = false
-var _already_hit: Dictionary = {}
-var _current_cfg: AttackConfig
-var _owner: Node2D
-var _default_local_position: Vector2 = Vector2.ZERO
+var _cfg: AttackConfig
+var _attacker: Node2D
 
 func _ready() -> void:
-	area_entered.connect(Callable(self, "_on_area_entered"))
-	_disable_shapes()
-	_default_local_position = position
+	monitoring = false
+	shape.disabled = true
+	visible = false
 
-func enable(cfg: AttackConfig, owner: Node) -> void:
-	_active = true
-	_current_cfg = cfg
-	_owner = owner as Node2D
-	_already_hit.clear()
+func enable(cfg: AttackConfig, attacker: Node2D) -> void:
+	print("[HITBOX ON]", attacker.name, " L=", collision_layer, " Mon=", monitoring, " Monable=", monitorable)
+
+	assert(cfg != null, "AttackHitbox.enable: cfg nulo")
+	assert(attacker != null, "AttackHitbox.enable: attacker nulo")
+	_cfg = cfg
+	_attacker = attacker
 	monitoring = true
-
-	var off: Vector2 = cfg.hitbox_offset
-
-	var sign: float = 1.0
-	if _owner != null and _owner.scale.x < 0.0:
-		sign = -1.0
-	off.x = off.x * sign
-	position = off
-
-	_enable_shapes()
+	shape.disabled = false
+	visible = true
 
 func disable() -> void:
-	_active = false
-	_current_cfg = null
-	_owner = null
+	print("[HITBOX OFF]")
 	monitoring = false
-	_disable_shapes()
-	position = _default_local_position
+	shape.disabled = true
+	visible = false
+	_cfg = null
+	_attacker = null
 
-func _on_area_entered(area: Area2D) -> void:
-	if not _active:
-		return
-	if not area.is_in_group("hurtbox"):
-		return
-	if _already_hit.has(area):
-		return
-	_already_hit[area] = true
-	emit_signal("hit_hurtbox", area, _current_cfg)
-
-func _enable_shapes() -> void:
-	if shape != null:
-		shape.disabled = false
-
-func _disable_shapes() -> void:
-	if shape != null:
-		shape.disabled = true
+# Getters para o lado do defensor consultar com segurança
+func get_current_config() -> AttackConfig: return _cfg
+func get_attacker() -> Node2D: return _attacker

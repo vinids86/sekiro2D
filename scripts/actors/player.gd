@@ -5,33 +5,39 @@ class_name Player
 @export var idle_clip: StringName = &"idle"
 @export var hit_clip: StringName = &"hit"
 
-@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
-@onready var hitbox: AttackHitbox = $AttackHitbox
+@onready var hitbox: AttackHitbox = $Facing/AttackHitbox
 @onready var sfx_attack: AudioStreamPlayer2D = $SfxAttack
-@onready var resolver: CombatResolver = $CombatResolver
-@onready var stamina: Stamina = $Stamina
+@onready var facing: Node2D = $Facing
+@onready var anim_listener: CombatAnimListener = $CombatAnimListener
+@onready var hitbox_driver: HitboxDriver = $HitboxDriver
+@onready var sfx_driver: SfxDriver = $SfxDriver
 
 var _driver: AnimationDriver
 
 func _ready() -> void:
-	assert(sprite != null, "AnimatedSprite2D não encontrado no Player")
-	assert(controller != null, "CombatController não encontrado no Player")
-	assert(hitbox != null, "AttackHitbox não encontrado no Player")
-	assert(sfx_attack != null, "SfxAttack não encontrado no Player")
-	assert(resolver != null, "CombatResolver não encontrado no Player")
-	assert(stamina != null, "Stamina não encontrado no Player")
+	assert(sprite != null)
+	assert(controller != null)
+	assert(hitbox != null)
+	assert(sfx_attack != null)
+	assert(attack_set != null)
 
+	# 1) Cria o driver concreto (RefCounted) para animar o sprite
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(
-		_driver,
-		attack_set,
-		idle_clip,
-		hit_clip,
-		hitbox,
-		sfx_attack,
-		resolver
-	)
+
+	# 2) Inicializa o CombatController
+	# Se você já tem initialize_v2 (sem hitbox/sfx/resolver), use:
+	# controller.initialize_v2(_driver, attack_set, idle_clip, hit_clip)
+	# Caso ainda esteja com o initialize antigo, implemente o wrapper v2 ou ignore os extras:
+	controller.initialize(_driver, attack_set, idle_clip, hit_clip,)
+
+	# 3) Liga os listeners (injeção por código, sem NodePath)
+	anim_listener.setup(controller, _driver, idle_clip)
+	hitbox_driver.setup(controller, hitbox, self, facing)
+	sfx_driver.setup(controller, sfx_attack)
+
+	# 4) Estado visual inicial
 	_driver.play_idle(idle_clip)
 
 func _unhandled_input(event: InputEvent) -> void:

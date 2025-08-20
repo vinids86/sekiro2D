@@ -1,17 +1,28 @@
 extends Node
 class_name CombatResolver
 
-# Futuro: enums Impact, cálculo de dano, time/facção, etc.
+signal hit_applied(attacker: Node2D, defender: Node2D, cfg: AttackConfig)
 
-func resolve_hit(attacker: Node, hurtbox: Area2D, cfg: AttackConfig) -> void:
+func resolve_hit(attacker: Node2D, hurtbox: Area2D, cfg: AttackConfig) -> void:
 	assert(attacker != null, "Attacker não encontrado no CombatResolver")
 	assert(hurtbox != null, "Hurtbox não encontrado no CombatResolver")
 	assert(cfg != null, "AttackConfig não encontrado no CombatResolver")
 
-	# Encaminha pro lado da vítima (se já tiver API; senão, só loga por enquanto)
 	var hb: Hurtbox = hurtbox as Hurtbox
-	if hb != null:
-		var health: Health = hb.get_health()
-		health.apply_damage(cfg.damage, attacker)
-		hb.controller.enter_stun()
-		print("[Resolver] hit -> ", hb.name, " por ", attacker.name, " (", cfg.name_id, ")")
+	assert(hb != null, "A Area2D atingida não tem script Hurtbox")
+
+	var defender: Node2D = hb.get_parent() as Node2D
+	assert(defender != null, "Defender inválido (parent da Hurtbox)")
+
+	var health: Health = hb.get_health()
+	assert(health != null, "Health ausente na Hurtbox/defensor")
+
+	# — regra atual mínima —
+	health.apply_damage(cfg.damage, attacker)
+
+	# Se hoje o Resolver também dispara reação de hit:
+	var def_cc: CombatController = defender.get_node(^"CombatController") as CombatController
+	assert(def_cc != null, "CombatController ausente no defensor")
+	def_cc.enter_stun()
+
+	hit_applied.emit(attacker, defender, cfg)
