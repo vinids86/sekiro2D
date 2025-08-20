@@ -8,6 +8,7 @@ class_name Enemy
 @export var hurtbox: Hurtbox
 @export var health: Health
 @export var sfx_hit: AudioStreamPlayer2D
+@export var anim_profile: AnimProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -49,7 +50,7 @@ func _ready() -> void:
 	controller.initialize(_driver, attack_set, idle_clip, hit_clip)
 
 	# 3) Liga os listeners (injeção direta, sem NodePath)
-	anim_listener.setup(controller, _driver, idle_clip)
+	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_attack)
 

@@ -18,10 +18,6 @@ var _combo_index: int = 0
 var _current: AttackConfig
 var _wants_chain: bool = false
 
-# ---------- Getters p/ drivers (evita acessar "_" direto) ----------
-func get_idle_clip() -> StringName: return _idle_clip
-func get_hit_clip() -> StringName: return _hit_clip
-
 # ---------- API pública ----------
 func initialize(
 		driver: AnimationDriver,

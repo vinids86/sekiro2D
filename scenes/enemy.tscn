@@ -1,8 +1,9 @@
-[gd_scene load_steps=149 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=150 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
+[ext_resource type="Resource" uid="uid://c2wswk56ahat6" path="res://resources/anim/anim.tres" id="3_1x4g4"]
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="3_4ra3w"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="3_5uy6h"]
 [ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="3_wrm80"]
@@ -1546,6 +1547,7 @@ hit_clip = &"hitstun"
 hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
 sfx_hit = NodePath("SfxHit")
+anim_profile = ExtResource("3_1x4g4")
 
 [node name="Facing" type="Node2D" parent="."]
 
