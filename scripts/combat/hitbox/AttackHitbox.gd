@@ -2,10 +2,6 @@ extends Area2D
 class_name AttackHitbox
 
 @export var shape: CollisionShape2D
-@export var reset_position_on_disable: bool = true
-@export var owner_mirrors_with_scale: bool = true
-# Se true: você vira o Player invertendo o scale.x do nó Player (RECOMENDADO).
-# Se false: você vira só o sprite (flip_h). Aí a gente precisa multiplicar o offset manualmente.
 
 signal hit_hurtbox(hurtbox: Area2D, cfg: AttackConfig)
 
@@ -21,23 +17,18 @@ func _ready() -> void:
 	_default_local_position = position
 
 func enable(cfg: AttackConfig, owner: Node) -> void:
-	print("HITBOX enable pos=", position)
-
 	_active = true
 	_current_cfg = cfg
 	_owner = owner as Node2D
 	_already_hit.clear()
 	monitoring = true
 
-	# posiciona a hitbox à frente do personagem
 	var off: Vector2 = cfg.hitbox_offset
-	if not owner_mirrors_with_scale:
-		# Caso você NÃO espelhe o Player pelo scale.x e sim só o sprite,
-		# precisamos descobrir o "facing" e multiplicar o X manualmente.
-		var sign: float = 1.0
-		if _owner != null and _owner.scale.x < 0.0:
-			sign = -1.0
-		off.x = off.x * sign
+
+	var sign: float = 1.0
+	if _owner != null and _owner.scale.x < 0.0:
+		sign = -1.0
+	off.x = off.x * sign
 	position = off
 
 	_enable_shapes()
@@ -48,12 +39,9 @@ func disable() -> void:
 	_owner = null
 	monitoring = false
 	_disable_shapes()
-	if reset_position_on_disable:
-		position = _default_local_position
+	position = _default_local_position
 
 func _on_area_entered(area: Area2D) -> void:
-	print("entered -> ", area.name)
-
 	if not _active:
 		return
 	if not area.is_in_group("hurtbox"):

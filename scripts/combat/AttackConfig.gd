@@ -14,3 +14,7 @@ class_name AttackConfig
 @export var to_idle_clip: StringName = &"atk1_to_idle"
 
 @export var hitbox_offset: Vector2 = Vector2(60, 0)
+
+@export var sfx_swing: AudioStream
+
+@export var damage: int = 10

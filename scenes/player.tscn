@@ -1,4 +1,4 @@
-[gd_scene load_steps=166 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=180 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -11,7 +11,11 @@
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="8_60mlk"]
 [ext_resource type="Script" uid="uid://cfihtbf31nc3x" path="res://scripts/combat/CombatController.gd" id="8_smehm"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="10_3v2ag"]
+[ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="10_a8ls1"]
 [ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="11_jej6c"]
+[ext_resource type="Script" uid="uid://cijmtn2j74m58" path="res://scripts/combat/combat_resolver.gd" id="13_jej6c"]
+[ext_resource type="Script" uid="uid://cqj4e3s0okuso" path="res://scripts/stats/health.gd" id="14_oprun"]
+[ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="15_a8ls1"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hqtel"]
 size = Vector2(100, 145)
@@ -612,6 +616,46 @@ region = Rect2(1920, 5400, 1920, 1080)
 [sub_resource type="AtlasTexture" id="AtlasTexture_inwxp"]
 atlas = ExtResource("7_ur7pv")
 region = Rect2(3840, 5400, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eb62r"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(0, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5tfe1"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(1920, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tfrof"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(3840, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vsqmb"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(5760, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8cesh"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(0, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uew4u"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(1920, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3thuw"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(3840, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_44dms"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(5760, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_36p4m"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(0, 2160, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1nht2"]
+atlas = ExtResource("10_a8ls1")
+region = Rect2(1920, 2160, 1920, 1080)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_giy8y"]
 animations = [{
@@ -1389,6 +1433,41 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_eb62r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5tfe1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tfrof")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vsqmb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8cesh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uew4u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3thuw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_44dms")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_36p4m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1nht2")
+}],
+"loop": false,
+"name": &"hitstun",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_0yhus")
 }, {
 "duration": 1.0,
@@ -1548,6 +1627,7 @@ collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_onrkg")
 attack_set = ExtResource("2_y4r1p")
+hit_clip = &"hitstun"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_hqtel")
@@ -1555,27 +1635,43 @@ shape = SubResource("RectangleShape2D_hqtel")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"idle"
+animation = &"hitstun"
 
-[node name="AttackHitbox" type="Area2D" parent="."]
+[node name="AttackHitbox" type="Area2D" parent="." node_paths=PackedStringArray("shape")]
 collision_layer = 8
 collision_mask = 4
 monitoring = false
 script = ExtResource("10_3v2ag")
+shape = NodePath("CollisionShape2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
 shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 
-[node name="Hurtbox" type="Area2D" parent="." groups=["hurtbox"]]
+[node name="Hurtbox" type="Area2D" parent="." node_paths=PackedStringArray("owner_node", "health", "controller") groups=["hurtbox"]]
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("11_jej6c")
+owner_node = NodePath("..")
+health = NodePath("../Health")
+controller = NodePath("../CombatController")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("RectangleShape2D_fjrip")
 
-[node name="AudioPlayer" type="AudioStreamPlayer2D" parent="."]
+[node name="SfxAttack" type="AudioStreamPlayer2D" parent="."]
 
 [node name="CombatController" type="Node" parent="."]
 script = ExtResource("8_smehm")
+
+[node name="CombatResolver" type="Node" parent="."]
+script = ExtResource("13_jej6c")
+metadata/_custom_type_script = "uid://cijmtn2j74m58"
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("14_oprun")
+metadata/_custom_type_script = "uid://cqj4e3s0okuso"
+
+[node name="Stamina" type="Node" parent="."]
+script = ExtResource("15_a8ls1")
+metadata/_custom_type_script = "uid://s1v4ano08fya"
