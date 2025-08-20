@@ -2,9 +2,8 @@ extends CharacterBody2D
 class_name Player
 
 @export var attack_set: AttackSet
-@export var idle_clip: StringName = &"idle"
-@export var hit_clip: StringName = &"hit"
 @export var anim_profile: AnimProfile
+@export var parry_profile: ParryProfile
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
@@ -29,20 +28,22 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, idle_clip, hit_clip,)
+	controller.initialize(_driver, attack_set, parry_profile,)
 
 	impact.setup(hurtbox, health, controller)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_attack)
 
-	_driver.play_idle(idle_clip)
+#	_driver.play_idle(anim_profile.idle_clip)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if controller.is_stunned():
 		return
 	if event.is_action_pressed("attack"):
 		controller.on_attack_pressed()
+	if event.is_action_pressed("parry"):
+		controller.on_parry_pressed()
 
 func _process(delta: float) -> void:
 	controller.update(delta)

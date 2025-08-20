@@ -1,11 +1,10 @@
 extends Node
 class_name ImpactDriver
 
-signal hit_applied(attacker: Node2D, defender: Node2D, cfg: AttackConfig)
-
 var _hurtbox: Hurtbox
 var _health: Health
 var _cc: CombatController
+
 var _wired: bool = false
 
 func setup(hurtbox: Hurtbox, health: Health, controller: CombatController) -> void:
@@ -24,11 +23,10 @@ func setup(hurtbox: Hurtbox, health: Health, controller: CombatController) -> vo
 	_hurtbox.contact.connect(_on_contact, Object.CONNECT_DEFERRED)
 
 func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> void:
-	var defender: Node2D = _hurtbox.get_parent() as Node2D
-	assert(defender != null)
+	if _cc.is_parry_window():
+		_cc.enter_parry_success()
+		return
 
+	# Fluxo normal atual (vamos trocar para autoblock depois)
 	_health.apply_damage(cfg.damage, attacker)
-
 	_cc.enter_stun()
-
-	hit_applied.emit(attacker, defender, cfg)

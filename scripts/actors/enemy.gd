@@ -9,6 +9,7 @@ class_name Enemy
 @export var health: Health
 @export var sfx_hit: AudioStreamPlayer2D
 @export var anim_profile: AnimProfile
+@export var parry_profile: ParryProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -42,13 +43,8 @@ func _ready() -> void:
 	assert(hitbox_driver != null, "HitboxDriver não encontrado no Enemy")
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
 
-	# 1) Driver concreto (RefCounted) para animar o sprite
 	_driver = AnimationDriverSprite.new(sprite)
-
-	# 2) Inicializa o CombatController
-	# Se você já criou initialize_v2, prefira:
-	# controller.initialize_v2(_driver, attack_set, idle_clip, hit_clip)
-	controller.initialize(_driver, attack_set, idle_clip, hit_clip)
+	controller.initialize(_driver, attack_set, parry_profile)
 
 	# 3) Liga os listeners (injeção direta, sem NodePath)
 	anim_listener.setup(controller, _driver, anim_profile)
