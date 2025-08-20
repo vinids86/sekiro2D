@@ -21,6 +21,7 @@ class_name Enemy
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
 @onready var hitbox_driver: HitboxDriver = $HitboxDriver
 @onready var sfx_driver: SfxDriver = $SfxDriver
+@onready var impact: ImpactDriver = $ImpactDriver
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
@@ -53,6 +54,7 @@ func _ready() -> void:
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_attack)
+	impact.setup(hurtbox, health, controller)
 
 	# 4) Estado visual inicial
 	_driver.play_idle(idle_clip)

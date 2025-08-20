@@ -1,4 +1,4 @@
-[gd_scene load_steps=184 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=185 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="17_4r5pv"]
 [ext_resource type="Script" uid="uid://dc0cahseykajh" path="res://scripts/combat/hitbox/HitboxDriver.gd" id="18_60mlk"]
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/SfxDriver.gd" id="19_i4ail"]
+[ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="21_i4ail"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y4r1p"]
 shader = ExtResource("2_ur7pv")
@@ -1689,3 +1690,7 @@ metadata/_custom_type_script = "uid://dc0cahseykajh"
 [node name="SfxDriver" type="Node" parent="."]
 script = ExtResource("19_i4ail")
 metadata/_custom_type_script = "uid://bqh02walasq6j"
+
+[node name="ImpactDriver" type="Node" parent="."]
+script = ExtResource("21_i4ail")
+metadata/_custom_type_script = "uid://wkaqybgy243k"

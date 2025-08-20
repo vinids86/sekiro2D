@@ -1,18 +1,20 @@
 extends Area2D
 class_name Hurtbox
 
-@onready var shape: CollisionShape2D = $CollisionShape2D
+signal contact(attacker: Node2D, cfg: AttackConfig, hitbox: AttackHitbox)
 
-signal got_hit(attacker: Node2D, cfg: AttackConfig) # opcional p/ HUD/SFX
+@export var team: int = 0            # 0=neutro, 1=player, 2=inimigo...
+@export var invulnerable: bool = false
 
 func _ready() -> void:
 	monitoring = true
 	monitorable = true
-	shape.disabled = false
 	area_entered.connect(_on_area_entered)
 
 func _on_area_entered(area: Area2D) -> void:
-	# Só reage se quem entrou é um AttackHitbox atualmente ativo
+	if invulnerable:
+		return
+
 	var atk: AttackHitbox = area as AttackHitbox
 	if atk == null:
 		return
@@ -26,15 +28,12 @@ func _on_area_entered(area: Area2D) -> void:
 	if attacker == defender:
 		return
 
-	# --- aplica efeitos de gameplay no DEFENSOR ---
-	var health: Health = defender.get_node(^"Health") as Health
-	var cc: CombatController = defender.get_node(^"CombatController") as CombatController
-	assert(health != null, "Health ausente no defensor")
-	assert(cc != null, "CombatController ausente no defensor")
+	# (opcional) filtro por time se o atacante fornecer time
+	var attacker_team_provider := attacker as Node
+	if attacker_team_provider != null and attacker_team_provider.has_meta("team"):
+		var atk_team: int = int(attacker_team_provider.get_meta("team"))
+		if atk_team == team:
+			return
 
-	# REGRAS mínimas (ajuste conforme seu AttackConfig):
-	health.apply_damage(cfg.damage, attacker)
-	cc.enter_stun() # ou cc.enter_stun_hit() quando você tiver esse estado
-
-	# Broadcast opcional para HUD/SFX do defensor
-	got_hit.emit(attacker, cfg)
+	# Apenas broadcast — nada de aplicar dano aqui
+	contact.emit(attacker, cfg, atk)
