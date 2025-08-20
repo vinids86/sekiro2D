@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AttackClip" load_steps=2 format=3 uid="uid://dxymt455j64j0"]
+
+[ext_resource type="Script" uid="uid://dr5usu06vhx55" path="res://scripts/combat/components/attack_clip.gd" id="1_i406i"]
+
+[resource]
+script = ExtResource("1_i406i")
+fps = 30.0
+start_frame = 0
+startup_len = 11
+active_len = 2
+recover_len = 8
+metadata/_custom_type_script = "uid://dr5usu06vhx55"

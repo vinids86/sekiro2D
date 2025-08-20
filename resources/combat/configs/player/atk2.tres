@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AttackConfig" load_steps=2 format=3 uid="uid://5uqwpdjb1egg"]
+
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_s6qtg"]
+
+[resource]
+script = ExtResource("1_s6qtg")
+name_id = &"atk2"
+startup = 0.18
+hit = 0.1
+recovery = 0.22
+body_clip = &"atk2"
+body_frames = 12
+body_fps = 30.0
+to_idle_clip = &"atk2_to_idle"
+metadata/_custom_type_script = "uid://bpr26trni32iq"
