@@ -1369,7 +1369,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ua5cf")
 }, {
-"duration": 1.01,
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_51ujp")
 }, {
 "duration": 1.0,
@@ -1810,11 +1810,9 @@ shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-visible = false
 shape = SubResource("RectangleShape2D_hqtel")
 
 [node name="Hurtbox" type="Area2D" parent="." groups=["hurtbox"]]
-visible = false
 collision_layer = 2
 collision_mask = 16
 script = ExtResource("11_jej6c")
