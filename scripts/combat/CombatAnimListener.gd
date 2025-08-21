@@ -39,7 +39,7 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 
 	elif state == CombatController.State.IDLE:
 		if cfg != null and cfg.to_idle_clip != StringName():
-			_driver.play_to_idle(_anim.idle_clip) # garante idle suave ao final do combo
+			_driver.play_to_idle(cfg.to_idle_clip)
 		else:
 			_driver.play_idle(_anim.idle_clip)
 
@@ -62,7 +62,7 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 
 func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()
-	# Se o clipe de reação (ou parry recover) terminou, podemos mostrar o idle visual
+
 	if st == CombatController.State.HIT_REACT and clip == _anim.hit_clip:
 		_driver.play_idle(_anim.idle_clip)
 	elif st == CombatController.State.PARRY_RECOVER and clip == _anim.parry_recover_clip:

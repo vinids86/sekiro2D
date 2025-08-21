@@ -1408,7 +1408,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"hitstun",
-"speed": 20.0
+"speed": 18.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1625,9 +1625,7 @@ sfx_bank = ExtResource("6_2mchx")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_ipns3")
 sprite_frames = SubResource("SpriteFrames_md0e3")
-animation = &"parry_startup"
-frame = 5
-frame_progress = 1.0
+animation = &"hitstun"
 flip_h = true
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
