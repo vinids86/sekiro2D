@@ -1,15 +1,10 @@
-[gd_scene load_steps=211 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=203 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
-[ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_y4r1p"]
 [ext_resource type="Script" uid="uid://byhw62cn6dl3g" path="res://scripts/actors/facing.gd" id="3_4r5pv"]
-[ext_resource type="Resource" uid="uid://c2wswk56ahat6" path="res://resources/anim/anim.tres" id="3_60mlk"]
-[ext_resource type="Resource" uid="uid://dxtuaxnns713q" path="res://resources/combat/configs/parry.tres" id="4_a38lo"]
 [ext_resource type="Texture2D" uid="uid://buicnrtdybg40" path="res://art/c1-atk2-sheet.png" id="4_qlg0r"]
 [ext_resource type="Texture2D" uid="uid://dska00fioxoka" path="res://art/c1-atk3-sheet.png" id="5_fjrip"]
-[ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_ujl30"]
-[ext_resource type="Resource" uid="uid://dh5c4gshfxebt" path="res://resources/sfx/sfx_bank.tres" id="6_dt7fs"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="6_smehm"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="7_smehm"]
 [ext_resource type="Texture2D" uid="uid://c85tlq2wlksn7" path="res://art/c1-atk4-to-idle-Sheet.png" id="7_ur7pv"]
@@ -22,13 +17,10 @@
 [ext_resource type="Texture2D" uid="uid://dkhbodpnkd7oe" path="res://art/parry_recover.png" id="14_l71n6"]
 [ext_resource type="Script" uid="uid://cqj4e3s0okuso" path="res://scripts/stats/health.gd" id="14_oprun"]
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="15_a8ls1"]
-[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="15_i4ail"]
-[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="16_a38lo"]
 [ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="17_4r5pv"]
 [ext_resource type="Script" uid="uid://dc0cahseykajh" path="res://scripts/combat/hitbox/HitboxDriver.gd" id="18_60mlk"]
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="19_i4ail"]
 [ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="21_i4ail"]
-[ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="26_dt7fs"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y4r1p"]
 shader = ExtResource("2_ur7pv")
@@ -1785,11 +1777,6 @@ size = Vector2(100, 145)
 collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_onrkg")
-attack_set = ExtResource("2_y4r1p")
-anim_profile = ExtResource("3_60mlk")
-parry_profile = ExtResource("4_a38lo")
-hit_react_profile = ExtResource("5_ujl30")
-sfx_bank = ExtResource("6_dt7fs")
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("3_4r5pv")
@@ -1845,23 +1832,10 @@ metadata/_custom_type_script = "uid://bcv08kia0pix4"
 script = ExtResource("18_60mlk")
 metadata/_custom_type_script = "uid://dc0cahseykajh"
 
+[node name="SfxDriver" type="Node" parent="."]
+script = ExtResource("19_i4ail")
+metadata/_custom_type_script = "uid://bqh02walasq6j"
+
 [node name="ImpactDriver" type="Node" parent="."]
 script = ExtResource("21_i4ail")
 metadata/_custom_type_script = "uid://wkaqybgy243k"
-
-[node name="Sfx" type="Node2D" parent="."]
-
-[node name="Swing" type="AudioStreamPlayer2D" parent="Sfx"]
-
-[node name="Impact" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("26_dt7fs")
-
-[node name="ParryStartup" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("15_i4ail")
-
-[node name="ParrySuccess" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("16_a38lo")
-
-[node name="SfxDriver" type="Node" parent="Sfx"]
-script = ExtResource("19_i4ail")
-metadata/_custom_type_script = "uid://bqh02walasq6j"

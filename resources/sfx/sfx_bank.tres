@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SfxBank" load_steps=5 format=3 uid="uid://dh5c4gshfxebt"]
+
+[ext_resource type="Script" uid="uid://bpdwhu46dbwc1" path="res://scripts/sfx/sfx_bank.gd" id="1_ivxbg"]
+[ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="1_vf51p"]
+[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="2_wnbto"]
+[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="3_m64uk"]
+
+[resource]
+script = ExtResource("1_ivxbg")
+hit_impact = ExtResource("1_vf51p")
+parry_startup = ExtResource("2_wnbto")
+parry_success = ExtResource("3_m64uk")
+metadata/_custom_type_script = "uid://bpdwhu46dbwc1"

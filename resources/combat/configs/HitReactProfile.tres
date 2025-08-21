@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="HitReactProfile" load_steps=2 format=3 uid="uid://b0uudpt73r847"]
+
+[ext_resource type="Script" uid="uid://dquuyyerht1am" path="res://scripts/combat/hitbox/HitReactProfile.gd" id="1_opmac"]
+
+[resource]
+script = ExtResource("1_opmac")
+react_time = 0.25
+metadata/_custom_type_script = "uid://dquuyyerht1am"

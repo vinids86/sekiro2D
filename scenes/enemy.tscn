@@ -1,4 +1,4 @@
-[gd_scene load_steps=159 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=163 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -10,7 +10,9 @@
 [ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="4_ipns3"]
 [ext_resource type="Resource" uid="uid://dxtuaxnns713q" path="res://resources/combat/configs/parry.tres" id="4_rogs8"]
+[ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_2mchx"]
 [ext_resource type="Texture2D" uid="uid://buicnrtdybg40" path="res://art/c1-atk2-sheet.png" id="5_8qclf"]
+[ext_resource type="Resource" uid="uid://dh5c4gshfxebt" path="res://resources/sfx/sfx_bank.tres" id="6_2mchx"]
 [ext_resource type="Texture2D" uid="uid://dska00fioxoka" path="res://art/c1-atk3-sheet.png" id="6_w8i8w"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="7_otmr2"]
 [ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="8_otmr2"]
@@ -18,9 +20,11 @@
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="11_otmr2"]
 [ext_resource type="Texture2D" uid="uid://xk6i0t8uahff" path="res://art/parry-startup.png" id="12_wrm80"]
 [ext_resource type="Script" uid="uid://cfihtbf31nc3x" path="res://scripts/combat/CombatController.gd" id="13_wtq4b"]
+[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="16_6awcb"]
 [ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="16_ile5s"]
 [ext_resource type="Script" uid="uid://dc0cahseykajh" path="res://scripts/combat/hitbox/HitboxDriver.gd" id="17_1x4g4"]
-[ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/SfxDriver.gd" id="18_2pwtc"]
+[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
+[ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="18_2pwtc"]
 [ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="20_2pwtc"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
@@ -1603,7 +1607,7 @@ size = Vector2(150, 350)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
 size = Vector2(150, 350)
 
-[node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health", "sfx_hit") groups=["enemy", "fighter"]]
+[node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health") groups=["enemy", "fighter"]]
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1_md0e3")
@@ -1611,9 +1615,10 @@ attack_set = ExtResource("2_j0cyh")
 hit_clip = &"hitstun"
 hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
-sfx_hit = NodePath("SfxHit")
 anim_profile = ExtResource("3_1x4g4")
 parry_profile = ExtResource("4_rogs8")
+hit_react_profile = ExtResource("5_2mchx")
+sfx_bank = ExtResource("6_2mchx")
 
 [node name="Facing" type="Node2D" parent="."]
 
@@ -1647,11 +1652,6 @@ script = ExtResource("4_c4w8v")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("RectangleShape2D_4ra3w")
 
-[node name="SfxAttack" type="AudioStreamPlayer2D" parent="."]
-
-[node name="SfxHit" type="AudioStreamPlayer2D" parent="."]
-stream = ExtResource("3_wrm80")
-
 [node name="Health" type="Node" parent="."]
 script = ExtResource("10_w8i8w")
 metadata/_custom_type_script = "uid://cqj4e3s0okuso"
@@ -1672,10 +1672,23 @@ metadata/_custom_type_script = "uid://bcv08kia0pix4"
 script = ExtResource("17_1x4g4")
 metadata/_custom_type_script = "uid://dc0cahseykajh"
 
-[node name="SfxDriver" type="Node" parent="."]
-script = ExtResource("18_2pwtc")
-metadata/_custom_type_script = "uid://bqh02walasq6j"
-
 [node name="ImpactDriver" type="Node" parent="."]
 script = ExtResource("20_2pwtc")
 metadata/_custom_type_script = "uid://wkaqybgy243k"
+
+[node name="Sfx" type="Node2D" parent="."]
+
+[node name="Swing" type="AudioStreamPlayer2D" parent="Sfx"]
+
+[node name="Impact" type="AudioStreamPlayer2D" parent="Sfx"]
+stream = ExtResource("3_wrm80")
+
+[node name="ParryStartup" type="AudioStreamPlayer2D" parent="Sfx"]
+stream = ExtResource("16_6awcb")
+
+[node name="ParrySuccess" type="AudioStreamPlayer2D" parent="Sfx"]
+stream = ExtResource("17_wjec0")
+
+[node name="SfxDriver" type="Node" parent="Sfx"]
+script = ExtResource("18_2pwtc")
+metadata/_custom_type_script = "uid://bqh02walasq6j"

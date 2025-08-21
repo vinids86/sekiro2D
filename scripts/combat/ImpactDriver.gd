@@ -4,7 +4,6 @@ class_name ImpactDriver
 var _hurtbox: Hurtbox
 var _health: Health
 var _cc: CombatController
-
 var _wired: bool = false
 
 func setup(hurtbox: Hurtbox, health: Health, controller: CombatController) -> void:
@@ -27,6 +26,6 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 		_cc.enter_parry_success()
 		return
 
-	# Fluxo normal atual (vamos trocar para autoblock depois)
+	# caminho normal: aplica dano e entra em HIT_REACT
 	_health.apply_damage(cfg.damage, attacker)
-	_cc.enter_stun()
+	_cc.enter_hit_react()

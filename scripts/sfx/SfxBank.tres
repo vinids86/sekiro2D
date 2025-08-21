@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="SfxBank" load_steps=2 format=3 uid="uid://cip7mpfqilkwg"]
+
+[ext_resource type="Script" uid="uid://bpdwhu46dbwc1" path="res://scripts/sfx/sfx_bank.gd" id="1_vivoq"]
+
+[resource]
+script = ExtResource("1_vivoq")
+metadata/_custom_type_script = "uid://bpdwhu46dbwc1"
