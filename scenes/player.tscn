@@ -2066,7 +2066,9 @@ script = ExtResource("3_4r5pv")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"atk1_to_idle"
+animation = &"atk4"
+frame = 17
+frame_progress = 1.0
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
 collision_layer = 8

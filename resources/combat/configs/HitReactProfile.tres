@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_opmac")
-react_time = 1.2
+react_time = 1.0
 metadata/_custom_type_script = "uid://dquuyyerht1am"

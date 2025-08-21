@@ -6,6 +6,10 @@ signal state_exited(state: int, cfg: AttackConfig)
 
 enum State { IDLE, STARTUP, HIT, RECOVER, STUN, PARRY_STARTUP, PARRY_SUCCESS, PARRY_RECOVER, HIT_REACT, PARRIED }
 
+const _REENTER_ON_SAME_STATE := {
+	State.HIT_REACT: true,
+}
+
 var _state: int = State.IDLE
 var _state_timer: float = 0.0
 
@@ -67,12 +71,10 @@ func enter_parried() -> void:
 	_wants_chain = false
 	_change_state(State.PARRIED, _current, _parried.stagger_time)
 
-# Novo: chamado no fluxo “tomou hit normal”
 func enter_hit_react() -> void:
 	_wants_chain = false
 	_change_state(State.HIT_REACT, null, _hitreact.react_time)
 
-# Mantemos STUN para o futuro (sem sfx/anim agora)
 func enter_stun() -> void:
 	_wants_chain = false
 	_current = null
@@ -142,17 +144,19 @@ func on_to_idle_end(_clip: StringName) -> void:
 
 # ---------- Núcleo de transição + debug ----------
 func _change_state(new_state: int, cfg: AttackConfig, timer: float) -> void:
-	if _state == new_state:
+	var same: bool = (new_state == _state)
+	if same and not _allows_reenter(new_state):
+		# mesmo estado e NÃO reentrável: só renova o timer
 		_state_timer = timer
 		return
 
+	# reentra (ou troca) emitindo os sinais normalmente
 	var old_state: int = _state
 	var old_cfg: AttackConfig = _current
 	emit_signal("state_exited", old_state, old_cfg)
 
 	_state = new_state
 	_state_timer = timer
-
 	emit_signal("state_entered", _state, cfg)
 
 # ---------- Helpers ----------
@@ -162,16 +166,5 @@ func get_state() -> int:
 func get_current_attack() -> AttackConfig:
 	return _current
 
-func _state_name(s: int) -> String:
-	match s:
-		State.IDLE: return "IDLE"
-		State.STARTUP: return "STARTUP"
-		State.HIT: return "HIT"
-		State.RECOVER: return "RECOVER"
-		State.STUN: return "STUN"
-		State.PARRY_STARTUP: return "PARRY_STARTUP"
-		State.PARRY_SUCCESS: return "PARRY_SUCCESS"
-		State.PARRY_RECOVER: return "PARRY_RECOVER"
-		State.HIT_REACT: return "HIT_REACT"
-		State.PARRIED: return "PARRIED"
-		_: return "UNKNOWN"
+func _allows_reenter(s: int) -> bool:
+	return _REENTER_ON_SAME_STATE.has(s)
