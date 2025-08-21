@@ -9,6 +9,7 @@ class_name Enemy
 @export var health: Health
 @export var anim_profile: AnimProfile
 @export var parry_profile: ParryProfile
+@export var parry_ai_profile: ParryAIProfile
 @export var hit_react_profile: HitReactProfile
 @export var sfx_bank: SfxBank
 @export var attack_profile: EnemyAttackProfile

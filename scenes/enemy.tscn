@@ -1,4 +1,4 @@
-[gd_scene load_steps=266 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=268 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -37,6 +37,8 @@
 [ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="20_2pwtc"]
 [ext_resource type="Script" uid="uid://bixm1f4soqfxu" path="res://scripts/actors/enemy_ai_driver.gd" id="30_lioqc"]
 [ext_resource type="Script" uid="uid://ddu8u3t2xh1nj" path="res://scripts/combat/parry/parry_recoil_driver.gd" id="33_thsr5"]
+[ext_resource type="Script" uid="uid://q6tq6r8cv0q8" path="res://scripts/combat/parry/parry_ai_driver.gd" id="38_2tuss"]
+[ext_resource type="Resource" uid="uid://3fo1u88gf0gi" path="res://resources/ai/ParryAIProfile.tres" id="39_7v6cf"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
 shader = ExtResource("2_md484")
@@ -2182,6 +2184,7 @@ hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
 anim_profile = ExtResource("3_1x4g4")
 parry_profile = ExtResource("4_rogs8")
+parry_ai_profile = ExtResource("39_7v6cf")
 hit_react_profile = ExtResource("5_2mchx")
 sfx_bank = ExtResource("6_2mchx")
 attack_profile = ExtResource("7_1f82d")
@@ -2266,3 +2269,8 @@ metadata/_custom_type_script = "uid://bixm1f4soqfxu"
 [node name="ParryRecoilDriver" type="Node" parent="."]
 script = ExtResource("33_thsr5")
 metadata/_custom_type_script = "uid://ddu8u3t2xh1nj"
+
+[node name="ParryAIDriver" type="Node" parent="."]
+script = ExtResource("38_2tuss")
+profile = ExtResource("39_7v6cf")
+metadata/_custom_type_script = "uid://q6tq6r8cv0q8"

@@ -74,6 +74,7 @@ func can_start_parry() -> bool:
 		or _state == State.STARTUP \
 		or _state == State.RECOVER \
 		or _state == State.PARRY_SUCCESS \
+		or _state == State.PARRIED \
 		or _state == State.GUARD_RECOVER
 
 
