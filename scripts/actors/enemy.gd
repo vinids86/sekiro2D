@@ -14,6 +14,7 @@ class_name Enemy
 @export var attack_profile: EnemyAttackProfile
 @export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
+@export var guard_profile: GuardProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -21,6 +22,7 @@ class_name Enemy
 @onready var controller: CombatController = $CombatController
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
 @onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
+@onready var stamina: Stamina = $Stamina
 
 # Listeners (nós filhos dedicados)
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
@@ -52,13 +54,14 @@ func _ready() -> void:
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile)
+	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile)
 
 	# 3) Liga os listeners (injeção direta, sem NodePath)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
-	impact.setup(hurtbox, health, controller, hub)
+
+	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	recoil.setup(self, controller, hub, parried_profile)
 	ai_driver.setup(controller, attack_profile)
 

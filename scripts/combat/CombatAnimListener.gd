@@ -65,6 +65,14 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		assert(cfg.to_parried_clip != StringName(), "AttackConfig.to_parried_clip não preenchido")
 		_driver.play_to_idle(cfg.to_parried_clip)
 
+	elif state == CombatController.State.GUARD_HIT:
+		if _anim.guard_hit_clip != StringName():
+			print("play guard hit", _anim.guard_hit_clip)
+			_driver.play_to_idle(_anim.guard_hit_clip)
+
+	elif state == CombatController.State.GUARD_RECOVER:
+		print("play guard recover", _anim.guard_recover_clip)
+		_driver.play_to_idle(_anim.guard_recover_clip)
 
 func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="GuardProfile" load_steps=2 format=3 uid="uid://cnov3igxso054"]
+
+[ext_resource type="Script" uid="uid://c37ktahqlpp0s" path="res://scripts/combat/parry/guard_profile.gd" id="1_gpebp"]
+
+[resource]
+script = ExtResource("1_gpebp")
+defense_power = 8
+guard_hit_time = 0.1
+guard_recover_time = 0.3
+metadata/_custom_type_script = "uid://c37ktahqlpp0s"

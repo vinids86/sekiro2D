@@ -8,6 +8,7 @@ class_name Player
 @export var sfx_bank: SfxBank
 @export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
+@export var guard_profile: GuardProfile
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
@@ -20,6 +21,7 @@ class_name Player
 @onready var hitbox_driver: HitboxDriver = $HitboxDriver
 @onready var impact: ImpactDriver = $ImpactDriver
 @onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
+@onready var stamina: Stamina = $Stamina 
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
@@ -36,9 +38,9 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile)
+	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile)
 
-	impact.setup(hurtbox, health, controller, hub)
+	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	recoil.setup(self, controller, hub, parried_profile)

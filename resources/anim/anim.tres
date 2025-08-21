@@ -6,4 +6,10 @@
 script = ExtResource("1_j6cbb")
 idle_clip = &"idle"
 hit_clip = &"hitstun"
+parry_startup_clip = &"parry_startup"
+parry_success_clip_a = &"parry_success_a"
+parry_success_clip_b = &"parry_success_b"
+parry_recover_clip = &"parry_recover"
+guard_hit_clip = &"block_hit"
+guard_recover_clip = &"guard_recover"
 metadata/_custom_type_script = "uid://cifkta2oce325"

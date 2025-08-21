@@ -54,3 +54,8 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		assert(_bank.hit_impact != null, "SfxBank.hit_impact ausente")
 		_p_impact.stream = _bank.hit_impact
 		_p_impact.play()
+
+	elif state == CombatController.State.GUARD_HIT:
+		assert(_bank.guard_block != null, "SfxBank.guard_block ausente")
+		_p_impact.stream = _bank.guard_block
+		_p_impact.play()

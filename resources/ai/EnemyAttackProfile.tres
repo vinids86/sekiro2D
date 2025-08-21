@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_dp4gt")
 start_delay = 0.75
-period = 0.2
+period = 0.4
 jitter = 0.1
 press_only_in_idle = false
 metadata/_custom_type_script = "uid://dbksbm5yigo6h"
