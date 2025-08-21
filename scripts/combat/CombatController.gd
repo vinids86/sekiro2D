@@ -42,7 +42,10 @@ func on_attack_pressed() -> void:
 		_wants_chain = true
 
 func can_start_parry() -> bool:
-	return _state == State.IDLE or _state == State.STARTUP
+	return _state == State.IDLE \
+		or _state == State.STARTUP \
+		or _state == State.PARRY_SUCCESS
+
 
 func on_parry_pressed() -> void:
 	if not can_start_parry():

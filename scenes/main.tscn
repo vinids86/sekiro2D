@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://raw8okub6mh6"]
+[gd_scene load_steps=10 format=3 uid="uid://raw8okub6mh6"]
 
 [ext_resource type="AudioStream" uid="uid://bemwiwxjtn0s1" path="res://audio/boss_battle_looped.ogg" id="1_0wfyh"]
 [ext_resource type="Texture2D" uid="uid://dmk4vk4a0c4ga" path="res://assets/terrace.png" id="1_ya4ey"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://cmpxu72ks47x3" path="res://assets/under_stamina.png" id="4_tefeu"]
 [ext_resource type="Texture2D" uid="uid://cwv3m6q2qjgf1" path="res://assets/progress_stamina.png" id="5_o6xl0"]
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
+[ext_resource type="Script" uid="uid://bji2s1rkpwwaj" path="res://scripts/hub/combat_event_hub.gd" id="8_tipki"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ya4ey"]
@@ -97,3 +98,7 @@ shape = SubResource("RectangleShape2D_ya4ey")
 [node name="Sprite2D" type="Sprite2D" parent="Ground"]
 
 [node name="Camera2D" type="Camera2D" parent="." groups=["main_camera"]]
+
+[node name="CombatEventHub" type="Node" parent="."]
+script = ExtResource("8_tipki")
+metadata/_custom_type_script = "uid://bji2s1rkpwwaj"
