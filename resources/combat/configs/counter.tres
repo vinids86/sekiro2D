@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="CounterProfile" load_steps=4 format=3 uid="uid://qh8obnadst0p"]
+
+[ext_resource type="Script" uid="uid://b5s08od8vddst" path="res://scripts/combat/parry/counter_profile.gd" id="1_3wakk"]
+[ext_resource type="Resource" uid="uid://dojof12hfvwbr" path="res://resources/combat/configs/counterA.tres" id="1_6s41g"]
+[ext_resource type="Resource" uid="uid://b704cneg6o6b2" path="res://resources/combat/configs/counterB.tres" id="2_dnqsw"]
+
+[resource]
+script = ExtResource("1_3wakk")
+counter_a = ExtResource("1_6s41g")
+counter_b = ExtResource("2_dnqsw")
+metadata/_custom_type_script = "uid://b5s08od8vddst"

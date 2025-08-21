@@ -9,6 +9,7 @@ class_name Player
 @export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
+@export var counter_profile: CounterProfile
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
@@ -38,7 +39,7 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile)
 
 	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	anim_listener.setup(controller, _driver, anim_profile)

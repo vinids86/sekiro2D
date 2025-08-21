@@ -8,7 +8,16 @@ enum State {
 	IDLE, STARTUP, HIT, RECOVER, STUN,
 	PARRY_STARTUP, PARRY_SUCCESS, PARRY_RECOVER,
 	HIT_REACT, PARRIED,
-	GUARD_HIT, GUARD_RECOVER
+	GUARD_HIT, GUARD_RECOVER,
+	COUNTER_STARTUP, COUNTER_HIT, COUNTER_RECOVER,
+}
+
+const _TIMED_STATES := {
+	State.STARTUP: true, State.HIT: true, State.RECOVER: true,
+	State.PARRY_STARTUP: true, State.PARRY_SUCCESS: true, State.PARRY_RECOVER: true,
+	State.HIT_REACT: true, State.PARRIED: true,
+	State.GUARD_HIT: true, State.GUARD_RECOVER: true,
+	State.COUNTER_STARTUP: true, State.COUNTER_HIT: true, State.COUNTER_RECOVER: true,
 }
 
 const _REENTER_ON_SAME_STATE := {
@@ -20,7 +29,6 @@ var _state: int = State.IDLE
 var _state_timer: float = 0.0
 
 var _attack_set: AttackSet
-var _driver: AnimationDriver
 var _parry: ParryProfile
 var _hitreact: HitReactProfile
 var _parried: ParriedProfile
@@ -32,27 +40,35 @@ var _wants_chain: bool = false
 
 var _state_started_ms: int = 0
 
+var _counter: CounterProfile
+var _parry_toggle: bool = true
+var _parry_last_ab: int = 0
+
+var _counter_buffered: bool = false
+
 func initialize(
-		driver: AnimationDriver,
 		attack_set: AttackSet,
 		parry_profile: ParryProfile,
 		hit_react_profile: HitReactProfile,
 		parried_profile: ParriedProfile,
-		guard_profile: GuardProfile
+		guard_profile: GuardProfile,
+		counter_profile: CounterProfile,
 	) -> void:
-	_driver = driver
 	_attack_set = attack_set
 	_parry = parry_profile
 	_hitreact = hit_react_profile
 	_parried = parried_profile
 	_guard = guard_profile
+	_counter = counter_profile
 	
-	assert(_driver != null, "AnimationDriver não pode ser nulo")
 	assert(_attack_set != null, "AttackSet não pode ser nulo")
 	assert(_parry != null, "ParryProfile não pode ser nulo")
 	assert(_hitreact != null, "HitReactProfile não pode ser nulo")
 	assert(_parried != null, "ParriedProfile não pode ser nulo")
 	assert(_guard != null)
+	assert(_counter != null)
+	assert(_counter.counter_a != null)
+	assert(_counter.counter_b != null)
 
 	_state_started_ms = Time.get_ticks_msec()
 	_change_state(State.IDLE, null, 0.0)
@@ -61,7 +77,11 @@ func initialize(
 func on_attack_pressed() -> void:
 	if _state == State.GUARD_HIT or _state == State.GUARD_RECOVER \
 	or _state == State.HIT_REACT or _state == State.PARRIED \
-	or _state == State.PARRY_STARTUP or _state == State.PARRY_SUCCESS or _state == State.PARRY_RECOVER:
+	or _state == State.PARRY_STARTUP or _state == State.PARRY_RECOVER:
+		return
+
+	if _state == State.PARRY_SUCCESS:
+		_counter_buffered = true
 		return
 
 	if _state == State.IDLE:
@@ -79,6 +99,8 @@ func can_start_parry() -> bool:
 
 
 func on_parry_pressed() -> void:
+	if _state == State.PARRY_SUCCESS:
+		_counter_buffered = false
 	if not can_start_parry():
 		return
 	_change_state(State.PARRY_STARTUP, null, _parry.startup_time)
@@ -86,6 +108,14 @@ func on_parry_pressed() -> void:
 func enter_parry_success() -> void:
 	if _state != State.PARRY_STARTUP:
 		return
+
+	_parry_toggle = not _parry_toggle
+	if _parry_toggle:
+		_parry_last_ab = 1
+	else:
+		_parry_last_ab = 0
+
+	_counter_buffered = false
 	_change_state(State.PARRY_SUCCESS, null, _parry.success_time)
 
 func is_parry_window() -> bool:
@@ -113,23 +143,41 @@ func is_stunned() -> bool:
 
 # ---------- Loop ----------
 func update(delta: float) -> void:
-	if _state == State.STARTUP or _state == State.HIT or _state == State.RECOVER \
-	or _state == State.PARRY_STARTUP or _state == State.PARRY_SUCCESS or _state == State.PARRY_RECOVER \
-	or _state == State.HIT_REACT or _state == State.PARRIED or _state == State.GUARD_HIT or _state == State.GUARD_RECOVER:
-		_state_timer -= delta
-		if _state_timer <= 0.0:
-			match _state:
-				State.STARTUP: _enter_hit()
-				State.HIT: _enter_recover()
-				State.RECOVER: pass
-				State.PARRY_STARTUP: _change_state(State.PARRY_RECOVER, null, _parry.recover_time)
-				State.PARRY_SUCCESS: _change_state(State.IDLE, null, 0.0)
-				State.PARRY_RECOVER: _change_state(State.IDLE, null, 0.0)
-				State.HIT_REACT: _change_state(State.IDLE, null, 0.0)
-				State.PARRIED: _change_state(State.IDLE, null, 0.0)
-				State.GUARD_HIT: _change_state(State.GUARD_RECOVER, null, _guard.guard_recover_time)
-				State.GUARD_RECOVER: _change_state(State.IDLE, null, 0.0)
-	
+	if not _is_timed(_state):
+		return
+	_state_timer -= delta
+	if _state_timer > 0.0:
+		return
+	_on_state_timeout()
+
+func _on_state_timeout() -> void:
+	match _state:
+		State.STARTUP: _enter_hit()
+		State.HIT: _enter_recover()
+		State.RECOVER: pass
+		State.PARRY_STARTUP: _change_state(State.PARRY_RECOVER, null, _parry.recover_time)
+		State.PARRY_SUCCESS:
+			if _counter_buffered:
+				_counter_buffered = false
+				_start_counter()
+			else:
+				_change_state(State.IDLE, null, 0.0)
+		State.PARRY_RECOVER: _change_state(State.IDLE, null, 0.0)
+		State.HIT_REACT: _change_state(State.IDLE, null, 0.0)
+		State.PARRIED: _change_state(State.IDLE, null, 0.0)
+		State.GUARD_HIT: _change_state(State.GUARD_RECOVER, null, _guard.guard_recover_time)
+		State.GUARD_RECOVER: _change_state(State.IDLE, null, 0.0)
+		State.COUNTER_STARTUP: _change_state(State.COUNTER_HIT, _current, maxf(_current.hit, 0.0))
+		State.COUNTER_HIT: _change_state(State.COUNTER_RECOVER, _current, maxf(_current.recovery, 0.0))
+		State.COUNTER_RECOVER:
+			if _wants_chain:
+				_wants_chain = false
+				_start_attack(0)
+			else:
+				_change_state(State.IDLE, null, 0.0)
+		_:
+			push_warning("[FSM] Timeout sem handler: %s" % _state_name(_state))
+
 # ---------- Ataque ----------
 func _start_attack(index: int) -> void:
 	var cfg: AttackConfig = _attack_set.get_attack(index)
@@ -165,6 +213,18 @@ func on_to_idle_end(_clip: StringName) -> void:
 	# nada por enquanto (STUN sem automação visual/sonora)
 	pass
 
+func _start_counter() -> void:
+	var cfg: AttackConfig = null
+	if _parry_last_ab == 0:
+		cfg = _counter.counter_a
+	else:
+		cfg = _counter.counter_b
+
+	assert(cfg != null, "Counter AttackConfig inválido")
+	_current = cfg
+
+	_change_state(State.COUNTER_STARTUP, _current, maxf(_current.startup, 0.0))
+
 # ---------- Núcleo de transição + debug ----------
 func _change_state(new_state: int, cfg: AttackConfig, timer: float) -> void:
 	var same: bool = (new_state == _state)
@@ -194,6 +254,9 @@ func get_current_attack() -> AttackConfig:
 func _allows_reenter(s: int) -> bool:
 	return _REENTER_ON_SAME_STATE.has(s)
 
+func _is_timed(s: int) -> bool:
+	return _TIMED_STATES.has(s)
+	
 func _state_name(s: int) -> String:
 	match s:
 		State.IDLE: return "IDLE"
@@ -208,6 +271,9 @@ func _state_name(s: int) -> String:
 		State.PARRIED: return "PARRIED"
 		State.GUARD_HIT: return "GUARD_HIT"
 		State.GUARD_RECOVER: return "GUARD_RECOVER"
+		State.COUNTER_STARTUP: return "COUNTER_STARTUP"
+		State.COUNTER_HIT: return "COUNTER_HIT"
+		State.COUNTER_RECOVER: return "COUNTER_RECOVER"
 		_: return "UNKNOWN"
 
 func _actor_label() -> String:

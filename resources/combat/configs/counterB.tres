@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AttackConfig" load_steps=3 format=3 uid="uid://b704cneg6o6b2"]
+
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_78puv"]
+[ext_resource type="AudioStream" uid="uid://b6tg5gea08tks" path="res://audio/attack_5.wav" id="2_iw746"]
+
+[resource]
+script = ExtResource("1_78puv")
+name_id = &"counter_b"
+startup = 0.25
+hit = 0.1
+recovery = 0.25
+body_clip = &"counter_b"
+body_frames = 8
+body_fps = 12.0
+to_idle_clip = &"counter_b_to_idle"
+to_parried_clip = &"atk4_to_idle"
+hitbox_offset = Vector2(60, 0)
+sfx_swing = ExtResource("2_iw746")
+damage = 10
+metadata/_custom_type_script = "uid://bpr26trni32iq"

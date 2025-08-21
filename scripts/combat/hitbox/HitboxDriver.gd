@@ -28,7 +28,7 @@ func setup(controller: CombatController, hitbox: AttackHitbox, attacker: Node2D,
 	_hitbox.disable()
 
 func _on_state_entered(state: int, cfg: AttackConfig) -> void:
-	if state == CombatController.State.HIT:
+	if state == CombatController.State.HIT or state == CombatController.State.COUNTER_HIT:
 		assert(cfg != null, "AttackConfig nulo ao entrar em HIT")
 		# POSICIONA local ao Facing; o espelhamento vem do scale.x do Facing
 		_hitbox.position = cfg.hitbox_offset
@@ -37,5 +37,5 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		_hitbox.disable()
 
 func _on_state_exited(state: int, _cfg: AttackConfig) -> void:
-	if state == CombatController.State.HIT:
+	if state == CombatController.State.HIT or state == CombatController.State.COUNTER_HIT:
 		_hitbox.disable()
