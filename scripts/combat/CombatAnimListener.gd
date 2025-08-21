@@ -60,6 +60,12 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	elif state == CombatController.State.HIT_REACT:
 		_driver.play_to_idle(_anim.hit_clip)
 
+	elif state == CombatController.State.PARRIED:
+		assert(cfg != null, "PARRIED sem AttackConfig atual")
+		assert(cfg.to_parried_clip != StringName(), "AttackConfig.to_parried_clip não preenchido")
+		_driver.play_to_idle(cfg.to_parried_clip)
+
+
 func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()
 

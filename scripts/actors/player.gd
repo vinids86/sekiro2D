@@ -6,6 +6,8 @@ class_name Player
 @export var parry_profile: ParryProfile
 @export var hit_react_profile: HitReactProfile
 @export var sfx_bank: SfxBank
+@export var hub: CombatEventHub
+@export var parried_profile: ParriedProfile
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
@@ -17,6 +19,7 @@ class_name Player
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
 @onready var hitbox_driver: HitboxDriver = $HitboxDriver
 @onready var impact: ImpactDriver = $ImpactDriver
+@onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
@@ -33,12 +36,13 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile)
+	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile)
 
-	impact.setup(hurtbox, health, controller)
+	impact.setup(hurtbox, health, controller, hub)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
-	
+	recoil.setup(self, controller, hub, parried_profile)
+
 	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
 
 	_driver.play_idle(anim_profile.idle_clip)

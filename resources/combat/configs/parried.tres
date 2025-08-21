@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ParriedProfile" load_steps=2 format=3 uid="uid://o762wyf72smd"]
+
+[ext_resource type="Script" uid="uid://ds6pgdg0nqcd" path="res://scripts/combat/parry/parried_profile.gd" id="1_vgrdp"]
+
+[resource]
+script = ExtResource("1_vgrdp")
+stagger_time = 0.3
+metadata/_custom_type_script = "uid://ds6pgdg0nqcd"

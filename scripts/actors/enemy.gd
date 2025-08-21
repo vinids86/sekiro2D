@@ -12,6 +12,8 @@ class_name Enemy
 @export var hit_react_profile: HitReactProfile
 @export var sfx_bank: SfxBank
 @export var attack_profile: EnemyAttackProfile
+@export var hub: CombatEventHub
+@export var parried_profile: ParriedProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -30,6 +32,7 @@ class_name Enemy
 @onready var sfx_parry_startup: AudioStreamPlayer2D = $Sfx/ParryStartup
 @onready var sfx_parry_success: AudioStreamPlayer2D = $Sfx/ParrySuccess
 @onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
+@onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
@@ -49,13 +52,14 @@ func _ready() -> void:
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile)
+	controller.initialize(_driver, attack_set, parry_profile, hit_react_profile, parried_profile)
 
 	# 3) Liga os listeners (injeção direta, sem NodePath)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
-	impact.setup(hurtbox, health, controller)
+	impact.setup(hurtbox, health, controller, hub)
+	recoil.setup(self, controller, hub, parried_profile)
 	ai_driver.setup(controller, attack_profile)
 
 	# 4) Estado visual inicial

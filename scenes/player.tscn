@@ -1,4 +1,4 @@
-[gd_scene load_steps=250 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=252 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -11,6 +11,7 @@
 [ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_ujl30"]
 [ext_resource type="Resource" uid="uid://dh5c4gshfxebt" path="res://resources/sfx/sfx_bank.tres" id="6_dt7fs"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="6_smehm"]
+[ext_resource type="Resource" uid="uid://o762wyf72smd" path="res://resources/combat/configs/parried.tres" id="7_gl8cc"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="7_smehm"]
 [ext_resource type="Texture2D" uid="uid://c85tlq2wlksn7" path="res://art/c1-atk4-to-idle-Sheet.png" id="7_ur7pv"]
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="8_60mlk"]
@@ -31,6 +32,7 @@
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="19_i4ail"]
 [ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="21_i4ail"]
 [ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="26_dt7fs"]
+[ext_resource type="Script" uid="uid://ddu8u3t2xh1nj" path="res://scripts/combat/parry/parry_recoil_driver.gd" id="33_487ah"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y4r1p"]
 shader = ExtResource("2_ur7pv")
@@ -1945,6 +1947,7 @@ anim_profile = ExtResource("3_60mlk")
 parry_profile = ExtResource("4_a38lo")
 hit_react_profile = ExtResource("5_ujl30")
 sfx_bank = ExtResource("6_dt7fs")
+parried_profile = ExtResource("7_gl8cc")
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("3_4r5pv")
@@ -1952,7 +1955,7 @@ script = ExtResource("3_4r5pv")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"atk1_to_idle"
+animation = &"atk1_to_parried"
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
 collision_layer = 8
@@ -2015,3 +2018,7 @@ metadata/_custom_type_script = "uid://dc0cahseykajh"
 [node name="ImpactDriver" type="Node" parent="."]
 script = ExtResource("21_i4ail")
 metadata/_custom_type_script = "uid://wkaqybgy243k"
+
+[node name="ParryRecoilDriver" type="Node" parent="."]
+script = ExtResource("33_487ah")
+metadata/_custom_type_script = "uid://ddu8u3t2xh1nj"

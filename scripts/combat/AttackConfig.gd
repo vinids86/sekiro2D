@@ -12,6 +12,7 @@ class_name AttackConfig
 @export var body_fps: float = 30.0
 
 @export var to_idle_clip: StringName = &"atk1_to_idle"
+@export var to_parried_clip: StringName = StringName()
 
 @export var hitbox_offset: Vector2 = Vector2(60, 0)
 

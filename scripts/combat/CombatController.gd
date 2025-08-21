@@ -4,7 +4,7 @@ class_name CombatController
 signal state_entered(state: int, cfg: AttackConfig)
 signal state_exited(state: int, cfg: AttackConfig)
 
-enum State { IDLE, STARTUP, HIT, RECOVER, STUN, PARRY_STARTUP, PARRY_SUCCESS, PARRY_RECOVER, HIT_REACT }
+enum State { IDLE, STARTUP, HIT, RECOVER, STUN, PARRY_STARTUP, PARRY_SUCCESS, PARRY_RECOVER, HIT_REACT, PARRIED }
 
 var _state: int = State.IDLE
 var _state_timer: float = 0.0
@@ -13,6 +13,7 @@ var _attack_set: AttackSet
 var _driver: AnimationDriver
 var _parry: ParryProfile
 var _hitreact: HitReactProfile
+var _parried: ParriedProfile
 
 var _combo_index: int = 0
 var _current: AttackConfig
@@ -20,16 +21,18 @@ var _wants_chain: bool = false
 
 var _state_started_ms: int = 0
 
-func initialize(driver: AnimationDriver, attack_set: AttackSet, parry_profile: ParryProfile, hit_react_profile: HitReactProfile) -> void:
+func initialize(driver: AnimationDriver, attack_set: AttackSet, parry_profile: ParryProfile, hit_react_profile: HitReactProfile, parried_profile: ParriedProfile) -> void:
 	_driver = driver
 	_attack_set = attack_set
 	_parry = parry_profile
 	_hitreact = hit_react_profile
-
+	_parried = parried_profile
+	
 	assert(_driver != null, "AnimationDriver não pode ser nulo")
 	assert(_attack_set != null, "AttackSet não pode ser nulo")
 	assert(_parry != null, "ParryProfile não pode ser nulo")
 	assert(_hitreact != null, "HitReactProfile não pode ser nulo")
+	assert(_parried != null, "ParriedProfile não pode ser nulo")
 
 	_state_started_ms = Time.get_ticks_msec()
 	_change_state(State.IDLE, null, 0.0)
@@ -59,6 +62,10 @@ func enter_parry_success() -> void:
 
 func is_parry_window() -> bool:
 	return _state == State.PARRY_STARTUP
+	
+func enter_parried() -> void:
+	_wants_chain = false
+	_change_state(State.PARRIED, _current, _parried.stagger_time)
 
 # Novo: chamado no fluxo “tomou hit normal”
 func enter_hit_react() -> void:
@@ -78,7 +85,7 @@ func is_stunned() -> bool:
 func update(delta: float) -> void:
 	if _state == State.STARTUP or _state == State.HIT or _state == State.RECOVER \
 	or _state == State.PARRY_STARTUP or _state == State.PARRY_SUCCESS or _state == State.PARRY_RECOVER \
-	or _state == State.HIT_REACT:
+	or _state == State.HIT_REACT or _state == State.PARRIED:
 		_state_timer -= delta
 		if _state_timer <= 0.0:
 			if _state == State.STARTUP:
@@ -86,7 +93,7 @@ func update(delta: float) -> void:
 			elif _state == State.HIT:
 				_enter_recover()
 			elif _state == State.RECOVER:
-				pass # aguarda body_end (combo/idle)
+				pass
 			elif _state == State.PARRY_STARTUP:
 				_change_state(State.PARRY_RECOVER, null, _parry.recover_time)
 			elif _state == State.PARRY_SUCCESS:
@@ -94,6 +101,8 @@ func update(delta: float) -> void:
 			elif _state == State.PARRY_RECOVER:
 				_change_state(State.IDLE, null, 0.0)
 			elif _state == State.HIT_REACT:
+				_change_state(State.IDLE, null, 0.0)
+			elif _state == State.PARRIED:
 				_change_state(State.IDLE, null, 0.0)
 
 # ---------- Ataque ----------
@@ -164,4 +173,5 @@ func _state_name(s: int) -> String:
 		State.PARRY_SUCCESS: return "PARRY_SUCCESS"
 		State.PARRY_RECOVER: return "PARRY_RECOVER"
 		State.HIT_REACT: return "HIT_REACT"
+		State.PARRIED: return "PARRIED"
 		_: return "UNKNOWN"
