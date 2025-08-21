@@ -2359,7 +2359,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"parry_recover",
-"speed": 18.0
+"speed": 12.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -2486,8 +2486,8 @@ script = ExtResource("3_4r5pv")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"counter_a_to_idle"
-frame = 13
+animation = &"parry_recover"
+frame = 11
 frame_progress = 1.0
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]

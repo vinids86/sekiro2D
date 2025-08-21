@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_4k7lw")
-base_chance = 0.7
+base_chance = 0.3
 press_lead = 0.1
 reaction_mean = 0.0
 reaction_jitter = 0.02
