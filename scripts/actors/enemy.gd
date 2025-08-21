@@ -11,12 +11,14 @@ class_name Enemy
 @export var parry_profile: ParryProfile
 @export var hit_react_profile: HitReactProfile
 @export var sfx_bank: SfxBank
+@export var attack_profile: EnemyAttackProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
+@onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 
 # Listeners (nós filhos dedicados)
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
@@ -41,7 +43,7 @@ func _ready() -> void:
 	assert(hitbox != null, "AttackHitbox não encontrado no Enemy")
 	assert(hurtbox != null, "Hurtbox não atribuída no Enemy")
 	assert(health != null, "Health não atribuído no Enemy")
-
+	assert(facing != null, "Facing não atribuído no Enemy")
 	assert(anim_listener != null, "CombatAnimListener não encontrado no Enemy")
 	assert(hitbox_driver != null, "HitboxDriver não encontrado no Enemy")
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
@@ -54,6 +56,7 @@ func _ready() -> void:
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
 	impact.setup(hurtbox, health, controller)
+	ai_driver.setup(controller, attack_profile)
 
 	# 4) Estado visual inicial
 	_driver.play_idle(idle_clip)

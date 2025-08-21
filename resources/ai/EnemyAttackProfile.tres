@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnemyAttackProfile" load_steps=2 format=3 uid="uid://corrmcvkqxhfn"]
+
+[ext_resource type="Script" uid="uid://dbksbm5yigo6h" path="res://scripts/actors/enemy_attack_profile.gd" id="1_dp4gt"]
+
+[resource]
+script = ExtResource("1_dp4gt")
+start_delay = 0.75
+period = 0.2
+jitter = 0.1
+press_only_in_idle = false
+metadata/_custom_type_script = "uid://dbksbm5yigo6h"
