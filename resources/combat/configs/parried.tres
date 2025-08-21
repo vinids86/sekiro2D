@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_vgrdp")
-stagger_time = 0.3
+stagger_time = 3.6
 metadata/_custom_type_script = "uid://ds6pgdg0nqcd"
