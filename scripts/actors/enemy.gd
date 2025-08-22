@@ -40,7 +40,7 @@ class_name Enemy
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
-var _last_hp: int = 0
+var _last_hp: float = 0
 
 func _ready() -> void:
 	# Sanidade
@@ -71,7 +71,7 @@ func _ready() -> void:
 	_driver.play_idle(idle_clip)
 
 	# 5) Saúde / dano
-	_last_hp = health.hp
+	_last_hp = health.current
 	health.changed.connect(Callable(self, "_on_health_changed"))
 	health.died.connect(Callable(self, "_on_health_died"))
 

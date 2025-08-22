@@ -3,86 +3,57 @@ class_name Stamina
 
 signal changed(current: float, maximum: float)
 
-@export var max_stamina: float = 100.0
-@export var regen_rate: float = 25.0      # por segundo
-@export var regen_delay: float = 0.5      # segundos sem regen após gastar
+@export var maximum: float = 100.0
+@export var current: float = 100.0
 
-var stamina: float = 0.0
-var _cooldown: float = 0.0
+# Se você já tem regen/consumo alhures, pode remover/mesclar estes helpers.
+@export var regen_per_second: float = 0.0
+@export var can_regen: bool = false
 
 func _ready() -> void:
-	# inicia cheio se vier 0.0 do editor
-	if stamina <= 0.0:
-		stamina = max_stamina
-	else:
-		if stamina > max_stamina:
-			stamina = max_stamina
-	# liga atualização e notifica HUD
-	set_process(true)
-	emit_signal("changed", stamina, max_stamina)
+	current = clampf(current, 0.0, maximum)
+	_emit_changed()
 
 func _process(delta: float) -> void:
-	if _cooldown > 0.0:
-		_cooldown -= delta
-		if _cooldown < 0.0:
-			_cooldown = 0.0
-		return
+	if can_regen and regen_per_second > 0.0 and current < maximum:
+		recover(regen_per_second * delta)
 
-	if stamina < max_stamina and regen_rate > 0.0:
-		stamina += regen_rate * delta
-		if stamina > max_stamina:
-			stamina = max_stamina
-		emit_signal("changed", stamina, max_stamina)
+func set_current(value: float) -> void:
+	var prev: float = current
+	current = clampf(value, 0.0, maximum)
+	if current != prev:
+		_emit_changed()
 
-# ---- API nova (compatível com o ImpactDriver) ----
-func get_current() -> float:
-	return stamina
+func set_maximum(value: float, keep_ratio: bool = true) -> void:
+	var prev_max: float = maximum
+	maximum = maxf(0.0, value)
+	if keep_ratio and prev_max > 0.0:
+		var ratio: float = 0.0
+		ratio = current / prev_max
+		current = clampf(maximum * ratio, 0.0, maximum)
+	else:
+		current = clampf(current, 0.0, maximum)
+	_emit_changed()
 
-func get_max() -> float:
-	return max_stamina
-
-# Consome até 'amount' (parcial é permitido). Retorna quanto foi realmente consumido.
-func consume(amount: float) -> float:
+func consume(amount: float) -> bool:
 	if amount <= 0.0:
-		return 0.0
-	var take: float = amount
-	if take > stamina:
-		take = stamina
-	if take <= 0.0:
-		return 0.0
-	stamina -= take
-	_cooldown = regen_delay
-	emit_signal("changed", stamina, max_stamina)
-	return take
-
-# ---- API antiga (mantida) ----
-func can_spend(cost: float) -> bool:
-	return stamina >= cost
-
-# Tenta gastar o valor integral. Retorna true se conseguiu tudo.
-func spend(cost: float) -> bool:
-	if cost <= 0.0:
 		return true
-	if stamina < cost:
-		return false
-	# usa a mesma mecânica de consumo (mas exigindo integral)
-	var taken: float = consume(cost)
-	return taken >= cost - 0.0001
+	var ok: bool = current >= amount
+	set_current(current - amount)
+	return ok
 
-# Utilitários
-func refill() -> void:
-	stamina = max_stamina
-	emit_signal("changed", stamina, max_stamina)
-
-func add(amount: float) -> void:
+func recover(amount: float) -> void:
 	if amount <= 0.0:
 		return
-	stamina += amount
-	if stamina > max_stamina:
-		stamina = max_stamina
-	emit_signal("changed", stamina, max_stamina)
+	set_current(current + amount)
 
-func pause_regen(seconds: float) -> void:
-	if seconds <= 0.0:
-		return
-	_cooldown = seconds
+func is_empty() -> bool:
+	return current <= 0.0
+
+func get_percentage() -> float:
+	if maximum <= 0.0:
+		return 0.0
+	return clampf(current / maximum, 0.0, 1.0)
+
+func _emit_changed() -> void:
+	emit_signal("changed", current, maximum)

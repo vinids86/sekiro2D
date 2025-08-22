@@ -6,19 +6,16 @@
 [ext_resource type="PackedScene" uid="uid://5aqapyppbkdg" path="res://scenes/player.tscn" id="2_sugp2"]
 [ext_resource type="Texture2D" uid="uid://cmpxu72ks47x3" path="res://assets/under_stamina.png" id="4_tefeu"]
 [ext_resource type="Texture2D" uid="uid://cwv3m6q2qjgf1" path="res://assets/progress_stamina.png" id="5_o6xl0"]
+[ext_resource type="Script" uid="uid://beipphnaamrl4" path="res://scripts/ui/hud.gd" id="6_choun"]
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
 [ext_resource type="Script" uid="uid://bji2s1rkpwwaj" path="res://scripts/hub/combat_event_hub.gd" id="8_tipki"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ya4ey"]
-size = Vector2(1918, 40)
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_85g3d")
 
 [node name="Background" type="Sprite2D" parent="."]
 z_index = -1
-position = Vector2(-962, -535)
 scale = Vector2(0.5, 0.497685)
 texture = ExtResource("1_ya4ey")
 centered = false
@@ -30,78 +27,87 @@ volume_db = -20.311
 autoplay = true
 
 [node name="Player" parent="." node_paths=PackedStringArray("hub") instance=ExtResource("2_sugp2")]
-position = Vector2(-64, 91)
+position = Vector2(925, 594)
 scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 
 [node name="Enemy" parent="." node_paths=PackedStringArray("hub") instance=ExtResource("9_85g3d")]
-position = Vector2(57, 94)
+position = Vector2(1019, 594)
 scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 
 [node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("6_choun")
+player_path = NodePath("../Player")
+enemy_path = NodePath("../Enemy")
+player_stamina_bar_path = NodePath("PlayerPanel/StaminaBar_Player")
+player_health_bar_path = NodePath("PlayerPanel/HealthBar_Player")
+enemy_stamina_bar_path = NodePath("EnemyPanel/StaminaBar_Enemy")
+enemy_health_bar_path = NodePath("EnemyPanel/HealthBar_Enemy")
 
-[node name="PlayerStaminaBar" type="TextureProgressBar" parent="HUD"]
-custom_minimum_size = Vector2(512, 32)
+[node name="PlayerPanel" type="Control" parent="HUD"]
+layout_mode = 3
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -256.0
-offset_top = -32.0
-offset_right = 256.0
 grow_horizontal = 2
 grow_vertical = 0
-value = 87.0
+
+[node name="StaminaBar_Player" type="TextureProgressBar" parent="HUD/PlayerPanel"]
+layout_mode = 0
+offset_left = -199.0
+offset_top = -96.0
+offset_right = 205.0
+offset_bottom = -64.0
+max_value = 1.0
+step = 0.0
 texture_under = ExtResource("4_tefeu")
 texture_progress = ExtResource("5_o6xl0")
 
-[node name="PlayerHealthBar" type="TextureProgressBar" parent="HUD"]
-anchors_preset = -1
-anchor_top = 1.0
-anchor_right = 1.5
-anchor_bottom = 1.0
-offset_left = 320.0
-offset_top = -51.0
-offset_right = -994.0
-offset_bottom = -11.0
-grow_horizontal = 2
-grow_vertical = 0
-value = 100.0
+[node name="HealthBar_Player" type="TextureProgressBar" parent="HUD/PlayerPanel"]
+layout_mode = 0
+offset_left = -201.0
+offset_top = -144.0
+offset_right = 203.0
+offset_bottom = -112.0
+max_value = 1.0
+step = 0.0
 texture_under = ExtResource("4_tefeu")
 texture_progress = ExtResource("7_tipki")
 
-[node name="EnemyStaminaBar" type="TextureProgressBar" parent="HUD"]
-custom_minimum_size = Vector2(512, 32)
-offset_left = 320.0
-offset_right = 832.0
-offset_bottom = 32.0
+[node name="EnemyPanel" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+grow_horizontal = 2
+
+[node name="StaminaBar_Enemy" type="TextureProgressBar" parent="HUD/EnemyPanel"]
+layout_mode = 0
+offset_left = -186.0
+offset_top = 105.0
+offset_right = 218.0
+offset_bottom = 137.0
+max_value = 1.0
+step = 0.0
 texture_under = ExtResource("4_tefeu")
 texture_progress = ExtResource("5_o6xl0")
 
-[node name="EnemyHealthBar" type="TextureProgressBar" parent="HUD"]
-offset_left = 320.0
-offset_top = 18.0
-offset_right = 724.0
-offset_bottom = 58.0
-value = 100.0
+[node name="HealthBar_Enemy" type="TextureProgressBar" parent="HUD/EnemyPanel"]
+layout_mode = 0
+offset_left = -197.0
+offset_top = 60.0
+offset_right = 207.0
+offset_bottom = 92.0
+max_value = 1.0
+step = 0.0
 texture_under = ExtResource("4_tefeu")
 texture_progress = ExtResource("7_tipki")
-
-[node name="PlayerSpecialBar" type="TextureProgressBar" parent="HUD"]
-offset_right = 40.0
-offset_bottom = 40.0
-
-[node name="Ground" type="StaticBody2D" parent="."]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
-position = Vector2(0, 237)
-shape = SubResource("RectangleShape2D_ya4ey")
-
-[node name="Sprite2D" type="Sprite2D" parent="Ground"]
 
 [node name="Camera2D" type="Camera2D" parent="." groups=["main_camera"]]
+position = Vector2(960, 542)
 
 [node name="CombatEventHub" type="Node" parent="."]
 script = ExtResource("8_tipki")

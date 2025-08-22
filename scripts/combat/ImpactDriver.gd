@@ -54,7 +54,7 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 	if defense_power < 0.0:
 		defense_power = 0.0
 
-	var s_cur: float = _stamina.get_current()
+	var s_cur: float = _stamina.get_percentage()
 	if s_cur < 0.0:
 		s_cur = 0.0
 
@@ -75,7 +75,7 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 		# aplica dano restante (geralmente 0 em golpes leves)
 		var hp_dmg_int: int = int(round(hp_damage_f))
 		if hp_dmg_int > 0:
-			_health.apply_damage(hp_dmg_int, attacker)
+			_health.damage(hp_dmg_int)
 
 		# feedback de guarda + publish no hub
 		_cc.enter_guard_hit()

@@ -1,29 +1,52 @@
 extends Node
 class_name Health
 
-signal changed(current: int, maximum: int)
+signal changed(current: float, maximum: float)
 signal died
 
-@export var max_hp: int = 100
-var hp: int
+@export var maximum: float = 100.0
+@export var current: float = 100.0
 
 func _ready() -> void:
-	hp = clampi(hp if hp != 0 else max_hp, 0, max_hp)
-	emit_signal("changed", hp, max_hp)
+	current = clampf(current, 0.0, maximum)
+	_emit_changed()
 
-func apply_damage(amount: int, _source: Node = null) -> void:
-	if amount <= 0:
-		return
-	hp = maxi(0, hp - amount)
-	emit_signal("changed", hp, max_hp)
-	if hp == 0:
-		emit_signal("died")
+func set_current(value: float) -> void:
+	var prev: float = current
+	current = clampf(value, 0.0, maximum)
+	if current != prev:
+		_emit_changed()
+		if current <= 0.0:
+			emit_signal("died")
 
-func heal(amount: int) -> void:
-	if amount <= 0:
+func set_maximum(value: float, keep_ratio: bool = true) -> void:
+	var prev_max: float = maximum
+	maximum = maxf(0.0, value)
+	if keep_ratio and prev_max > 0.0:
+		var ratio: float = 0.0
+		ratio = current / prev_max
+		current = clampf(maximum * ratio, 0.0, maximum)
+	else:
+		current = clampf(current, 0.0, maximum)
+	_emit_changed()
+
+func damage(amount: float) -> void:
+	if amount <= 0.0:
 		return
-	hp = mini(max_hp, hp + amount)
-	emit_signal("changed", hp, max_hp)
+	set_current(current - amount)
+
+func heal(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	set_current(current + amount)
 
 func is_dead() -> bool:
-	return hp <= 0
+	return current <= 0.0
+
+func get_percentage() -> float:
+	if maximum <= 0.0:
+		return 0.0
+	return clampf(current / maximum, 0.0, 1.0)
+
+func _emit_changed() -> void:
+	emit_signal("changed", current, maximum)
