@@ -6,11 +6,11 @@
 [resource]
 script = ExtResource("1_uu6m4")
 name_id = &"finisher"
-startup = 0.25
+startup = 0.5
 hit = 0.1
-recovery = 1.0
+recovery = 3.5
 body_clip = &"finisher"
-body_frames = 12
+body_frames = 41
 body_fps = 12.0
 to_idle_clip = &""
 to_parried_clip = &""

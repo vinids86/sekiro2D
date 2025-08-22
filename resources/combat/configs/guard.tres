@@ -9,5 +9,5 @@ defense_absorb_cap = 20.0
 finisher = ExtResource("1_tjry8")
 guard_hit_time = 0.1
 guard_recover_time = 0.3
-post_finisher_react_time = 0.7
+post_finisher_react_time = 4.0
 metadata/_custom_type_script = "uid://c37ktahqlpp0s"
