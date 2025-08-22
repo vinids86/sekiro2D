@@ -78,10 +78,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	controller.update(delta)
 
-func _on_health_changed(current: int, maximum: int) -> void:
+func _on_health_changed(current: float, maximum: float) -> void:
 	if current < _last_hp:
-		var dmg: int = _last_hp - current
-		print("[Enemy] levou ", dmg, " de dano (", current, "/", maximum, ")")
+		var dmg: float = _last_hp - current
+		print("[Enemy] levou ", roundi(dmg), " de dano (", roundi(current), "/", roundi(maximum), ")")
 	_last_hp = current
 
 func _on_health_died() -> void:

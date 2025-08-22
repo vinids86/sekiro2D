@@ -42,46 +42,47 @@ func setup(
 func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> void:
 	var defender: Node2D = _hurtbox.get_parent() as Node2D
 
-	# 1) Parry?
+	# 1) Parry primeiro
 	if _cc.is_parry_window():
 		_cc.enter_parry_success()
 		_hub.publish_parry_success(attacker, defender, cfg)
 		return
 
-	# 2) Guard (auto-block com defesa variável)
-	var dmg_f: float = float(cfg.damage)
-	var defense_power: float = float(_guard.defense_power)
-	if defense_power < 0.0:
-		defense_power = 0.0
+	# 2) Guarda (auto-block com cap absoluto por golpe)
+	var dmg: float = float(cfg.damage)
+	if dmg <= 0.0:
+		return
 
-	var s_cur: float = _stamina.get_percentage()
-	if s_cur < 0.0:
-		s_cur = 0.0
+	# Cap absoluto do perfil de guarda (1:1 com stamina)
+	var cap_from_guard: float = maxf(0.0, _guard.defense_absorb_cap)
+	var stamina_avail: float = _stamina.current
 
-	# quanto *pode* ser absorvido (1:1 stamina:dano), limitado por poder e stamina atual
-	var absorb_cap: float = dmg_f
-	if defense_power < absorb_cap:
-		absorb_cap = defense_power
-	if s_cur < absorb_cap:
-		absorb_cap = s_cur
+	# Quanto PODE absorver nesse golpe
+	var to_absorb: float = dmg
+	if cap_from_guard < to_absorb:
+		to_absorb = cap_from_guard
+	if stamina_avail < to_absorb:
+		to_absorb = stamina_avail
 
-	var absorbed: float = _stamina.consume(absorb_cap)
-	if absorbed < 0.0:
-		absorbed = 0.0
+	var absorbed: float = 0.0
+	if to_absorb > 0.0:
+		absorbed = _stamina.consume(to_absorb) # retorna 0..to_absorb
 
-	var hp_damage_f: float = dmg_f - absorbed
+	var hp_damage: float = dmg - absorbed
+	if hp_damage < 0.0:
+		hp_damage = 0.0
 
 	if absorbed > 0.0:
-		# aplica dano restante (geralmente 0 em golpes leves)
-		var hp_dmg_int: int = int(round(hp_damage_f))
-		if hp_dmg_int > 0:
-			_health.damage(hp_dmg_int)
+		# Dano residual na vida (se sobrar)
+		if hp_damage > 0.0:
+			_health.damage(hp_damage)
 
-		# feedback de guarda + publish no hub
+		# Feedback de block + evento
 		_cc.enter_guard_hit()
-		_hub.publish_guard_blocked(attacker, defender, cfg, int(round(absorbed)), hp_dmg_int)
+		# Se seu Hub espera ints, ajuste aqui para roundi(...)
+		_hub.publish_guard_blocked(attacker, defender, cfg, absorbed, hp_damage)
 		return
 
 	# 3) Sem absorção: dano normal + HIT_REACT
-	_health.apply_damage(int(dmg_f), attacker)
+	_health.damage(dmg)
 	_cc.enter_hit_react()

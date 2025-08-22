@@ -6,7 +6,6 @@ signal changed(current: float, maximum: float)
 @export var maximum: float = 100.0
 @export var current: float = 100.0
 
-# Se você já tem regen/consumo alhures, pode remover/mesclar estes helpers.
 @export var regen_per_second: float = 0.0
 @export var can_regen: bool = false
 
@@ -28,19 +27,31 @@ func set_maximum(value: float, keep_ratio: bool = true) -> void:
 	var prev_max: float = maximum
 	maximum = maxf(0.0, value)
 	if keep_ratio and prev_max > 0.0:
-		var ratio: float = 0.0
-		ratio = current / prev_max
+		var ratio: float = current / prev_max
 		current = clampf(maximum * ratio, 0.0, maximum)
 	else:
 		current = clampf(current, 0.0, maximum)
 	_emit_changed()
 
-func consume(amount: float) -> bool:
+# ---- NOVO CONTRATO ----
+# Consome até 'amount' e retorna QUANTO foi consumido (0..amount).
+func consume(amount: float) -> float:
+	if amount <= 0.0:
+		return 0.0
+	var take: float = amount
+	if current < take:
+		take = current
+	set_current(current - take)
+	return take
+
+# “Tudo ou nada”: só consome se houver stamina suficiente.
+func try_consume(amount: float) -> bool:
 	if amount <= 0.0:
 		return true
-	var ok: bool = current >= amount
-	set_current(current - amount)
-	return ok
+	if current >= amount:
+		set_current(current - amount)
+		return true
+	return false
 
 func recover(amount: float) -> void:
 	if amount <= 0.0:
