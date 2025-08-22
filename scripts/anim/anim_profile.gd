@@ -11,3 +11,6 @@ class_name AnimProfile
 
 @export var guard_hit_clip: StringName = &"block_hit"
 @export var guard_recover_clip: StringName = &"guard_recover"
+
+@export var guard_broken_clip: StringName = &"guard_broken"
+@export var broken_finisher_clip: StringName = &"broken_finisher"

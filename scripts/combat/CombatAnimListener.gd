@@ -85,6 +85,25 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	elif state == CombatController.State.COUNTER_RECOVER:
 		pass
 
+	elif state == CombatController.State.FINISHER_STARTUP:
+		assert(cfg != null, "FINISHER_STARTUP sem AttackConfig")
+		var total: float = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
+		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total)
+
+	elif state == CombatController.State.FINISHER_HIT:
+		pass
+
+	elif state == CombatController.State.FINISHER_RECOVER:
+		pass
+		
+	elif state == CombatController.State.GUARD_BROKEN:
+		print("play guard broken", _anim.guard_broken_clip)
+		_driver.play_idle(_anim.guard_broken_clip)
+		
+	elif state == CombatController.State.BROKEN_FINISHER_REACT:
+		print("play guard broken", _anim.broken_finisher_clip)
+		_driver.play_to_idle(_anim.broken_finisher_clip)
+
 func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()
 

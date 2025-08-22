@@ -19,3 +19,5 @@ class_name AttackConfig
 @export var sfx_swing: AudioStream
 
 @export var damage: float = 10.0
+
+@export var is_finisher: bool = false

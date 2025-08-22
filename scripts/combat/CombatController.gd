@@ -10,6 +10,9 @@ enum State {
 	HIT_REACT, PARRIED,
 	GUARD_HIT, GUARD_RECOVER,
 	COUNTER_STARTUP, COUNTER_HIT, COUNTER_RECOVER,
+	GUARD_BROKEN,
+	FINISHER_STARTUP, FINISHER_HIT, FINISHER_RECOVER,
+	BROKEN_FINISHER_REACT,
 }
 
 const _TIMED_STATES := {
@@ -18,6 +21,8 @@ const _TIMED_STATES := {
 	State.HIT_REACT: true, State.PARRIED: true,
 	State.GUARD_HIT: true, State.GUARD_RECOVER: true,
 	State.COUNTER_STARTUP: true, State.COUNTER_HIT: true, State.COUNTER_RECOVER: true,
+	State.FINISHER_STARTUP: true, State.FINISHER_HIT: true, State.FINISHER_RECOVER: true,
+	State.BROKEN_FINISHER_REACT: true,
 }
 
 const _REENTER_ON_SAME_STATE := {
@@ -77,7 +82,10 @@ func initialize(
 func on_attack_pressed() -> void:
 	if _state == State.GUARD_HIT or _state == State.GUARD_RECOVER \
 	or _state == State.HIT_REACT or _state == State.PARRIED \
-	or _state == State.PARRY_STARTUP or _state == State.PARRY_RECOVER:
+	or _state == State.PARRY_STARTUP or _state == State.PARRY_RECOVER \
+	or _state == State.GUARD_BROKEN \
+	or _state == State.FINISHER_STARTUP or _state == State.FINISHER_HIT or _state == State.FINISHER_RECOVER \
+	or _state == State.BROKEN_FINISHER_REACT:
 		return
 
 	if _state == State.PARRY_SUCCESS:
@@ -90,12 +98,17 @@ func on_attack_pressed() -> void:
 		_wants_chain = true
 
 func can_start_parry() -> bool:
-	return _state == State.IDLE \
+	return (_state == State.IDLE \
 		or _state == State.STARTUP \
 		or _state == State.RECOVER \
 		or _state == State.PARRY_SUCCESS \
 		or _state == State.PARRIED \
-		or _state == State.GUARD_RECOVER
+		or _state == State.GUARD_RECOVER) \
+		and _state != State.GUARD_BROKEN \
+		and _state != State.FINISHER_STARTUP \
+		and _state != State.FINISHER_HIT \
+		and _state != State.FINISHER_RECOVER \
+		and _state != State.BROKEN_FINISHER_REACT
 
 
 func on_parry_pressed() -> void:
@@ -175,6 +188,19 @@ func _on_state_timeout() -> void:
 				_start_attack(0)
 			else:
 				_change_state(State.IDLE, null, 0.0)
+
+		# ---- FINISHER do atacante ----
+		State.FINISHER_STARTUP:
+			_change_state(State.FINISHER_HIT, _current, maxf(_current.hit, 0.0))
+		State.FINISHER_HIT:
+			_change_state(State.FINISHER_RECOVER, _current, maxf(_current.recovery, 0.0))
+		State.FINISHER_RECOVER:
+			_change_state(State.IDLE, null, 0.0)
+
+		# ---- Reação do defensor após levar o finisher ----
+		State.BROKEN_FINISHER_REACT:
+			_change_state(State.IDLE, null, 0.0)
+
 		_:
 			push_warning("[FSM] Timeout sem handler: %s" % _state_name(_state))
 
@@ -225,6 +251,32 @@ func _start_counter() -> void:
 
 	_change_state(State.COUNTER_STARTUP, _current, maxf(_current.startup, 0.0))
 
+func enter_guard_broken() -> void:
+	# Sem ações, travado até o finisher resolver
+	_wants_chain = false
+	_current = null
+	_change_state(State.GUARD_BROKEN, null, 0.0)
+
+func start_finisher() -> void:
+	# Evita chamadas inválidas
+	if _guard == null or _guard.finisher == null:
+		push_warning("[FSM] start_finisher chamado sem GuardProfile/finisher.")
+		return
+	# Se já estiver em finisher, ignore
+	if _state == State.FINISHER_STARTUP or _state == State.FINISHER_HIT or _state == State.FINISHER_RECOVER:
+		return
+
+	_current = _guard.finisher
+	_wants_chain = false
+	_change_state(State.FINISHER_STARTUP, _current, maxf(_current.startup, 0.0))
+
+func enter_broken_after_finisher() -> void:
+	# Estado do defensor após levar o hit do finisher
+	var t: float = 0.5
+	if _guard != null and _guard.post_finisher_react_time > 0.0:
+		t = _guard.post_finisher_react_time
+	_change_state(State.BROKEN_FINISHER_REACT, null, t)
+
 # ---------- Núcleo de transição + debug ----------
 func _change_state(new_state: int, cfg: AttackConfig, timer: float) -> void:
 	var same: bool = (new_state == _state)
@@ -274,6 +326,11 @@ func _state_name(s: int) -> String:
 		State.COUNTER_STARTUP: return "COUNTER_STARTUP"
 		State.COUNTER_HIT: return "COUNTER_HIT"
 		State.COUNTER_RECOVER: return "COUNTER_RECOVER"
+		State.FINISHER_STARTUP: return "FINISHER_STARUPT"
+		State.FINISHER_HIT: return "FINISHER_HIT"
+		State.FINISHER_RECOVER: return "FINISHER_RECOVER"
+		State.GUARD_BROKEN: return "GUARD_BROKEN"
+		State.BROKEN_FINISHER_REACT: return "BROKEN_FINISHER_REACT"
 		_: return "UNKNOWN"
 
 func _actor_label() -> String:

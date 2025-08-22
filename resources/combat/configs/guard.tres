@@ -1,10 +1,13 @@
-[gd_resource type="Resource" script_class="GuardProfile" load_steps=2 format=3 uid="uid://cnov3igxso054"]
+[gd_resource type="Resource" script_class="GuardProfile" load_steps=3 format=3 uid="uid://cnov3igxso054"]
 
 [ext_resource type="Script" uid="uid://c37ktahqlpp0s" path="res://scripts/combat/parry/guard_profile.gd" id="1_gpebp"]
+[ext_resource type="Resource" uid="uid://cek6k1gdss4dd" path="res://resources/combat/configs/finisher.tres" id="1_tjry8"]
 
 [resource]
 script = ExtResource("1_gpebp")
-defense_power = 8
+defense_absorb_cap = 20.0
+finisher = ExtResource("1_tjry8")
 guard_hit_time = 0.1
 guard_recover_time = 0.3
+post_finisher_react_time = 0.7
 metadata/_custom_type_script = "uid://c37ktahqlpp0s"

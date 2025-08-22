@@ -1,4 +1,4 @@
-[gd_scene load_steps=307 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=320 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -37,6 +37,7 @@
 [ext_resource type="Texture2D" uid="uid://cwsb7y4fbi6sr" path="res://art/counter_a_to_idle.png" id="20_t4otl"]
 [ext_resource type="Script" uid="uid://wkaqybgy243k" path="res://scripts/combat/ImpactDriver.gd" id="21_i4ail"]
 [ext_resource type="Texture2D" uid="uid://bpe7g3m2q81ec" path="res://art/counter_b.png" id="21_j2b1d"]
+[ext_resource type="Texture2D" uid="uid://dj0wxutrapa8v" path="res://art/guard_broken.png" id="22_cs1tg"]
 [ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="26_dt7fs"]
 [ext_resource type="Script" uid="uid://ddu8u3t2xh1nj" path="res://scripts/combat/parry/parry_recoil_driver.gd" id="33_487ah"]
 
@@ -896,6 +897,54 @@ region = Rect2(0, 3240, 1920, 1080)
 [sub_resource type="AtlasTexture" id="AtlasTexture_1sqdh"]
 atlas = ExtResource("20_t4otl")
 region = Rect2(1920, 3240, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hpe4p"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(0, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c1d84"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(1920, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xf85k"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(3840, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4q3rj"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(5760, 0, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4psgw"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(0, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o3pyo"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(1920, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cq75n"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(3840, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o2mnd"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(5760, 1080, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o4y0d"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(0, 2160, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2s0fd"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(1920, 2160, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x685p"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(3840, 2160, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wow6h"]
+atlas = ExtResource("22_cs1tg")
+region = Rect2(5760, 2160, 1920, 1080)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_yc32c"]
 atlas = ExtResource("14_l71n6")
@@ -2095,6 +2144,52 @@ animations = [{
 "name": &"counter_b_to_idle",
 "speed": 12.0
 }, {
+"frames": [],
+"loop": false,
+"name": &"finisher",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hpe4p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c1d84")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xf85k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4q3rj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4psgw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o3pyo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cq75n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o2mnd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o4y0d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2s0fd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x685p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wow6h")
+}],
+"loop": false,
+"name": &"guard_broken",
+"speed": 12.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_yc32c")
@@ -2486,7 +2581,7 @@ script = ExtResource("3_4r5pv")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"parry_recover"
+animation = &"guard_broken"
 frame = 11
 frame_progress = 1.0
 
