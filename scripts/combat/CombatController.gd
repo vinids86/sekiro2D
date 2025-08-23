@@ -36,6 +36,9 @@ const _REENTER_ON_SAME_STATE := {
 	State.GUARD_HIT: true,
 }
 
+@export var combo_link_window: float = 12.0 / 12.0
+@export var combo_link_damage_mul: float = 1.25
+
 var _state: int = State.IDLE
 var _state_timer: float = 0.0
 
@@ -60,6 +63,9 @@ var _counter_buffered: bool = false
 # --- SPECIAL COMBO control ---
 var _combo_running: bool = false
 var _combo_sequence: Array[AttackConfig] = []
+
+# Perfect Link (bônus runtime)
+var _combo_link_pending: bool = false
 
 func initialize(
 		attack_set: AttackSet,
@@ -90,6 +96,17 @@ func initialize(
 
 # ---------- Inputs ----------
 func on_attack_pressed() -> void:
+	# Perfect Link: aceitar input no finzinho do COMBO_STARTUP
+	if _state == State.COMBO_STARTUP:
+		print("[LINK] press during COMBO_STARTUP | idx=", str(_combo_index),
+			" time_left=", str(_state_timer), " window=", str(combo_link_window))
+		if _state_timer <= combo_link_window:
+			_combo_link_pending = true
+			print("[LINK] ARMED at idx=", str(_combo_index))
+		else:
+			print("[LINK] ignored (outside window)")
+		return
+
 	# Bloqueia entrada durante estados que não aceitam novo ataque
 	if _state == State.GUARD_HIT or _state == State.GUARD_RECOVER \
 	or _state == State.HIT_REACT or _state == State.PARRIED \
@@ -175,11 +192,14 @@ func start_special_combo(sequence: Array[AttackConfig]) -> void:
 		return
 	assert(sequence != null and sequence.size() > 0, "start_special_combo: sequence vazia")
 
-	# IMPORTANTE: duplicar para não compartilhar referência com o Player
-	_combo_sequence = sequence.duplicate()  # shallow copy é suficiente (não queremos clonar recursos)
+	# IMPORTANTE: duplicar para não compartilhar referência com o chamador
+	_combo_sequence = sequence.duplicate()
 	_combo_running = true
 	_combo_index = 0
 	_wants_chain = false
+
+	# reset do Perfect Link
+	_combo_link_pending = false
 
 	_current = _combo_sequence[_combo_index]
 	_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
@@ -382,6 +402,15 @@ func get_state() -> int:
 
 func get_current_attack() -> AttackConfig:
 	return _current
+
+func consume_combo_link_multiplier() -> float:
+	if _combo_link_pending:
+		_combo_link_pending = false
+		var v: float = maxf(combo_link_damage_mul, 1.0)
+		print("[LINK] CONSUME mul=", str(v))
+		return v
+	print("[LINK] CONSUME mul=1.0 (no bonus)")
+	return 1.0
 
 func _allows_reenter(s: int) -> bool:
 	return _REENTER_ON_SAME_STATE.has(s)

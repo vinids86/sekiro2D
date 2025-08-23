@@ -55,6 +55,13 @@
 shader = ExtResource("2_ur7pv")
 shader_parameter/flash = false
 shader_parameter/flash_color = Color(1, 0, 0, 1)
+shader_parameter/sweep_angle = 0.0
+shader_parameter/sweep_width = 0.18
+shader_parameter/sweep_feather = 0.2
+shader_parameter/sweep_animated = false
+shader_parameter/sweep_speed = 2.5
+shader_parameter/screen_strength = 0.85
+shader_parameter/sweep_center = Vector2(0.5, 0.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ur7pv"]
 atlas = ExtResource("8_60mlk")
@@ -3662,6 +3669,7 @@ special_sequence_primary = Array[ExtResource("10_6e8lb")]([ExtResource("11_2gdjj
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("3_4r5pv")
+fx_sprite_path = NodePath("AnimatedSprite2D")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")

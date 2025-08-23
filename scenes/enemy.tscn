@@ -59,6 +59,13 @@
 shader = ExtResource("2_md484")
 shader_parameter/flash = false
 shader_parameter/flash_color = Color(1, 1, 1, 1)
+shader_parameter/sweep_angle = 0.0
+shader_parameter/sweep_width = 0.18
+shader_parameter/sweep_feather = 0.2
+shader_parameter/sweep_animated = false
+shader_parameter/sweep_speed = 2.5
+shader_parameter/screen_strength = 0.85
+shader_parameter/sweep_center = Vector2(0.5, 0.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ur7pv"]
 atlas = ExtResource("3_4ra3w")
@@ -3686,6 +3693,7 @@ special_sequence_primary = Array[ExtResource("12_0pw1s")]([ExtResource("13_b5geg
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("8_0lg75")
+fx_sprite_path = NodePath("AnimatedSprite2D")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_ipns3")
@@ -3761,6 +3769,7 @@ metadata/_custom_type_script = "uid://wkaqybgy243k"
 
 [node name="EnemyAIDriver" type="Node" parent="."]
 script = ExtResource("30_lioqc")
+combo_chance = 0.7
 metadata/_custom_type_script = "uid://bixm1f4soqfxu"
 
 [node name="ParryRecoilDriver" type="Node" parent="."]
