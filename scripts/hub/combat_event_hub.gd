@@ -22,10 +22,11 @@ func unregister_fighter(cc: CombatController) -> void:
 		# desconectar se quiser (opcional): cc.state_entered.disconnect(...)
 
 func _on_state_entered(state: int, cfg: AttackConfig, cc: CombatController) -> void:
-	if state == CombatController.State.STARTUP:
+	# STARTUP normal e do COMBO disparam o mesmo windup
+	if state == CombatController.State.STARTUP \
+	or state == CombatController.State.COMBO_STARTUP:
 		var root: Node2D = _map_cc_to_root[cc] as Node2D
 		assert(cfg != null, "attack_windup sem AttackConfig")
-
 		var time_to_hit: float = maxf(cfg.startup, 0.0)
 		attack_windup.emit(root, cfg, time_to_hit)
 

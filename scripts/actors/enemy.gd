@@ -17,6 +17,7 @@ class_name Enemy
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
+@export var special_sequence_primary: Array[AttackConfig]    # <--- combo do inimigo
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -40,7 +41,7 @@ class_name Enemy
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
-var _last_hp: float = 0
+var _last_hp: float = 0.0
 
 func _ready() -> void:
 	# Sanidade
@@ -54,23 +55,28 @@ func _ready() -> void:
 	assert(anim_listener != null, "CombatAnimListener não encontrado no Enemy")
 	assert(hitbox_driver != null, "HitboxDriver não encontrado no Enemy")
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
+	assert(guard_profile != null, "GuardProfile não atribuído no Enemy")
+	assert(counter_profile != null, "CounterProfile não atribuído no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile)
 
-	# 3) Liga os listeners (injeção direta, sem NodePath)
+	# Listeners
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
 
 	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	recoil.setup(self, controller, hub, parried_profile)
-	ai_driver.setup(controller, attack_profile)
 
-	# 4) Estado visual inicial
+	# AI
+	ai_driver.setup(controller, attack_profile)
+	ai_driver.special_sequence_primary = special_sequence_primary  # <--- entrega a sequência p/ AI
+
+	# Estado visual inicial
 	_driver.play_idle(idle_clip)
 
-	# 5) Saúde / dano
+	# Saúde / dano
 	_last_hp = health.current
 	health.changed.connect(Callable(self, "_on_health_changed"))
 	health.died.connect(Callable(self, "_on_health_died"))

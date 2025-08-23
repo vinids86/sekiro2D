@@ -69,3 +69,8 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		assert(cfg != null and cfg.sfx_swing != null, "AttackConfig.sfx_swing ausente")
 		_p_swing.stream = cfg.sfx_swing
 		_p_swing.play()
+	
+	elif state == CombatController.State.COMBO_HIT:
+		assert(cfg != null and cfg.sfx_swing != null, "AttackConfig.sfx_swing ausente")
+		_p_swing.stream = cfg.sfx_swing
+		_p_swing.play()

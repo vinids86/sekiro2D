@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AttackConfig" load_steps=3 format=3 uid="uid://uhgn084kriap"]
+
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_kp1gc"]
+[ext_resource type="AudioStream" uid="uid://b1ggdrbymxadc" path="res://audio/attack_2.wav" id="2_a8c11"]
+
+[resource]
+script = ExtResource("1_kp1gc")
+name_id = &"atk1"
+startup = 0.5
+hit = 0.083
+recovery = 1.75
+body_clip = &"atk1"
+body_frames = 12
+body_fps = 30.0
+to_idle_clip = &"atk1_to_idle"
+to_parried_clip = &""
+hitbox_offset = Vector2(60, 0)
+sfx_swing = ExtResource("2_a8c11")
+damage = 10.0
+is_finisher = false
+metadata/_custom_type_script = "uid://bpr26trni32iq"

@@ -13,6 +13,9 @@ enum State {
 	GUARD_BROKEN,
 	FINISHER_STARTUP, FINISHER_HIT, FINISHER_RECOVER,
 	BROKEN_FINISHER_REACT,
+
+	# --- SPECIAL COMBO ---
+	COMBO_STARTUP, COMBO_HIT, COMBO_RECOVER,
 }
 
 const _TIMED_STATES := {
@@ -23,6 +26,9 @@ const _TIMED_STATES := {
 	State.COUNTER_STARTUP: true, State.COUNTER_HIT: true, State.COUNTER_RECOVER: true,
 	State.FINISHER_STARTUP: true, State.FINISHER_HIT: true, State.FINISHER_RECOVER: true,
 	State.BROKEN_FINISHER_REACT: true,
+
+	# --- SPECIAL COMBO ---
+	State.COMBO_STARTUP: true, State.COMBO_HIT: true, State.COMBO_RECOVER: true,
 }
 
 const _REENTER_ON_SAME_STATE := {
@@ -50,6 +56,10 @@ var _parry_toggle: bool = true
 var _parry_last_ab: int = 0
 
 var _counter_buffered: bool = false
+
+# --- SPECIAL COMBO control ---
+var _combo_running: bool = false
+var _combo_sequence: Array[AttackConfig] = []
 
 func initialize(
 		attack_set: AttackSet,
@@ -80,12 +90,14 @@ func initialize(
 
 # ---------- Inputs ----------
 func on_attack_pressed() -> void:
+	# Bloqueia entrada durante estados que não aceitam novo ataque
 	if _state == State.GUARD_HIT or _state == State.GUARD_RECOVER \
 	or _state == State.HIT_REACT or _state == State.PARRIED \
 	or _state == State.PARRY_STARTUP or _state == State.PARRY_RECOVER \
 	or _state == State.GUARD_BROKEN \
 	or _state == State.FINISHER_STARTUP or _state == State.FINISHER_HIT or _state == State.FINISHER_RECOVER \
-	or _state == State.BROKEN_FINISHER_REACT:
+	or _state == State.BROKEN_FINISHER_REACT \
+	or _is_combo_state(_state):
 		return
 
 	if _state == State.PARRY_SUCCESS:
@@ -109,7 +121,6 @@ func can_start_parry() -> bool:
 		and _state != State.FINISHER_HIT \
 		and _state != State.FINISHER_RECOVER \
 		and _state != State.BROKEN_FINISHER_REACT
-
 
 func on_parry_pressed() -> void:
 	if _state == State.PARRY_SUCCESS:
@@ -135,6 +146,9 @@ func is_parry_window() -> bool:
 	return _state == State.PARRY_STARTUP
 	
 func enter_parried() -> void:
+	# NÃO interrompe o atacante se estiver no combo especial
+	if _is_combo_state(_state):
+		return
 	_wants_chain = false
 	_change_state(State.PARRIED, _current, _parried.stagger_time)
 
@@ -154,14 +168,48 @@ func enter_stun() -> void:
 func is_stunned() -> bool:
 	return _state == State.STUN
 
+# ---------- SPECIAL COMBO ----------
+func start_special_combo(sequence: Array[AttackConfig]) -> void:
+	# Só inicia em IDLE; fora de hora, ignoramos
+	if _state != State.IDLE:
+		return
+	assert(sequence != null and sequence.size() > 0, "start_special_combo: sequence vazia")
+
+	# IMPORTANTE: duplicar para não compartilhar referência com o Player
+	_combo_sequence = sequence.duplicate()  # shallow copy é suficiente (não queremos clonar recursos)
+	_combo_running = true
+	_combo_index = 0
+	_wants_chain = false
+
+	_current = _combo_sequence[_combo_index]
+	_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
+
 # ---------- Loop ----------
 func update(delta: float) -> void:
-	if not _is_timed(_state):
-		return
-	_state_timer -= delta
-	if _state_timer > 0.0:
-		return
-	_on_state_timeout()
+	# Consumimos o delta carregando o "resto" entre estados para evitar drift.
+	var remaining: float = delta
+
+	while remaining > 0.0:
+		# Se o estado atual não é temporizado, não há o que fazer neste frame.
+		if not _is_timed(_state):
+			return
+
+		# Se ainda há tempo restante no estado atual, apenas desconta e sai.
+		if remaining < _state_timer:
+			_state_timer -= remaining
+			return
+
+		# Caso contrário, estouramos o timer deste estado.
+		remaining -= _state_timer
+		_state_timer = 0.0
+
+		# Dispara a troca de estado.
+		_on_state_timeout()
+
+		# Se o próximo estado não for temporizado ou não setou um novo timer (> 0),
+		# encerramos o processamento deste frame para evitar loop infinito.
+		if not _is_timed(_state) or _state_timer <= 0.0:
+			return
 
 func _on_state_timeout() -> void:
 	match _state:
@@ -201,6 +249,14 @@ func _on_state_timeout() -> void:
 		State.BROKEN_FINISHER_REACT:
 			_change_state(State.IDLE, null, 0.0)
 
+		# ---- SPECIAL COMBO ----
+		State.COMBO_STARTUP:
+			_enter_combo_hit()
+		State.COMBO_HIT:
+			_advance_combo_or_recover()
+		State.COMBO_RECOVER:
+			_end_combo_to_idle()
+
 		_:
 			push_warning("[FSM] Timeout sem handler: %s" % _state_name(_state))
 
@@ -219,6 +275,31 @@ func _enter_hit() -> void:
 func _enter_recover() -> void:
 	assert(_current != null, "_enter_recover sem AttackConfig")
 	_change_state(State.RECOVER, _current, maxf(_current.recovery, 0.0))
+
+# ---------- SPECIAL COMBO internals ----------
+func _enter_combo_hit() -> void:
+	assert(_current != null, "_enter_combo_hit sem AttackConfig")
+	_change_state(State.COMBO_HIT, _current, maxf(_current.hit, 0.0))
+
+func _advance_combo_or_recover() -> void:
+	# Avança índice; se acabou, vai para COMBO_RECOVER com o último cfg
+	var last_cfg: AttackConfig = _current
+	_combo_index += 1
+	if _combo_index < _combo_sequence.size():
+		_current = _combo_sequence[_combo_index]
+		_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
+	else:
+		_current = last_cfg
+		_change_state(State.COMBO_RECOVER, _current, maxf(_current.recovery, 0.0))
+
+func _end_combo_to_idle() -> void:
+	_combo_running = false
+	_combo_sequence = []
+	_wants_chain = false
+
+	var last: AttackConfig = _current
+	_current = null
+	_change_state(State.IDLE, last, 0.0)
 
 # ---------- Callbacks do AnimationDriver ----------
 func on_body_end(_clip: StringName) -> void:
@@ -248,7 +329,6 @@ func _start_counter() -> void:
 
 	assert(cfg != null, "Counter AttackConfig inválido")
 	_current = cfg
-
 	_change_state(State.COUNTER_STARTUP, _current, maxf(_current.startup, 0.0))
 
 func enter_guard_broken() -> void:
@@ -308,6 +388,9 @@ func _allows_reenter(s: int) -> bool:
 
 func _is_timed(s: int) -> bool:
 	return _TIMED_STATES.has(s)
+
+func _is_combo_state(s: int) -> bool:
+	return s == State.COMBO_STARTUP or s == State.COMBO_HIT or s == State.COMBO_RECOVER
 	
 func _state_name(s: int) -> String:
 	match s:
@@ -326,11 +409,14 @@ func _state_name(s: int) -> String:
 		State.COUNTER_STARTUP: return "COUNTER_STARTUP"
 		State.COUNTER_HIT: return "COUNTER_HIT"
 		State.COUNTER_RECOVER: return "COUNTER_RECOVER"
-		State.FINISHER_STARTUP: return "FINISHER_STARUPT"
+		State.FINISHER_STARTUP: return "FINISHER_STARTUP"
 		State.FINISHER_HIT: return "FINISHER_HIT"
 		State.FINISHER_RECOVER: return "FINISHER_RECOVER"
 		State.GUARD_BROKEN: return "GUARD_BROKEN"
 		State.BROKEN_FINISHER_REACT: return "BROKEN_FINISHER_REACT"
+		State.COMBO_STARTUP: return "COMBO_STARTUP"
+		State.COMBO_HIT: return "COMBO_HIT"
+		State.COMBO_RECOVER: return "COMBO_RECOVER"
 		_: return "UNKNOWN"
 
 func _actor_label() -> String:

@@ -4,9 +4,16 @@ class_name EnemyAIDriver
 @export var profile: EnemyAttackProfile
 @export var debug_ai: bool = false
 
+# --------- COMBO CONFIG ---------
+@export var combo_enabled: bool = true
+@export_range(0.0, 1.0, 0.01) var combo_chance: float = 0.25
+@export var combo_cooldown: float = 2.0
+@export var special_sequence_primary: Array[AttackConfig]
+
 var _controller: CombatController
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _timer: Timer
+var _combo_cd: Timer
 var _wired: bool = false
 
 func setup(controller: CombatController, attack_profile: EnemyAttackProfile) -> void:
@@ -21,6 +28,13 @@ func _ready() -> void:
 		_timer.one_shot = true
 		add_child(_timer)
 		_timer.timeout.connect(_on_timeout)
+
+	if _combo_cd == null:
+		_combo_cd = Timer.new()
+		_combo_cd.one_shot = true
+		add_child(_combo_cd)
+		# não precisa conectar sinal; usamos apenas is_stopped()
+
 	if _controller != null and profile != null and not _wired:
 		_wire()
 
@@ -35,7 +49,10 @@ func _wire() -> void:
 	if debug_ai:
 		print("[AI] armed: start_delay=", str(first),
 			" period=", str(profile.period), " jitter=±", str(profile.jitter),
-			" press_only_in_idle=", str(profile.press_only_in_idle))
+			" press_only_in_idle=", str(profile.press_only_in_idle),
+			" combo_enabled=", str(combo_enabled),
+			" combo_chance=", str(combo_chance),
+			" combo_cooldown=", str(combo_cooldown))
 
 func _on_timeout() -> void:
 	if not is_instance_valid(_controller):
@@ -44,15 +61,41 @@ func _on_timeout() -> void:
 	var st: int = _controller.get_state()
 	var can_press: bool = true
 	if profile.press_only_in_idle:
-		can_press = st == CombatController.State.IDLE
+		can_press = (st == CombatController.State.IDLE)
 
-	if can_press:
-		_controller.on_attack_pressed()
-		if debug_ai:
-			print("[AI] attack pressed | state=", _state_name(st))
-	else:
-		if debug_ai:
-			print("[AI] skipped (state=", _state_name(st), ")")
+	# Decide combo
+	var can_try_combo: bool = combo_enabled
+	if can_try_combo:
+		if special_sequence_primary == null:
+			can_try_combo = false
+		elif special_sequence_primary.size() == 0:
+			can_try_combo = false
+		elif not _combo_cd.is_stopped():
+			can_try_combo = false
+		# controller só inicia combo em IDLE, então garantimos IDLE aqui
+		if can_try_combo and st != CombatController.State.IDLE:
+			can_try_combo = false
+
+	var did_action: bool = false
+
+	if can_try_combo:
+		var roll: float = _rng.randf()
+		if roll < combo_chance:
+			_controller.start_special_combo(special_sequence_primary)
+			_combo_cd.start(maxf(combo_cooldown, 0.0))
+			did_action = true
+			if debug_ai:
+				print("[AI] combo START | roll=", str(roll), " < ", str(combo_chance))
+
+	if not did_action:
+		if can_press:
+			_controller.on_attack_pressed()
+			did_action = true
+			if debug_ai:
+				print("[AI] attack pressed | state=", _state_name(st))
+		else:
+			if debug_ai:
+				print("[AI] skipped (state=", _state_name(st), ")")
 
 	# agenda próxima tentativa
 	var next_delay: float = _next_period()
@@ -88,4 +131,7 @@ func _state_name(s: int) -> String:
 		CombatController.State.PARRY_SUCCESS: return "PARRY_SUCCESS"
 		CombatController.State.PARRY_RECOVER: return "PARRY_RECOVER"
 		CombatController.State.HIT_REACT: return "HIT_REACT"
+		CombatController.State.COMBO_STARTUP: return "COMBO_STARTUP"
+		CombatController.State.COMBO_HIT: return "COMBO_HIT"
+		CombatController.State.COMBO_RECOVER: return "COMBO_RECOVER"
 		_: return "UNKNOWN"
