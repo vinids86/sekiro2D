@@ -112,17 +112,27 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		print("play guard broken", _anim.broken_finisher_clip)
 		_driver.play_to_idle(_anim.broken_finisher_clip)
 
-# -------- SPECIAL COMBO (clip único) --------
+	# -------- SPECIAL COMBO (pré-estados + clip único) --------
+	elif state == CombatController.State.COMBO_PARRY:
+		# primeiro estágio: janela de parry; toca o buff
+		assert(_anim.pre_combo != StringName(), "AnimProfile.pre_combo não configurado")
+		print("[ANIM] COMBO_PARRY -> pre_combo:", _anim.pre_combo)
+		_driver.play_to_idle(_anim.pre_combo)
+
+	elif state == CombatController.State.COMBO_PREP:
+		# segundo estágio: mantém o buff; NÃO reiniciar o clipe
+		print("[ANIM] COMBO_PREP (mantém pre_combo)")
+
 	elif state == CombatController.State.COMBO_STARTUP:
 		assert(cfg != null, "COMBO_STARTUP sem AttackConfig")
-		# Só dispara o clip uma vez (primeira entrada do combo)
+		# Só dispara o clip do combo uma vez (primeira entrada do combo)
 		if not _combo_visual_on:
 			var total_combo: float = 0.0
 			if cfg.body_fps > 0.0:
 				total_combo = float(cfg.body_frames) / cfg.body_fps
 			else:
-				# fallback: usa tempos do cfg atual (pode não refletir a sequência inteira)
 				total_combo = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
+			print("[ANIM] COMBO_STARTUP -> body:", cfg.body_clip, " total=", str(total_combo))
 			_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_combo)
 			_combo_visual_on = true
 

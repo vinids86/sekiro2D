@@ -54,16 +54,6 @@ func _ready() -> void:
 
 	_driver.play_idle(anim_profile.idle_clip)
 
-func _unhandled_input(event: InputEvent) -> void:
-	if controller.is_stunned():
-		return
-	if event.is_action_pressed("attack"):
-		controller.on_attack_pressed()
-	if event.is_action_pressed("parry"):
-		controller.on_parry_pressed()
-	if event.is_action_pressed("combo1"):
-		controller.start_special_combo(special_sequence_primary)
-
 func _process(delta: float) -> void:
 	controller.update(delta)
 
@@ -142,3 +132,69 @@ func _prepare_special_combo_timings() -> void:
 	if recovery_frames_last < 0:
 		recovery_frames_last = 0
 	last_cfg.recovery = float(recovery_frames_last) / fps
+
+func _unhandled_input(event: InputEvent) -> void:
+	if controller.is_stunned():
+		return
+
+	if event.is_action_pressed("attack"):
+		controller.on_attack_pressed()
+
+	if event.is_action_pressed("parry"):
+		controller.on_parry_pressed()
+
+	if event.is_action_pressed("combo1"):
+		# Gate: bloqueia se o oponente está em combo ofensivo E não é o último hit
+		if _opponent_combo_blocks_combo_parry():
+			print("[INPUT] combo1 bloqueado: oponente em combo ofensivo (não é último hit)")
+			return
+		controller.start_combo_with_parry_prep(special_sequence_primary)
+
+# --- helper local (Player.gd) ---
+func _opponent_combo_blocks_combo_parry() -> bool:
+	# Acessa FacingDriver
+	var fd: FacingDriver = facing as FacingDriver
+	assert(fd != null, "Player: FacingDriver ausente em ^\"Facing\"")
+
+	var opp: Node2D = fd.opponent
+	if opp == null or not is_instance_valid(opp):
+		return false
+
+	if not opp.has_node(^"CombatController"):
+		return false
+	var occ: CombatController = opp.get_node(^"CombatController") as CombatController
+	if occ == null:
+		return false
+
+	var offense: bool = occ.is_combo_offense_active()
+	var last_hit: bool = occ.is_combo_last_attack()
+	return offense and not last_hit
+
+func _opponent_combo_offense_active() -> bool:
+	# Acessa o FacingDriver para descobrir o oponente
+	var facing_driver: FacingDriver = facing as FacingDriver
+	if facing_driver == null:
+		return false
+
+	var opp: Node2D = facing_driver.opponent
+	if opp == null or not is_instance_valid(opp):
+		return false
+
+	# Pega o CombatController do oponente
+	if not opp.has_node(^"CombatController"):
+		return false
+	var opp_cc: CombatController = opp.get_node(^"CombatController") as CombatController
+	if opp_cc == null:
+		return false
+
+	var s: int = opp_cc.get_state()
+
+	# Consideramos "ofensivo" as fases que levam a golpes ou preparam a janela:
+	var in_offense: bool = (
+		s == CombatController.State.COMBO_PARRY
+		or s == CombatController.State.COMBO_PREP
+		or s == CombatController.State.COMBO_STARTUP
+		or s == CombatController.State.COMBO_HIT
+	)
+
+	return in_offense

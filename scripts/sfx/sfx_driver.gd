@@ -33,6 +33,14 @@ func setup(controller: CombatController, bank: SfxBank,
 	_wired = true
 
 	_cc.state_entered.connect(_on_state_entered)
+	set_process(true) # necessário para checar o parry confirmado durante COMBO_PARRY
+
+func _process(_dt: float) -> void:
+	# Parry confirmado dentro de COMBO_PARRY (não há transição para PARRY_SUCCESS)
+	if _cc.consume_combo_parry_confirmed():
+		assert(_bank.parry_success != null, "SfxDriver: SfxBank.parry_success ausente (combo parry)")
+		_p_parry_success.stream = _bank.parry_success
+		_p_parry_success.play()
 
 func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	if state == CombatController.State.HIT:

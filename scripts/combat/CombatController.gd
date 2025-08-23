@@ -15,6 +15,8 @@ enum State {
 	BROKEN_FINISHER_REACT,
 
 	# --- SPECIAL COMBO ---
+	COMBO_PARRY,       # (1º) janela de parry do pré-combo
+	COMBO_PREP,        # (2º) preparação sem parry window
 	COMBO_STARTUP, COMBO_HIT, COMBO_RECOVER,
 }
 
@@ -28,6 +30,8 @@ const _TIMED_STATES := {
 	State.BROKEN_FINISHER_REACT: true,
 
 	# --- SPECIAL COMBO ---
+	State.COMBO_PARRY: true,
+	State.COMBO_PREP: true,
 	State.COMBO_STARTUP: true, State.COMBO_HIT: true, State.COMBO_RECOVER: true,
 }
 
@@ -38,6 +42,10 @@ const _REENTER_ON_SAME_STATE := {
 
 @export var combo_link_window: float = 12.0 / 12.0
 @export var combo_link_damage_mul: float = 1.25
+
+# Pré-combo (config novas)
+@export var combo_prep_time: float = 0.20
+@export var combo_parry_time: float = 1.30
 
 var _state: int = State.IDLE
 var _state_timer: float = 0.0
@@ -66,6 +74,9 @@ var _combo_sequence: Array[AttackConfig] = []
 
 # Perfect Link (bônus runtime)
 var _combo_link_pending: bool = false
+
+# Combo-parry: flag de confirmação de parry dentro do COMBO_PARRY
+var _combo_parry_confirmed: bool = false
 
 func initialize(
 		attack_set: AttackSet,
@@ -147,33 +158,44 @@ func on_parry_pressed() -> void:
 	_change_state(State.PARRY_STARTUP, null, _parry.startup_time)
 
 func enter_parry_success() -> void:
-	if _state != State.PARRY_STARTUP:
+	# Parry tradicional
+	if _state == State.PARRY_STARTUP:
+		_parry_toggle = not _parry_toggle
+		if _parry_toggle:
+			_parry_last_ab = 1
+		else:
+			_parry_last_ab = 0
+		_counter_buffered = false
+		_change_state(State.PARRY_SUCCESS, null, _parry.success_time)
 		return
 
-	_parry_toggle = not _parry_toggle
-	if _parry_toggle:
-		_parry_last_ab = 1
-	else:
-		_parry_last_ab = 0
-
-	_counter_buffered = false
-	_change_state(State.PARRY_SUCCESS, null, _parry.success_time)
+	# Parry dentro do COMBO_PARRY: não muda de estado, só marca a confirmação
+	if _state == State.COMBO_PARRY:
+		_combo_parry_confirmed = true
+		print("[COMBO] parry confirmado durante COMBO_PARRY")
+		return
 
 func is_parry_window() -> bool:
-	return _state == State.PARRY_STARTUP
+	return _state == State.PARRY_STARTUP or _state == State.COMBO_PARRY
 	
 func enter_parried() -> void:
-	# NÃO interrompe o atacante se estiver no combo especial
-	if _is_combo_state(_state):
+	# Hyper-armor apenas nas fases protegidas do combo
+	if _has_combo_hyper_armor(_state):
 		return
 	_wants_chain = false
 	_change_state(State.PARRIED, _current, _parried.stagger_time)
 
 func enter_hit_react() -> void:
+	# Hyper-armor apenas nas fases protegidas do combo
+	if _has_combo_hyper_armor(_state):
+		return
 	_wants_chain = false
 	_change_state(State.HIT_REACT, null, _hitreact.react_time)
 
 func enter_guard_hit() -> void:
+	# Hyper-armor apenas nas fases protegidas do combo
+	if _has_combo_hyper_armor(_state):
+		return
 	_wants_chain = false
 	_change_state(State.GUARD_HIT, null, _guard.guard_hit_time)
 
@@ -186,48 +208,54 @@ func is_stunned() -> bool:
 	return _state == State.STUN
 
 # ---------- SPECIAL COMBO ----------
+# Caminho antigo: inicia direto no COMBO_STARTUP
 func start_special_combo(sequence: Array[AttackConfig]) -> void:
-	# Só inicia em IDLE; fora de hora, ignoramos
-	if _state != State.IDLE:
+	if _state != State.IDLE or _state == State.PARRIED:
 		return
 	assert(sequence != null and sequence.size() > 0, "start_special_combo: sequence vazia")
 
-	# IMPORTANTE: duplicar para não compartilhar referência com o chamador
 	_combo_sequence = sequence.duplicate()
 	_combo_running = true
 	_combo_index = 0
 	_wants_chain = false
-
-	# reset do Perfect Link
 	_combo_link_pending = false
+	_combo_parry_confirmed = false
 
 	_current = _combo_sequence[_combo_index]
 	_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
 
+# Novo caminho: COMBO_PARRY -> COMBO_PREP -> COMBO_STARTUP
+func start_combo_with_parry_prep(sequence: Array[AttackConfig]) -> void:
+	if not can_start_parry():
+		return
+	assert(sequence != null and sequence.size() > 0, "start_combo_with_parry_prep: sequence vazia")
+
+	_combo_sequence = sequence.duplicate()
+	_combo_running = true
+	_combo_index = 0
+	_wants_chain = false
+	_combo_link_pending = false
+	_combo_parry_confirmed = false
+
+	_current = null  # PREP/PARRY não usam AttackConfig
+	_change_state(State.COMBO_PARRY, null, maxf(combo_parry_time, 0.0))
+
 # ---------- Loop ----------
 func update(delta: float) -> void:
-	# Consumimos o delta carregando o "resto" entre estados para evitar drift.
 	var remaining: float = delta
 
 	while remaining > 0.0:
-		# Se o estado atual não é temporizado, não há o que fazer neste frame.
 		if not _is_timed(_state):
 			return
 
-		# Se ainda há tempo restante no estado atual, apenas desconta e sai.
 		if remaining < _state_timer:
 			_state_timer -= remaining
 			return
 
-		# Caso contrário, estouramos o timer deste estado.
 		remaining -= _state_timer
 		_state_timer = 0.0
-
-		# Dispara a troca de estado.
 		_on_state_timeout()
 
-		# Se o próximo estado não for temporizado ou não setou um novo timer (> 0),
-		# encerramos o processamento deste frame para evitar loop infinito.
 		if not _is_timed(_state) or _state_timer <= 0.0:
 			return
 
@@ -270,6 +298,14 @@ func _on_state_timeout() -> void:
 			_change_state(State.IDLE, null, 0.0)
 
 		# ---- SPECIAL COMBO ----
+		State.COMBO_PARRY:
+			_change_state(State.COMBO_PREP, null, maxf(combo_prep_time, 0.0))
+		State.COMBO_PREP:
+			# inicia o combo no primeiro golpe
+			assert(_combo_sequence.size() > 0, "COMBO_PREP timeout sem sequence")
+			_combo_index = 0
+			_current = _combo_sequence[_combo_index]
+			_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
 		State.COMBO_STARTUP:
 			_enter_combo_hit()
 		State.COMBO_HIT:
@@ -302,7 +338,6 @@ func _enter_combo_hit() -> void:
 	_change_state(State.COMBO_HIT, _current, maxf(_current.hit, 0.0))
 
 func _advance_combo_or_recover() -> void:
-	# Avança índice; se acabou, vai para COMBO_RECOVER com o último cfg
 	var last_cfg: AttackConfig = _current
 	_combo_index += 1
 	if _combo_index < _combo_sequence.size():
@@ -337,7 +372,6 @@ func on_body_end(_clip: StringName) -> void:
 		_change_state(State.IDLE, last, 0.0)
 
 func on_to_idle_end(_clip: StringName) -> void:
-	# nada por enquanto (STUN sem automação visual/sonora)
 	pass
 
 func _start_counter() -> void:
@@ -352,17 +386,14 @@ func _start_counter() -> void:
 	_change_state(State.COUNTER_STARTUP, _current, maxf(_current.startup, 0.0))
 
 func enter_guard_broken() -> void:
-	# Sem ações, travado até o finisher resolver
 	_wants_chain = false
 	_current = null
 	_change_state(State.GUARD_BROKEN, null, 0.0)
 
 func start_finisher() -> void:
-	# Evita chamadas inválidas
 	if _guard == null or _guard.finisher == null:
 		push_warning("[FSM] start_finisher chamado sem GuardProfile/finisher.")
 		return
-	# Se já estiver em finisher, ignore
 	if _state == State.FINISHER_STARTUP or _state == State.FINISHER_HIT or _state == State.FINISHER_RECOVER:
 		return
 
@@ -371,7 +402,6 @@ func start_finisher() -> void:
 	_change_state(State.FINISHER_STARTUP, _current, maxf(_current.startup, 0.0))
 
 func enter_broken_after_finisher() -> void:
-	# Estado do defensor após levar o hit do finisher
 	var t: float = 0.5
 	if _guard != null and _guard.post_finisher_react_time > 0.0:
 		t = _guard.post_finisher_react_time
@@ -412,6 +442,15 @@ func consume_combo_link_multiplier() -> float:
 	print("[LINK] CONSUME mul=1.0 (no bonus)")
 	return 1.0
 
+func consume_combo_parry_confirmed() -> bool:
+	if _combo_parry_confirmed:
+		_combo_parry_confirmed = false
+		return true
+	return false
+
+func is_combo_prep_active() -> bool:
+	return _state == State.COMBO_PARRY or _state == State.COMBO_PREP
+
 func _allows_reenter(s: int) -> bool:
 	return _REENTER_ON_SAME_STATE.has(s)
 
@@ -419,8 +458,36 @@ func _is_timed(s: int) -> bool:
 	return _TIMED_STATES.has(s)
 
 func _is_combo_state(s: int) -> bool:
-	return s == State.COMBO_STARTUP or s == State.COMBO_HIT or s == State.COMBO_RECOVER
-	
+	return s == State.COMBO_PARRY or s == State.COMBO_PREP \
+		or s == State.COMBO_STARTUP or s == State.COMBO_HIT or s == State.COMBO_RECOVER
+		
+# Retorna true se ESTE lutador está em fase ofensiva do combo
+# (usado por quem consulta o estado – Player/Enemy/IA)
+func is_combo_offense_active() -> bool:
+	var s: int = _state
+	return s == State.COMBO_PARRY \
+		or s == State.COMBO_PREP \
+		or s == State.COMBO_STARTUP \
+		or s == State.COMBO_HIT
+
+# True se ESTE lutador está no ÚLTIMO golpe do combo
+# (estado STARTUP/HIT e índice == último da sequência)
+func is_combo_last_attack() -> bool:
+	if _state != State.COMBO_STARTUP and _state != State.COMBO_HIT:
+		return false
+	var sz: int = _combo_sequence.size()
+	if sz <= 0:
+		return false
+	var last_index: int = sz - 1
+	return _combo_index == last_index
+
+# Apenas estas fases têm hyper-armor (não cancelam reação)
+func _has_combo_hyper_armor(s: int) -> bool:
+	return s == State.COMBO_PARRY \
+		or s == State.COMBO_PREP \
+		or s == State.COMBO_STARTUP \
+		or s == State.COMBO_HIT
+
 func _state_name(s: int) -> String:
 	match s:
 		State.IDLE: return "IDLE"
@@ -443,6 +510,8 @@ func _state_name(s: int) -> String:
 		State.FINISHER_RECOVER: return "FINISHER_RECOVER"
 		State.GUARD_BROKEN: return "GUARD_BROKEN"
 		State.BROKEN_FINISHER_REACT: return "BROKEN_FINISHER_REACT"
+		State.COMBO_PARRY: return "COMBO_PARRY"
+		State.COMBO_PREP: return "COMBO_PREP"
 		State.COMBO_STARTUP: return "COMBO_STARTUP"
 		State.COMBO_HIT: return "COMBO_HIT"
 		State.COMBO_RECOVER: return "COMBO_RECOVER"

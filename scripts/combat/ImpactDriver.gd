@@ -42,13 +42,13 @@ func setup(
 func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> void:
 	var defender: Node2D = _hurtbox.get_parent() as Node2D
 
-	# 1) Parry: ignora absorção/chip/HP; apenas sinaliza
+	# 1) Parry window (cobre PARRY_STARTUP e COMBO_PARRY)
 	if _cc.is_parry_window():
 		_cc.enter_parry_success()
-		_hub.publish_parry_success(attacker, defender, cfg) # supondo que já existe no seu Hub
+		_hub.publish_parry_success(attacker, defender, cfg)
 		return
 
-	# 2) FINISHER: dano direto de HP + pós-finisher + reset de stamina (novo "round")
+	# 2) FINISHER: dano direto no HP + pós-finisher + reset de stamina
 	if cfg.is_finisher:
 		var fin_dmg: float = float(cfg.damage)
 		if fin_dmg > 0.0:
@@ -56,7 +56,7 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 
 		_cc.enter_broken_after_finisher()
 
-		# Reset de stamina dos dois (decisão atual: sempre 100% após finisher)
+		# Reset de stamina dos dois
 		_stamina.set_current(_stamina.maximum)
 		if attacker != null and attacker.has_node(^"Stamina"):
 			var atk_stamina: Stamina = attacker.get_node(^"Stamina") as Stamina
@@ -66,7 +66,16 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 		_hub.publish_finisher_hit(attacker, defender, cfg, fin_dmg)
 		return
 
-	# 3) Golpe normal: absorção até o cap; overflow vira chip de HP
+	# 3) PRÉ-COMBO (COMBO_PARRY/COMBO_PREP): sem auto-block, dano vai 100% ao HP
+	if _cc.is_combo_prep_active():
+		var prep_dmg: float = float(cfg.damage)
+		if prep_dmg <= 0.0:
+			return
+		_health.damage(prep_dmg)
+		# Nada de guard_hit/guard_broken/hit_react aqui; hyper-armor já cobre no controller.
+		return
+
+	# 4) Fluxo normal: absorção por stamina até o cap; overflow vira chip de HP
 	var dmg: float = float(cfg.damage)
 	if dmg <= 0.0:
 		return
@@ -92,9 +101,9 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 
 	if absorbed > 0.0:
 		_cc.enter_guard_hit()
-		_hub.publish_guard_blocked(attacker, defender, cfg, absorbed, hp_damage) # já existia
+		_hub.publish_guard_blocked(attacker, defender, cfg, absorbed, hp_damage)
 
-	# 4) Zerou stamina? → GUARD_BROKEN + FINISHER do atacante + publishes
+	# 5) Zerou stamina? → GUARD_BROKEN + FINISHER do atacante + publishes
 	if _stamina.is_empty():
 		_cc.enter_guard_broken()
 		_hub.publish_guard_broken(attacker, defender)
@@ -106,6 +115,6 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 				_hub.publish_finisher_started(attacker, defender, _guard.finisher)
 		return
 
-	# 5) Sem absorção e sem broken → reação normal
+	# 6) Sem absorção e sem broken → reação normal
 	if absorbed <= 0.0 and hp_damage > 0.0:
 		_cc.enter_hit_react()
