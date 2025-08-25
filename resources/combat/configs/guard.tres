@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_gpebp")
-defense_absorb_cap = 20.0
+defense_absorb_cap = 30.0
 finisher = ExtResource("1_tjry8")
 guard_hit_time = 0.1
 guard_recover_time = 0.3

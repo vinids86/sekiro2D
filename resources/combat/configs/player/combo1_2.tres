@@ -18,4 +18,6 @@ hitbox_offset = Vector2(60, 0)
 sfx_swing = ExtResource("2_i0qco")
 damage = 10.0
 is_finisher = false
+heavy = false
+required_dodge_dir = 0
 metadata/_custom_type_script = "uid://bpr26trni32iq"

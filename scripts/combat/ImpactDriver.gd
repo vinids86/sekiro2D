@@ -32,6 +32,9 @@ func setup(
 	assert(_hub != null, "CombatEventHub nulo no ImpactDriver")
 	assert(_guard != null, "GuardProfile nulo no ImpactDriver")
 
+	# Injeta callables de custo da esquiva no Controller (Controller valida ANTES de trocar de estado)
+	_cc.bind_dodge_cost_handlers(_can_pay_dodge, _consume_dodge)
+
 	if _wired:
 		return
 	_wired = true
@@ -39,16 +42,44 @@ func setup(
 	# Conectar fora do callback de física
 	_hurtbox.contact.connect(_on_contact, Object.CONNECT_DEFERRED)
 
+
+# --------- Callables para custo da esquiva (usados pelo Controller) ----------
+func _can_pay_dodge(cost: float) -> bool:
+	if cost <= 0.0:
+		return true
+	return _stamina.current >= cost
+
+func _consume_dodge(cost: float) -> void:
+	if cost <= 0.0:
+		return
+	_stamina.consume(cost)
+
+
+# ---------------------------- RESOLUÇÃO DE IMPACTO ----------------------------
 func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> void:
 	var defender: Node2D = _hurtbox.get_parent() as Node2D
 
-	# 1) Parry window (cobre PARRY_STARTUP e COMBO_PARRY)
-	if _cc.is_parry_window():
+	# 0) DODGE ativo com direção correta → ignora hit
+	if _cc.is_dodge_active():
+		var req: int = int(cfg.required_dodge_dir)  # 0 = NEUTRAL, 1 = DOWN (conforme AttackConfig que você me passou)
+		var dir: int = _cc.get_last_dodge_dir()
+		var ok_dir: bool = false
+		if req == 0:
+			ok_dir = true
+		else:
+			if dir == req:
+				ok_dir = true
+		if ok_dir:
+			# Se quiser publicar um evento de dodge-success, me diga a função no hub.
+			return
+
+	# 1) Parry window (cobre PARRY_STARTUP e COMBO_PARRY), porém heavy NUNCA entra
+	if _cc.is_parry_window() and not cfg.heavy:
 		_cc.enter_parry_success()
 		_hub.publish_parry_success(attacker, defender, cfg)
 		return
 
-	# 2) FINISHER: dano direto no HP + pós-finisher + reset de stamina
+	# 2) FINISHER: dano direto no HP + pós-finisher + reset de stamina (como já era)
 	if cfg.is_finisher:
 		var fin_dmg: float = float(cfg.damage)
 		if fin_dmg > 0.0:
@@ -72,49 +103,60 @@ func _on_contact(attacker: Node2D, cfg: AttackConfig, _hitbox: AttackHitbox) -> 
 		if prep_dmg <= 0.0:
 			return
 		_health.damage(prep_dmg)
-		# Nada de guard_hit/guard_broken/hit_react aqui; hyper-armor já cobre no controller.
+		# Sem guard_hit/guard_broken/hit_react aqui; controller já ignora reações onde deve (hyper armor de combo).
 		return
 
-	# 4) Fluxo normal: absorção por stamina até o cap; overflow vira chip de HP
+	# 4) Fluxo normal com política de autoblock do Controller
 	var dmg: float = float(cfg.damage)
 	if dmg <= 0.0:
 		return
 
-	var cap_from_guard: float = maxf(0.0, _guard.defense_absorb_cap)
-	var stamina_avail: float = _stamina.current
+	var autoblock_on: bool = _cc.is_autoblock_enabled_now()
 
-	var to_absorb: float = dmg
-	if cap_from_guard < to_absorb:
-		to_absorb = cap_from_guard
-	if stamina_avail < to_absorb:
-		to_absorb = stamina_avail
+	if autoblock_on:
+		# Absorção por stamina até o cap; overflow vira HP (regra global)
+		var cap_from_guard: float = maxf(0.0, _guard.defense_absorb_cap)
+		var stamina_avail: float = _stamina.current
 
-	var absorbed: float = 0.0
-	if to_absorb > 0.0:
-		absorbed = _stamina.consume(to_absorb)
+		var to_absorb: float = dmg
+		if cap_from_guard < to_absorb:
+			to_absorb = cap_from_guard
+		if stamina_avail < to_absorb:
+			to_absorb = stamina_avail
 
-	var hp_damage: float = dmg - absorbed
-	if hp_damage < 0.0:
-		hp_damage = 0.0
-	if hp_damage > 0.0:
-		_health.damage(hp_damage)
+		var absorbed: float = 0.0
+		if to_absorb > 0.0:
+			absorbed = _stamina.consume(to_absorb)
 
-	if absorbed > 0.0:
-		_cc.enter_guard_hit()
-		_hub.publish_guard_blocked(attacker, defender, cfg, absorbed, hp_damage)
+		var hp_damage: float = dmg - absorbed
+		if hp_damage < 0.0:
+			hp_damage = 0.0
+		if hp_damage > 0.0:
+			_health.damage(hp_damage)
 
-	# 5) Zerou stamina? → GUARD_BROKEN + FINISHER do atacante + publishes
-	if _stamina.is_empty():
-		_cc.enter_guard_broken()
-		_hub.publish_guard_broken(attacker, defender)
+		if absorbed > 0.0:
+			_cc.enter_guard_hit()
+			_hub.publish_guard_blocked(attacker, defender, cfg, absorbed, hp_damage)
 
-		if attacker != null and attacker.has_node(^"CombatController"):
-			var atk_cc: CombatController = attacker.get_node(^"CombatController") as CombatController
-			if atk_cc != null and _guard.finisher != null:
-				atk_cc.start_finisher()
-				_hub.publish_finisher_started(attacker, defender, _guard.finisher)
+		# 5) ZEROU STAMINA? → GUARD_BROKEN + FINISHER do atacante (como já era)
+		if _stamina.is_empty():
+			_cc.enter_guard_broken()
+			_hub.publish_guard_broken(attacker, defender)
+
+			if attacker != null and attacker.has_node(^"CombatController"):
+				var atk_cc: CombatController = attacker.get_node(^"CombatController") as CombatController
+				if atk_cc != null and _guard.finisher != null:
+					atk_cc.start_finisher()
+					_hub.publish_finisher_started(attacker, defender, _guard.finisher)
+			return
+
+		# 6) Sem absorção e com dano em HP → reação normal (Controller ignora quando houver hyper armor válida)
+		if absorbed <= 0.0 and hp_damage > 0.0:
+			_cc.enter_hit_react()
 		return
-
-	# 6) Sem absorção e sem broken → reação normal
-	if absorbed <= 0.0 and hp_damage > 0.0:
+	else:
+		# autoblock OFF (ex.: STARTUP heavy, ATTACKING, combos, etc.): dano 100% no HP
+		_health.damage(dmg)
+		# Reação normal; se for STARTUP de heavy, o Controller ignora por hyper armor
 		_cc.enter_hit_react()
+		return

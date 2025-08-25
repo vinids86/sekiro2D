@@ -29,7 +29,11 @@ func setup(controller: CombatController, driver: AnimationDriver, anim_profile: 
 func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	if state == CombatController.State.STARTUP:
 		assert(cfg != null, "STARTUP sem AttackConfig")
-		var total: float = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
+		var total: float = 0.0
+		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
+			total = float(cfg.body_frames) / cfg.body_fps
+		else:
+			total = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
 		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total)
 
 	elif state == CombatController.State.HIT:
@@ -49,7 +53,7 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 			_driver.play_idle(_anim.idle_clip)
 
 	elif state == CombatController.State.STUN:
-		# Sem animação por enquanto (como você pediu)
+		# Sem animação por enquanto
 		pass
 
 	elif state == CombatController.State.PARRY_STARTUP:
@@ -75,16 +79,18 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 
 	elif state == CombatController.State.GUARD_HIT:
 		if _anim.guard_hit_clip != StringName():
-			print("play guard hit", _anim.guard_hit_clip)
 			_driver.play_to_idle(_anim.guard_hit_clip)
 
 	elif state == CombatController.State.GUARD_RECOVER:
-		print("play guard recover", _anim.guard_recover_clip)
 		_driver.play_to_idle(_anim.guard_recover_clip)
 
 	elif state == CombatController.State.COUNTER_STARTUP:
 		assert(cfg != null, "COUNTER_STARTUP sem AttackConfig")
-		var total_c: float = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
+		var total_c: float = 0.0
+		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
+			total_c = float(cfg.body_frames) / cfg.body_fps
+		else:
+			total_c = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
 		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_c)
 
 	elif state == CombatController.State.COUNTER_HIT:
@@ -95,7 +101,11 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 
 	elif state == CombatController.State.FINISHER_STARTUP:
 		assert(cfg != null, "FINISHER_STARTUP sem AttackConfig")
-		var total_f: float = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
+		var total_f: float = 0.0
+		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
+			total_f = float(cfg.body_frames) / cfg.body_fps
+		else:
+			total_f = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
 		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_f)
 
 	elif state == CombatController.State.FINISHER_HIT:
@@ -105,44 +115,41 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		pass
 
 	elif state == CombatController.State.GUARD_BROKEN:
-		print("play guard broken", _anim.guard_broken_clip)
 		_driver.play_idle(_anim.guard_broken_clip)
 
 	elif state == CombatController.State.BROKEN_FINISHER_REACT:
-		print("play guard broken", _anim.broken_finisher_clip)
 		_driver.play_to_idle(_anim.broken_finisher_clip)
 
 	# -------- SPECIAL COMBO (pré-estados + clip único) --------
 	elif state == CombatController.State.COMBO_PARRY:
-		# primeiro estágio: janela de parry; toca o buff
 		assert(_anim.pre_combo != StringName(), "AnimProfile.pre_combo não configurado")
-		print("[ANIM] COMBO_PARRY -> pre_combo:", _anim.pre_combo)
 		_driver.play_to_idle(_anim.pre_combo)
 
 	elif state == CombatController.State.COMBO_PREP:
-		# segundo estágio: mantém o buff; NÃO reiniciar o clipe
-		print("[ANIM] COMBO_PREP (mantém pre_combo)")
+		pass
 
 	elif state == CombatController.State.COMBO_STARTUP:
 		assert(cfg != null, "COMBO_STARTUP sem AttackConfig")
-		# Só dispara o clip do combo uma vez (primeira entrada do combo)
 		if not _combo_visual_on:
 			var total_combo: float = 0.0
-			if cfg.body_fps > 0.0:
+			if cfg.body_fps > 0.0 and cfg.body_frames > 0:
 				total_combo = float(cfg.body_frames) / cfg.body_fps
 			else:
 				total_combo = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-			print("[ANIM] COMBO_STARTUP -> body:", cfg.body_clip, " total=", str(total_combo))
 			_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_combo)
 			_combo_visual_on = true
 
 	elif state == CombatController.State.COMBO_HIT:
-		# clip já está rodando; nada a fazer
 		pass
 
 	elif state == CombatController.State.COMBO_RECOVER:
-		# clip já inclui o recover; nenhuma ação adicional aqui
 		pass
+
+	# -------- DODGE --------
+	elif state == CombatController.State.DODGE_STARTUP:
+		if _cc.get_last_dodge_dir() == 1:
+			assert(_anim.dodge_down_clip != StringName(), "AnimProfile.dodge_down_clip não configurado")
+			_driver.play_to_idle(_anim.dodge_down_clip)
 
 func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()

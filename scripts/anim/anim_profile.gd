@@ -15,3 +15,4 @@ class_name AnimProfile
 @export var guard_broken_clip: StringName = &"guard_broken"
 @export var broken_finisher_clip: StringName = &"broken_finisher"
 @export var pre_combo: StringName = &"pre_combo"
+@export var dodge_down_clip: StringName = &"dodge_down"

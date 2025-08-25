@@ -12,7 +12,7 @@ func play_attack_body(clip: StringName, frames: int, fps: float, total_seconds: 
 	_play_attack_body_impl(clip, frames, fps, total_seconds)
 
 func play_to_idle(clip: StringName) -> void:
-	assert(clip != StringName(), "clip do to_idle vazio")
+	#assert(clip != StringName(), "clip do to_idle vazio")
 	_play_to_idle_impl(clip)
 
 func play_idle(clip: StringName) -> void:

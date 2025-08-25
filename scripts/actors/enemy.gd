@@ -18,6 +18,7 @@ class_name Enemy
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
 @export var special_sequence_primary: Array[AttackConfig]    # <--- combo do inimigo
+@export var dodge_profile: DodgeProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -36,7 +37,10 @@ class_name Enemy
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
 @onready var sfx_parry_startup: AudioStreamPlayer2D = $Sfx/ParryStartup
 @onready var sfx_parry_success: AudioStreamPlayer2D = $Sfx/ParrySuccess
+@onready var sfx_dodge: AudioStreamPlayer2D = $Sfx/Dodge
+@onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
 @onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
+@onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
 @onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 
 # ---------------- Internos ----------------
@@ -59,13 +63,22 @@ func _ready() -> void:
 	assert(counter_profile != null, "CounterProfile não atribuído no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
 	# Listeners
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
-	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
-
+	sfx_driver.setup(
+		controller,
+		sfx_bank,
+		sfx_swing,
+		sfx_impact,
+		sfx_parry_startup,
+		sfx_parry_success,
+		sfx_dodge,
+		sfx_heavy,
+		sfx_combo_parry_enter
+	)
 	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	recoil.setup(self, controller, hub, parried_profile)
 

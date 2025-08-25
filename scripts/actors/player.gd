@@ -15,6 +15,8 @@ const DIR_THRESHOLD: float = 0.45
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
+@export var dodge_profile: DodgeProfile
+@export var heavy_up_config: AttackConfig
 @export var special_sequence_primary: Array[AttackConfig]
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
@@ -34,6 +36,9 @@ const DIR_THRESHOLD: float = 0.45
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
 @onready var sfx_parry_startup: AudioStreamPlayer2D = $Sfx/ParryStartup
 @onready var sfx_parry_success: AudioStreamPlayer2D = $Sfx/ParrySuccess
+@onready var sfx_dodge: AudioStreamPlayer2D = $Sfx/Dodge
+@onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
+@onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
 @onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
 
 var _driver: AnimationDriver
@@ -45,14 +50,25 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
 	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	anim_listener.setup(controller, _driver, anim_profile)
 	hitbox_driver.setup(controller, hitbox, self, facing)
 	recoil.setup(self, controller, hub, parried_profile)
 
-	sfx_driver.setup(controller, sfx_bank, sfx_swing, sfx_impact, sfx_parry_startup, sfx_parry_success)
+	# >>> ATUALIZADO: adiciona o player de COMBO_PARRY_ENTER no final <<<
+	sfx_driver.setup(
+		controller,
+		sfx_bank,
+		sfx_swing,
+		sfx_impact,
+		sfx_parry_startup,
+		sfx_parry_success,
+		sfx_dodge,
+		sfx_heavy,
+		sfx_combo_parry_enter
+	)
 
 	_driver.play_idle(anim_profile.idle_clip)
 
@@ -163,12 +179,9 @@ func _read_heavy_dir() -> int:
 # Apenas para testar visualmente: toca a anima correspondente
 func _play_dodge_preview(dir: int) -> void:
 	# Por enquanto só aceitamos DOWN; NEUTRAL (ou outra direção) não toca nada
-	if dir == DodgeDir.DOWN:
-		# Garante que a anima existe no AnimatedSprite2D
-		# (Se não existir, o Godot vai acusar no editor/log — preferível a esconder erro.)
-		sprite.play("dodge_down")
+	controller.on_dodge_pressed(CombatTypes.DodgeDir.DOWN)
 
 # Prévia visual: heavy ascendente (só quando UP estiver pressionado)
 func _play_heavy_preview(dir: int) -> void:
 	if dir == HeavyDir.UP:
-		sprite.play("heavy_up")
+		controller.try_attack_heavy(heavy_up_config)
