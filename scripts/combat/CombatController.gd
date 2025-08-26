@@ -179,7 +179,6 @@ func on_attack_pressed() -> void:
 
 func can_start_parry() -> bool:
 	return (_state == State.IDLE \
-		or _state == State.STARTUP \
 		or _state == State.PARRY_SUCCESS \
 		or _state == State.PARRIED \
 		or _state == State.GUARD_RECOVER \
@@ -572,14 +571,12 @@ func is_autoblock_enabled_now() -> bool:
 	if _state == State.COMBO_RECOVER:
 		return true
 
-	# STARTUP de ataque leve (cancela o ataque ao ser atingido)
-	if _state == State.STARTUP and _current != null and not _current.heavy:
-		return true
+	# STARTUP (leve e heavy) SEMPRE OFF
+	if _state == State.STARTUP:
+		return false
 
 	# OFF em janelas específicas ou fases ofensivas/incapacitantes
 	if _state == State.PARRY_STARTUP:
-		return false
-	if _state == State.STARTUP and _current != null and _current.heavy:
 		return false
 	if _state == State.HIT:
 		return false
@@ -593,7 +590,7 @@ func is_autoblock_enabled_now() -> bool:
 		return false
 
 	# Demais estados: por segurança, considerar OFF
-	return true
+	return false
 
 func is_dodge_active() -> bool:
 	return _state == State.DODGE_ACTIVE
