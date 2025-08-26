@@ -29,7 +29,7 @@ enum State {
 }
 
 const _TIMED_STATES := {
-	State.STARTUP: true, State.HIT: true, State.RECOVER: true,
+	State.STARTUP: true, State.HIT: true,
 	State.PARRY_STARTUP: true, State.PARRY_SUCCESS: true, State.PARRY_RECOVER: true,
 	State.HIT_REACT: true, State.PARRIED: true,
 	State.GUARD_HIT: true, State.GUARD_RECOVER: true,
@@ -83,8 +83,6 @@ var _guard: GuardProfile
 var _combo_index: int = 0
 var _current: AttackConfig
 var _wants_chain: bool = false
-
-var _state_started_ms: int = 0
 
 var _counter: CounterProfile
 var _parry_toggle: bool = true
@@ -141,7 +139,6 @@ func initialize(
 	assert(_counter.counter_b != null)
 	assert(_dodge != null, "DodgeProfile não pode ser nulo")
 
-	_state_started_ms = Time.get_ticks_msec()
 	_boot_fsm()
 
 func _boot_fsm(initial_state: int = State.IDLE, cfg: AttackConfig = null) -> void:
@@ -331,8 +328,18 @@ func update(delta: float) -> void:
 
 		remaining -= _state_timer
 		_state_timer = 0.0
-		_on_state_timeout()
 
+		# Delegar o avanço do estado ao próprio objeto-estado
+		var prev_state: int = _state
+		if _state_obj != null:
+			_state_obj.on_timeout(self)
+
+		# Fail-fast: estado temporizado PRECISA avançar ou rearmar timer
+		if _is_timed(prev_state) and _state == prev_state and _state_timer <= 0.0:
+			assert(false, "State %s não avançou no timeout; implemente on_timeout ou defina novo timer." % _state_name(_state))
+			return
+
+		# Se virou não-temporizado ou setou 0, encerra o ciclo
 		if not _is_timed(_state) or _state_timer <= 0.0:
 			return
 
@@ -342,106 +349,6 @@ func _cancel_combo_offense() -> void:
 	_combo_index = 0
 	_combo_link_pending = false
 	_combo_parry_confirmed = false
-
-func _on_state_timeout() -> void:
-	match _state:
-		# -------- NORMAL --------
-		State.STARTUP:
-			_enter_hit()
-		State.HIT:
-			_enter_recover()
-		State.RECOVER:
-			pass
-
-		# -------- HEAVY (novos) --------
-		State.HEAVY_STARTUP:
-			_change_state(State.HEAVY_HIT, _current, maxf(_current.hit, 0.0))
-		State.HEAVY_HIT:
-			_change_state(State.HEAVY_RECOVER, _current, maxf(_current.recovery, 0.0))
-		State.HEAVY_RECOVER:
-			if _wants_chain:
-				_wants_chain = false
-				_start_attack(0)
-			else:
-				_change_state(State.IDLE, null, 0.0)
-		State.PARRY_RECOVER: _change_state(State.IDLE, null, 0.0)
-		State.HIT_REACT: _change_state(State.IDLE, null, 0.0)
-		State.PARRIED: _change_state(State.IDLE, null, 0.0)
-		State.GUARD_HIT: _change_state(State.GUARD_RECOVER, null, _guard.guard_recover_time)
-		State.GUARD_RECOVER: _change_state(State.IDLE, null, 0.0)
-		State.COUNTER_STARTUP: _change_state(State.COUNTER_HIT, _current, maxf(_current.hit, 0.0))
-		State.COUNTER_HIT: _change_state(State.COUNTER_RECOVER, _current, maxf(_current.recovery, 0.0))
-		# -------- PARRY --------
-		State.PARRY_STARTUP:
-			_change_state(State.PARRY_RECOVER, null, _parry.recover_time)
-		State.PARRY_SUCCESS:
-			if _counter_buffered:
-				_counter_buffered = false
-				_start_counter()
-			else:
-				_change_state(State.IDLE, null, 0.0)
-		State.PARRY_RECOVER:
-			_change_state(State.IDLE, null, 0.0)
-
-		# -------- REACTIONS / GUARD --------
-		State.HIT_REACT:
-			_change_state(State.IDLE, null, 0.0)
-		State.PARRIED:
-			_change_state(State.IDLE, null, 0.0)
-		State.GUARD_HIT:
-			_change_state(State.GUARD_RECOVER, null, _guard.guard_recover_time)
-		State.GUARD_RECOVER:
-			_change_state(State.IDLE, null, 0.0)
-
-		# -------- COUNTER --------
-		State.COUNTER_STARTUP:
-			_change_state(State.COUNTER_HIT, _current, maxf(_current.hit, 0.0))
-		State.COUNTER_HIT:
-			_change_state(State.COUNTER_RECOVER, _current, maxf(_current.recovery, 0.0))
-		State.COUNTER_RECOVER:
-			if _wants_chain:
-				_wants_chain = false
-				_start_attack(0)
-			else:
-				_change_state(State.IDLE, null, 0.0)
-
-		# -------- FINISHER --------
-		State.FINISHER_STARTUP:
-			_change_state(State.FINISHER_HIT, _current, maxf(_current.hit, 0.0))
-		State.FINISHER_HIT:
-			_change_state(State.FINISHER_RECOVER, _current, maxf(_current.recovery, 0.0))
-		State.FINISHER_RECOVER:
-			_change_state(State.IDLE, null, 0.0)
-
-		# -------- BROKEN FINISHER REACT --------
-		State.BROKEN_FINISHER_REACT:
-			_change_state(State.IDLE, null, 0.0)
-
-		# -------- SPECIAL COMBO --------
-		State.COMBO_PARRY:
-			_change_state(State.COMBO_PREP, null, maxf(combo_prep_time, 0.0))
-		State.COMBO_PREP:
-			assert(_combo_sequence.size() > 0, "COMBO_PREP timeout sem sequence")
-			_combo_index = 0
-			_current = _combo_sequence[_combo_index]
-			_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
-		State.COMBO_STARTUP:
-			_enter_combo_hit()
-		State.COMBO_HIT:
-			_advance_combo_or_recover()
-		State.COMBO_RECOVER:
-			_end_combo_to_idle()
-			
-		# ---- DODGE ----
-		State.DODGE_STARTUP:
-			_change_state(State.DODGE_ACTIVE, null, maxf(_dodge.active, 0.0))
-		State.DODGE_ACTIVE:
-			_change_state(State.DODGE_RECOVER, null, maxf(_dodge.recover, 0.0))
-		State.DODGE_RECOVER:
-			_change_state(State.IDLE, null, 0.0)
-
-		_:
-			push_warning("[FSM] Timeout sem handler: %s" % _state_name(_state))
 
 # =========================
 # ATAQUE
@@ -577,15 +484,6 @@ func is_dodge_active() -> bool:
 func get_last_dodge_dir() -> int:
 	return _last_dodge_dir
 
-func _is_heavy_startup_armored() -> bool:
-	if _state != State.STARTUP:
-		return false
-	if _current == null:
-		return false
-	if not _current.heavy:
-		return false
-	return true
-
 func get_state() -> int:
 	return _state
 
@@ -606,9 +504,6 @@ func consume_combo_parry_confirmed() -> bool:
 		_combo_parry_confirmed = false
 		return true
 	return false
-
-func is_combo_prep_active() -> bool:
-	return _state == State.COMBO_PARRY or _state == State.COMBO_PREP
 
 func _allows_reenter(s: int) -> bool:
 	return _REENTER_ON_SAME_STATE.has(s)
@@ -635,12 +530,6 @@ func is_combo_last_attack() -> bool:
 		return false
 	var last_index: int = sz - 1
 	return _combo_index == last_index
-
-func _has_combo_hyper_armor(s: int) -> bool:
-	return s == State.COMBO_PARRY \
-		or s == State.COMBO_PREP \
-		or s == State.COMBO_STARTUP \
-		or s == State.COMBO_HIT
 
 func _state_name(s: int) -> String:
 	match s:
@@ -677,10 +566,53 @@ func _state_name(s: int) -> String:
 		State.HEAVY_RECOVER: return "HEAVY_RECOVER"
 		_: return "UNKNOWN"
 
-func _actor_label() -> String:
-	var p: Node = get_parent()
-	if p is Player:
-		return "Player"
-	if p is Enemy:
-		return "Enemy"
-	return p.name
+# ---- getters de tempos de perfis ----
+func get_parry_recover_time() -> float:
+	return _parry.recover_time
+
+func get_guard_recover_time() -> float:
+	return _guard.guard_recover_time
+
+func get_hitreact_time() -> float:
+	return _hitreact.react_time
+
+func get_combo_prep_time() -> float:
+	return combo_prep_time
+
+func get_dodge_active_time() -> float:
+	return _dodge.active
+
+func get_dodge_recover_time() -> float:
+	return _dodge.recover
+
+# ---- consumo de flags/buffers ----
+func consume_chain_request() -> bool:
+	if _wants_chain:
+		_wants_chain = false
+		return true
+	return false
+
+func consume_counter_buffered() -> bool:
+	if _counter_buffered:
+		_counter_buffered = false
+		return true
+	return false
+
+# ---- wrappers para ações internas (evitam mexer em membros) ----
+func start_first_attack() -> void:
+	_start_attack(0)
+
+func start_counter_attack() -> void:
+	_start_counter()
+
+func combo_begin_after_prep() -> void:
+	assert(_combo_sequence.size() > 0, "combo_begin_after_prep: sequence vazia")
+	_combo_index = 0
+	_current = _combo_sequence[_combo_index]
+	_change_state(State.COMBO_STARTUP, _current, maxf(_current.startup, 0.0))
+
+func combo_advance_or_recover() -> void:
+	_advance_combo_or_recover()
+
+func combo_end_to_idle() -> void:
+	_end_combo_to_idle()
