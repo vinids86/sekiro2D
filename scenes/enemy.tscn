@@ -62,10 +62,10 @@
 
 [sub_resource type="Resource" id="Resource_13roy"]
 script = ExtResource("19_0b4fd")
-startup = 0.07
-active = 0.13
-recover = 0.22
-stamina_cost = 18.0
+startup = 0.01
+active = 0.25
+recover = 0.3
+stamina_cost = 2.0
 metadata/_custom_type_script = "uid://637klubkv6ym"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]

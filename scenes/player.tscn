@@ -4280,9 +4280,7 @@ fx_sprite_path = NodePath("AnimatedSprite2D")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
-animation = &"walk"
-frame = 11
-frame_progress = 0.441072
+animation = &"atk1_to_parried"
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
 visible = false
