@@ -64,10 +64,24 @@ func _process(_dt: float) -> void:
 func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	if state == CombatController.State.STARTUP:
 		if cfg != null and cfg.sfx_windup != null:
-			_p_heavy_startup.stream = cfg.sfx_windup
-			_p_heavy_startup.play()
+			_p_swing.stream = cfg.sfx_windup
+			_p_swing.play()
 
 	elif state == CombatController.State.HIT:
+		assert(cfg != null and cfg.sfx_swing != null, "AttackConfig.sfx_swing ausente")
+		_p_swing.stream = cfg.sfx_swing
+		_p_swing.play()
+
+	elif state == CombatController.State.RECOVER:
+		pass
+
+	# --- HEAVY (novos) ---
+	elif state == CombatController.State.HEAVY_STARTUP:
+		if cfg != null and cfg.sfx_windup != null:
+			_p_swing.stream = cfg.sfx_windup
+			_p_swing.play()
+
+	elif state == CombatController.State.HEAVY_HIT:
 		assert(cfg != null and cfg.sfx_swing != null, "AttackConfig.sfx_swing ausente")
 		_p_swing.stream = cfg.sfx_swing
 		_p_swing.play()
@@ -107,7 +121,6 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		_p_swing.stream = cfg.sfx_swing
 		_p_swing.play()
 
-	# NOVO: cue imediato ao ENTRAR em COMBO_PARRY
 	elif state == CombatController.State.COMBO_PARRY:
 		assert(_bank.combo_parry_enter != null, "SfxBank.combo_parry_enter ausente")
 		_p_combo_parry_enter.stream = _bank.combo_parry_enter
