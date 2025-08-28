@@ -21,6 +21,9 @@ func ignore_reaction(_cc: CombatController) -> bool:
 
 func allows_heavy_start(_cc: CombatController) -> bool:
 	return false
+	
+func allows_reentry(_cc: CombatController) -> bool:
+	return false
 
 func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
 	pass

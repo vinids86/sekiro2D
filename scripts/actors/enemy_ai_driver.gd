@@ -86,7 +86,7 @@ func _on_timeout() -> void:
 	if can_try_combo:
 		var roll: float = _rng.randf()
 		if roll < combo_chance:
-			_controller.start_combo_with_parry_prep(special_sequence_primary)
+			_controller.on_combo_pressed(special_sequence_primary)
 			_combo_cd.start(maxf(combo_cooldown, 0.0))
 			did_action = true
 			if debug_ai:
@@ -129,12 +129,7 @@ func _opponent_combo_offense_active() -> bool:
 		return false
 
 	var s: int = opp_cc.get_state()
-	var in_offense: bool = (
-		s == CombatController.State.COMBO_PARRY
-		or s == CombatController.State.COMBO_PREP
-		or s == CombatController.State.COMBO_STARTUP
-		or s == CombatController.State.COMBO_HIT
-	)
+	var in_offense: bool = false
 	return in_offense
 
 func _opponent_combo_blocks_combo_parry() -> bool:
@@ -184,17 +179,5 @@ func _start_timer(seconds: float) -> void:
 func _state_name(s: int) -> String:
 	match s:
 		CombatController.State.IDLE: return "IDLE"
-		CombatController.State.STARTUP: return "STARTUP"
-		CombatController.State.HIT: return "HIT"
-		CombatController.State.RECOVER: return "RECOVER"
-		CombatController.State.STUN: return "STUN"
-		CombatController.State.PARRY_STARTUP: return "PARRY_STARTUP"
-		CombatController.State.PARRY_SUCCESS: return "PARRY_SUCCESS"
-		CombatController.State.PARRY_RECOVER: return "PARRY_RECOVER"
-		CombatController.State.HIT_REACT: return "HIT_REACT"
-		CombatController.State.COMBO_PARRY: return "COMBO_PARRY"
-		CombatController.State.COMBO_PREP: return "COMBO_PREP"
-		CombatController.State.COMBO_STARTUP: return "COMBO_STARTUP"
-		CombatController.State.COMBO_HIT: return "COMBO_HIT"
-		CombatController.State.COMBO_RECOVER: return "COMBO_RECOVER"
+
 		_: return "UNKNOWN"

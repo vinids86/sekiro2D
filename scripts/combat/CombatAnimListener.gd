@@ -2,166 +2,98 @@ extends Node
 class_name CombatAnimListener
 
 var _cc: CombatController
-var _driver: AnimationDriver
-var _anim: AnimProfile
-var _parry_flip: bool = false
+var _animation: AnimationPlayer
+var _sprite: AnimatedSprite2D
+var _parry_toggle: bool = false  # alterna success A/B
 
-# controle visual do combo especial (clip único)
-var _combo_visual_on: bool = false
-
-func setup(controller: CombatController, driver: AnimationDriver, anim_profile: AnimProfile) -> void:
+func setup(controller: CombatController, animation: AnimationPlayer, sprite: AnimatedSprite2D) -> void:
 	_cc = controller
-	_driver = driver
-	_anim = anim_profile
+	_animation = animation
+	_sprite = sprite
+	if _cc != null:
+		_cc.state_entered.connect(_on_state_entered)
+		_cc.phase_changed.connect(_on_phase_changed)
 
-	assert(_cc != null, "CombatController nulo")
-	assert(_driver != null, "AnimationDriver nulo")
-	assert(_anim != null, "AnimProfile nulo")
-
-	_cc.state_entered.connect(_on_state_entered)
-	_driver.body_end.connect(Callable(_cc, "on_body_end"))
-	_driver.to_idle_end.connect(Callable(_cc, "on_to_idle_end"))
-	# Intercepta fim de clipes “to_idle” para voltar ao idle visual se necessário
-	_driver.to_idle_end.connect(Callable(self, "_on_to_idle_end_local"))
-
-	_driver.play_idle(_anim.idle_clip)
+# ===================== ROTEAMENTO POR SINAIS =====================
 
 func _on_state_entered(state: int, cfg: AttackConfig) -> void:
-	if state == CombatController.State.STARTUP:
-		assert(cfg != null, "STARTUP sem AttackConfig")
-		var total: float = 0.0
-		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
-			total = float(cfg.body_frames) / cfg.body_fps
+	if state == CombatController.State.ATTACK:
+		if _cc.current_kind == CombatController.AttackKind.COMBO:
+			_animation.play(&"combo")
 		else:
-			total = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total)
-
-	elif state == CombatController.State.HIT:
-		pass
-
-	elif state == CombatController.State.RECOVER:
-		pass
-
-	# --- HEAVY (novos) ---
-	elif state == CombatController.State.HEAVY_STARTUP:
-		assert(cfg != null, "HEAVY_STARTUP sem AttackConfig")
-		var total_hs: float = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_hs)
-
-	elif state == CombatController.State.HEAVY_HIT:
-		pass
-
-	elif state == CombatController.State.HEAVY_RECOVER:
-		pass
-
-	elif state == CombatController.State.IDLE:
-		_combo_visual_on = false
-		if cfg != null and cfg.to_idle_clip != StringName():
-			_driver.play_to_idle(cfg.to_idle_clip)
-		else:
-			_driver.play_idle(_anim.idle_clip)
-
-	elif state == CombatController.State.STUN:
-		pass
-
-	elif state == CombatController.State.PARRY_STARTUP:
-		_driver.play_to_idle(_anim.parry_startup_clip)
-
-	elif state == CombatController.State.PARRY_SUCCESS:
-		if not _parry_flip:
-			_driver.play_to_idle(_anim.parry_success_clip_a)
-		else:
-			_driver.play_to_idle(_anim.parry_success_clip_b)
-		_parry_flip = not _parry_flip
-
-	elif state == CombatController.State.PARRY_RECOVER:
-		_driver.play_to_idle(_anim.parry_recover_clip)
-
-	elif state == CombatController.State.HIT_REACT:
-		_driver.play_to_idle(_anim.hit_clip)
-
+			_animation.play(cfg.body_clip)
+	elif state == CombatController.State.PARRY:
+		_animation.play(&"parry")
+	elif state == CombatController.State.DODGE:
+		_animation.play(&"dodge_down")
 	elif state == CombatController.State.PARRIED:
-		assert(cfg != null, "PARRIED sem AttackConfig atual")
-		assert(cfg.to_parried_clip != StringName(), "AttackConfig.to_parried_clip não preenchido")
-		_driver.play_to_idle(cfg.to_parried_clip)
-
+		_animation.play(&"parried_light")
 	elif state == CombatController.State.GUARD_HIT:
-		if _anim.guard_hit_clip != StringName():
-			_driver.play_to_idle(_anim.guard_hit_clip)
+		_animation.play(&"block_hit")
+	elif state == CombatController.State.STUNNED:
+		_animation.play(&"hitstun")
+	elif state == CombatController.State.IDLE:
+		_animation.play(&"idle")
 
-	elif state == CombatController.State.GUARD_RECOVER:
-		_driver.play_to_idle(_anim.guard_recover_clip)
+func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
+	if _animation == null or _cc == null:
+		return
 
-	elif state == CombatController.State.COUNTER_STARTUP:
-		assert(cfg != null, "COUNTER_STARTUP sem AttackConfig")
-		var total_c: float = 0.0
-		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
-			total_c = float(cfg.body_frames) / cfg.body_fps
-		else:
-			total_c = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_c)
-
-	elif state == CombatController.State.COUNTER_HIT:
-		pass
-
-	elif state == CombatController.State.COUNTER_RECOVER:
-		pass
-
-	elif state == CombatController.State.FINISHER_STARTUP:
-		assert(cfg != null, "FINISHER_STARTUP sem AttackConfig")
-		var total_f: float = 0.0
-		if cfg.body_fps > 0.0 and cfg.body_frames > 0:
-			total_f = float(cfg.body_frames) / cfg.body_fps
-		else:
-			total_f = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-		_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_f)
-
-	elif state == CombatController.State.FINISHER_HIT:
-		pass
-
-	elif state == CombatController.State.FINISHER_RECOVER:
-		pass
-
-	elif state == CombatController.State.GUARD_BROKEN:
-		_driver.play_idle(_anim.guard_broken_clip)
-
-	elif state == CombatController.State.BROKEN_FINISHER_REACT:
-		_driver.play_to_idle(_anim.broken_finisher_clip)
-
-	elif state == CombatController.State.COMBO_PARRY:
-		assert(_anim.pre_combo != StringName(), "AnimProfile.pre_combo não configurado")
-		_driver.play_to_idle(_anim.pre_combo)
-
-	elif state == CombatController.State.COMBO_PREP:
-		pass
-
-	elif state == CombatController.State.COMBO_STARTUP:
-		assert(cfg != null, "COMBO_STARTUP sem AttackConfig")
-		if not _combo_visual_on:
-			var total_combo: float = 0.0
-			if cfg.body_fps > 0.0 and cfg.body_frames > 0:
-				total_combo = float(cfg.body_frames) / cfg.body_fps
-			else:
-				total_combo = maxf(cfg.startup + cfg.hit + cfg.recovery, 0.0)
-			_driver.play_attack_body(cfg.body_clip, cfg.body_frames, cfg.body_fps, total_combo)
-			_combo_visual_on = true
-
-	elif state == CombatController.State.COMBO_HIT:
-		pass
-
-	elif state == CombatController.State.COMBO_RECOVER:
-		pass
-	
-	# -------- DODGE --------
-	elif state == CombatController.State.DODGE_STARTUP:
-		if _cc.get_last_dodge_dir() == 1:
-			assert(_anim.dodge_down_clip != StringName(), "AnimProfile.dodge_down_clip não configurado")
-			_driver.play_to_idle(_anim.dodge_down_clip)
-
-func _on_to_idle_end_local(clip: StringName) -> void:
 	var st: int = _cc.get_state()
 
-	if st == CombatController.State.HIT_REACT and clip == _anim.hit_clip:
-		_driver.play_idle(_anim.idle_clip)
-	elif st == CombatController.State.PARRY_RECOVER and clip == _anim.parry_recover_clip:
-		_driver.play_idle(_anim.idle_clip)
+	# Tocar o próximo golpe do combo normal (sem entrar de novo no estado)
+	if st == CombatController.State.ATTACK and phase == CombatController.Phase.STARTUP:
+		if _cc.current_kind != CombatController.AttackKind.COMBO and cfg != null:
+			_animation.play(cfg.body_clip)
+		return
+
+	# Parry: agora dirigimos por phases PARRY/STARTUP, PARRY/SUCCESS
+	if st == CombatController.State.PARRY:
+		print("parry -> _on_phase_changed: ", phase)
+		if phase == CombatController.Phase.STARTUP:
+			print("parry -> STARTUP")
+			# Entrada inicial ou rearme manual durante SUCCESS
+			_animation.play(&"parry")
+			return
+		elif phase == CombatController.Phase.SUCCESS:
+			print("parry -> SUCCESS")
+			# Alterna entre A/B a cada sucesso
+			var clip: StringName = &"parry_success_a"
+			if _parry_toggle:
+				clip = &"parry_success_b"
+			_parry_toggle = not _parry_toggle
+			_animation.play(clip)
+			return
+		# ACTIVE/RECOVER: não trocamos clipe aqui; timeline já cobre
+
+# ===================== NOTIFIES (AnimationPlayer -> Controller) =====================
+
+func phase_startup_end() -> void:
+	_cc.on_phase_startup_end()
+
+func phase_hit_end() -> void:
+	_cc.on_phase_hit_end()
+
+func phase_recover_end() -> void:
+	_cc.on_phase_recover_end()
+
+func parried_end() -> void:
+	_cc.on_parried_end()
+
+func guard_hit_end() -> void:
+	_cc.on_guard_hit_end()
+
+func hitstun_end() -> void:
+	_cc.on_hitstun_end()
+
+func parry_window_on() -> void:
+	_cc.on_parry_window_on()
+	
+func parry_window_off() -> void:
+	_cc.on_parry_window_off()
+
+func parry_fail_end() -> void:
+	_cc.on_parry_fail_end()
+
+func parry_success_end() -> void:
+	_cc.on_parry_success_end()

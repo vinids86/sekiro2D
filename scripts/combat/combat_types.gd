@@ -1,19 +1,22 @@
 extends Resource
 class_name CombatTypes
 
-# Estados mínimos da FSM + dodge
+enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
+
+# Estados globais finais e enxutos
 enum CombatState {
 	IDLE,
-	STARTUP,
-	ATTACKING,
-	RECOVERING,
-	DODGE_STARTUP,
-	DODGE_ACTIVE,
-	DODGE_RECOVER
+	ATTACK,
+	PARRY,
+	PARRIED,
+	DODGE,
+	STUNNED,
+	GUARD_BROKEN,
+	DEAD
 }
 
-# Direções de dodge que vamos usar agora
+# Direções de dodge (mantido)
 enum DodgeDir {
-	NEUTRAL,  # 0
-	DOWN      # 1
+	NEUTRAL,
+	DOWN
 }

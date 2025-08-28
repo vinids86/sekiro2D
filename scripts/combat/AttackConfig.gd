@@ -1,6 +1,8 @@
 extends Resource
 class_name AttackConfig
 
+const AttackKind := CombatTypes.AttackKind
+
 @export var name_id: StringName = &"atk1"
 
 @export var startup: float = 0.25
@@ -25,9 +27,10 @@ class_name AttackConfig
 # finisher segue sua lógica atual
 @export var is_finisher: bool = false
 
-# NOVOS CAMPOS (somente o necessário):
-# - heavy: define que é ataque pesado (não-parryável por REGRA no controller; startup com hyper armor)
-@export var heavy: bool = false
+@export_enum("LIGHT", "HEAVY", "COUNTER", "FINISHER", "COMBO")
+var kind: int = AttackKind.LIGHT
+
+@export var parryable: bool = true
 
 # - required_dodge_dir: direção exigida para esquiva que evita este golpe
 #   0 = NEUTRAL, 1 = DOWN (ver CombatTypes.DodgeDir)

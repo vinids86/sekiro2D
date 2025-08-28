@@ -25,13 +25,12 @@ class_name Enemy
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
 @onready var controller: CombatController = $CombatController
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
+@onready var animation: AnimationPlayer = $Facing/AnimationPlayer
 @onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 @onready var stamina: Stamina = $Stamina
 
 # Listeners (nós filhos dedicados)
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
-@onready var hitbox_driver: HitboxDriver = $HitboxDriver
-@onready var impact: ImpactDriver = $ImpactDriver
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
@@ -57,7 +56,6 @@ func _ready() -> void:
 	assert(health != null, "Health não atribuído no Enemy")
 	assert(facing != null, "Facing não atribuído no Enemy")
 	assert(anim_listener != null, "CombatAnimListener não encontrado no Enemy")
-	assert(hitbox_driver != null, "HitboxDriver não encontrado no Enemy")
 	assert(sfx_driver != null, "SfxDriver não encontrado no Enemy")
 	assert(guard_profile != null, "GuardProfile não atribuído no Enemy")
 	assert(counter_profile != null, "CounterProfile não atribuído no Enemy")
@@ -66,8 +64,8 @@ func _ready() -> void:
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
 	# Listeners
-	anim_listener.setup(controller, _driver, anim_profile)
-	hitbox_driver.setup(controller, hitbox, self, facing)
+	anim_listener.setup(controller, animation, sprite)
+	hitbox.setup(controller, self)
 	sfx_driver.setup(
 		controller,
 		sfx_bank,
@@ -79,7 +77,6 @@ func _ready() -> void:
 		sfx_heavy,
 		sfx_combo_parry_enter
 	)
-	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
 	recoil.setup(self, controller, hub, parried_profile)
 
 	# AI

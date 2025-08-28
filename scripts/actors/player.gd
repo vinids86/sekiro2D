@@ -20,6 +20,7 @@ const DIR_THRESHOLD: float = 0.45
 @export var special_sequence_primary: Array[AttackConfig]
 
 @onready var sprite: AnimatedSprite2D = $Facing/AnimatedSprite2D
+@onready var animation: AnimationPlayer = $Facing/AnimationPlayer
 @onready var controller: CombatController = $CombatController
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
 @onready var facing: Node2D = $Facing
@@ -27,8 +28,6 @@ const DIR_THRESHOLD: float = 0.45
 
 @onready var health: Health = $Health
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
-@onready var hitbox_driver: HitboxDriver = $HitboxDriver
-@onready var impact: ImpactDriver = $ImpactDriver
 @onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 @onready var stamina: Stamina = $Stamina 
 
@@ -52,9 +51,8 @@ func _ready() -> void:
 	_driver = AnimationDriverSprite.new(sprite)
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
-	impact.setup(hurtbox, health, stamina, controller, hub, guard_profile)
-	anim_listener.setup(controller, _driver, anim_profile)
-	hitbox_driver.setup(controller, hitbox, self, facing)
+	hitbox.setup(controller, self)
+	anim_listener.setup(controller, animation, sprite)
 	recoil.setup(self, controller, hub, parried_profile)
 
 	# >>> ATUALIZADO: adiciona o player de COMBO_PARRY_ENTER no final <<<
@@ -82,16 +80,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	# --- DODGE + direção (queremos só DOWN por enquanto) ---
 	if event.is_action_pressed("dodge"):
 		var dir: int = _read_dodge_dir()
-		_play_dodge_preview(dir)
-		# Quando for integrar com a FSM de esquiva, chamaremos algo como:
-		# controller.on_dodge_pressed(dir)
+		controller.on_dodge_pressed(CombatTypes.DodgeDir.DOWN)
 		return
 		
 	# --- HEAVY + UP (prévia visual) ---
 	if event.is_action_pressed("attack_heavy"):
-		var hdir: int = _read_heavy_dir()
-		_play_heavy_preview(hdir)
-		# Futuro: controller.try_attack_heavy(hdir)
+		controller.on_heavy_attack_pressed(heavy_up_config)
 		return
 
 	# --- Inputs existentes ---
@@ -104,11 +98,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("combo1"):
-		# Gate: bloqueia se o oponente está em combo ofensivo E não é o último hit
-		if _opponent_combo_blocks_combo_parry():
-			print("[INPUT] combo1 bloqueado: oponente em combo ofensivo (não é último hit)")
-			return
-		controller.start_combo_with_parry_prep(special_sequence_primary)
+		controller.on_combo_pressed(special_sequence_primary)
 		return
 
 # --- helper local (Player.gd) ---
@@ -151,12 +141,7 @@ func _opponent_combo_offense_active() -> bool:
 	var s: int = opp_cc.get_state()
 
 	# Consideramos "ofensivo" as fases que levam a golpes ou preparam a janela:
-	var in_offense: bool = (
-		s == CombatController.State.COMBO_PARRY
-		or s == CombatController.State.COMBO_PREP
-		or s == CombatController.State.COMBO_STARTUP
-		or s == CombatController.State.COMBO_HIT
-	)
+	var in_offense: bool = false
 
 	return in_offense
 
@@ -175,11 +160,6 @@ func _read_heavy_dir() -> int:
 	if axis.y < -DIR_THRESHOLD:
 		return HeavyDir.UP
 	return HeavyDir.NEUTRAL
-
-# Apenas para testar visualmente: toca a anima correspondente
-func _play_dodge_preview(dir: int) -> void:
-	# Por enquanto só aceitamos DOWN; NEUTRAL (ou outra direção) não toca nada
-	controller.on_dodge_pressed(CombatTypes.DodgeDir.DOWN)
 
 # Prévia visual: heavy ascendente (só quando UP estiver pressionado)
 func _play_heavy_preview(dir: int) -> void:
