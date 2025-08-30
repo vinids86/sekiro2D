@@ -8,8 +8,7 @@ class_name GuardProfile
 @export var finisher: AttackConfig
 
 # Tempos utilitários de feedback/estados ligados à guarda.
-@export var guard_hit_time: float = 0.10
-@export var guard_recover_time: float = 0.30
 
 # Duração do estado após sofrer o FINISHER (animação pós-golpe).
-@export var post_finisher_react_time: float = 0.70
+
+@export var block_recover: float = 0.2

@@ -58,10 +58,10 @@ func _on_attack_windup(attacker: Node2D, cfg: AttackConfig, time_to_hit: float) 
 		_armed = false
 
 	# calcular quando APERTAR:
-	# Queremos abrir PARRY_STARTUP um pouco antes do HIT.
-	# lead efetivo não pode exceder a janela do parry (senão abre cedo e expira).
+	# Queremos abrir o parry pouco antes do HIT.
+	# O lead efetivo não pode exceder uma fração da JANELA (senão abre cedo e expira).
 	var lead_eff: float = profile.press_lead
-	var max_lead: float = _parry.startup_time * 0.9
+	var max_lead: float = _parry.window * 0.9
 	if lead_eff > max_lead:
 		lead_eff = max_lead
 	if lead_eff < 0.0:

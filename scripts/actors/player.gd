@@ -16,6 +16,7 @@ const DIR_THRESHOLD: float = 0.45
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
 @export var dodge_profile: DodgeProfile
+@export var hitreact_profile: HitReactProfile
 @export var heavy_up_config: AttackConfig
 @export var special_sequence_primary: Array[AttackConfig]
 
@@ -29,7 +30,7 @@ const DIR_THRESHOLD: float = 0.45
 @onready var health: Health = $Health
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
 @onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
-@onready var stamina: Stamina = $Stamina 
+@onready var stamina: Stamina = $Stamina
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
 @onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
@@ -52,7 +53,17 @@ func _ready() -> void:
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
 	hitbox.setup(controller, self)
-	anim_listener.setup(controller, animation, sprite)
+	anim_listener.setup(
+		controller,
+		animation,
+		sprite,
+		parry_profile,
+		dodge_profile,
+		hitreact_profile,
+		parried_profile,
+		guard_profile,
+	)
+
 	recoil.setup(self, controller, hub, parried_profile)
 
 	# >>> ATUALIZADO: adiciona o player de COMBO_PARRY_ENTER no final <<<

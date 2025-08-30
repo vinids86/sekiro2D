@@ -1,6 +1,8 @@
 extends Node2D
 class_name FacingDriver
 
+signal facing_changed(sign: int)
+
 @export var auto_find_opponent: bool = true
 @export var opponent_node: Node  # opcional: se quiser setar manualmente
 
@@ -48,9 +50,13 @@ func _process(_dt: float) -> void:
 	var new_sign: int = 1
 	if opp_x < me_x:
 		new_sign = -1
+
 	if new_sign != sign:
 		sign = new_sign
-		scale = Vector2(float(sign), 1.0)  # espelha AnimatedSprite2D e AttackHitbox
+		# espelha este nó (que deve ser pai do sprite/hitbox)
+		scale = Vector2(float(sign), 1.0)
+		# avisa interessados (FxDriver)
+		emit_signal("facing_changed", sign)
 
 func _find_opponent() -> Node2D:
 	var root_char: Node = get_parent()

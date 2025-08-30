@@ -31,7 +31,7 @@ func resolve(cfg: AttackConfig) -> void:
 	var dodge_active: bool = _def_cc.is_dodge_active()
 	var autoblock_now: bool = _def_cc.is_autoblock_enabled_now()
 	var guard_broken_now: bool = _def_cc.is_guard_broken_active()
-	print("resolve -> parry_active: ", parry_active, " phase: ", _def_cc.phase)
+
 	# ----- Métricas de saída (o aplicador é quem consome/causa dano) -----
 	var m: ImpactMetrics = ImpactMetrics.new()
 	m.absorbed = 0.0

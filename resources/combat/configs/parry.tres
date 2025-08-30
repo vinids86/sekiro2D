@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_kxspm")
-startup_time = 0.2
-success_time = 0.4
-recover_time = 0.7
+window = 0.2
+recover = 0.6
+success = 0.8
 metadata/_custom_type_script = "uid://c6ohe4w818cto"

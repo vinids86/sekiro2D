@@ -4,7 +4,6 @@ class_name Enemy
 # ---------------- Exports ----------------
 @export var attack_set: AttackSet
 @export var idle_clip: StringName = &"idle"
-@export var hit_clip: StringName = &"hit"
 @export var hurtbox: Hurtbox
 @export var health: Health
 @export var anim_profile: AnimProfile
@@ -64,7 +63,16 @@ func _ready() -> void:
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
 
 	# Listeners
-	anim_listener.setup(controller, animation, sprite)
+	anim_listener.setup(
+		controller,
+		animation,
+		sprite,
+		parry_profile,
+		dodge_profile,
+		hit_react_profile,
+		parried_profile,
+		guard_profile,
+	)
 	hitbox.setup(controller, self)
 	sfx_driver.setup(
 		controller,

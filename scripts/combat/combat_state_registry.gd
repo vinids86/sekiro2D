@@ -13,7 +13,7 @@ static func bind_states(state_enum: Dictionary) -> void:
 	_map[_S.PARRY]        = StateParry.new()
 	_map[_S.PARRIED]      = StateParried.new()
 	_map[_S.DODGE]        = StateDodge.new()
-	_map[_S.STUNNED]      = StateStun.new()
+	_map[_S.STUNNED]      = StateStunned.new()
 	_map[_S.GUARD_BROKEN] = StateGuardBroken.new()
 	_map[_S.DEAD]         = StateDead.new()
 	_map[_S.GUARD_HIT]    = StateGuardHit.new()

@@ -5,19 +5,14 @@
 
 [resource]
 script = ExtResource("1_60qi4")
-name_id = &"atk1"
 startup = 0.25
-hit = 0.25
-recovery = 0.0
-body_clip = &""
-body_frames = 12
-body_fps = 30.0
-to_idle_clip = &""
-to_parried_clip = &""
+hit = 0.08
+recovery = 0.167
+body_clip = &"combo1_atk3"
+anim_fps = 12.0
 hitbox_offset = Vector2(60, 0)
 sfx_swing = ExtResource("2_x7a00")
 damage = 1.0
-is_finisher = false
 kind = 4
 parryable = true
 required_dodge_dir = 0

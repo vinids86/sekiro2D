@@ -1,0 +1,15 @@
+[gd_resource type="ParticleProcessMaterial" format=3]
+
+[sub_resource type="Gradient" id=1]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[resource]
+direction = Vector3(-1, 0, 0)
+spread = 20.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 240.0
+initial_velocity_max = 360.0
+scale_min = 0.8
+scale_max = 1.2
+color_ramp = SubResource(1)

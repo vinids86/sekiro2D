@@ -1,4 +1,4 @@
 extends Resource
 class_name ParriedProfile
 
-@export var stagger_time: float = 3.60
+@export var lock: float = 1.00
