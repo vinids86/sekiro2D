@@ -1,4 +1,4 @@
-[gd_scene load_steps=663 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=660 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -63,9 +63,6 @@
 [ext_resource type="AudioStream" uid="uid://3mqu0nlpt266" path="res://audio/heavy_attack.wav" id="47_74r1k"]
 [ext_resource type="AudioStream" uid="uid://c5mramjfes6we" path="res://audio/pre_combo.wav" id="51_2a3c5"]
 [ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="58_2a3c5"]
-[ext_resource type="Script" uid="uid://bxxnoltr2hflw" path="res://scripts/fx/fx_driver.gd" id="64_51ujp"]
-[ext_resource type="Texture2D" uid="uid://ecnfxvounobs" path="res://art/particles/speedline_white_64x4.png" id="65_fuw3a"]
-[ext_resource type="Material" path="res://resources/fx/SpeedLinesProcessMaterial.tres" id="65_tk41t"]
 
 [sub_resource type="Resource" id="Resource_8svfe"]
 script = ExtResource("10_74r1k")
@@ -3424,7 +3421,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"combo1_atk2",
-"speed": 12.0
+"speed": 25.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -4610,7 +4607,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"parry_success_b",
-"speed": 12.0
+"speed": 25.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -5477,6 +5474,7 @@ monitoring = false
 script = ExtResource("10_3v2ag")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
 shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 
@@ -5541,16 +5539,3 @@ metadata/_custom_type_script = "uid://ddu8u3t2xh1nj"
 [node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
 script = ExtResource("58_2a3c5")
 metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
-
-[node name="FxDriver" type="Node2D" parent="." node_paths=PackedStringArray("controller", "speed_lines")]
-script = ExtResource("64_51ujp")
-controller = NodePath("../CombatController")
-speed_lines = NodePath("SpeedLines")
-
-[node name="SpeedLines" type="GPUParticles2D" parent="FxDriver"]
-emitting = false
-amount = 48
-texture = ExtResource("65_fuw3a")
-process_material = ExtResource("65_tk41t")
-
-[connection signal="facing_changed" from="Facing" to="FxDriver" method="set_facing"]

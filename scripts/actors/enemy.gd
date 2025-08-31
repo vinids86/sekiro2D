@@ -25,7 +25,6 @@ class_name Enemy
 @onready var controller: CombatController = $CombatController
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
 @onready var animation: AnimationPlayer = $Facing/AnimationPlayer
-@onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 @onready var stamina: Stamina = $Stamina
 
 # Listeners (nós filhos dedicados)
@@ -40,6 +39,7 @@ class_name Enemy
 @onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
 @onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
 @onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
+@onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
@@ -87,10 +87,6 @@ func _ready() -> void:
 	)
 	recoil.setup(self, controller, hub, parried_profile)
 
-	# AI
-	ai_driver.setup(controller, attack_profile)
-	ai_driver.special_sequence_primary = special_sequence_primary  # <--- entrega a sequência p/ AI
-
 	# Estado visual inicial
 	_driver.play_idle(idle_clip)
 
@@ -111,3 +107,30 @@ func _on_health_changed(current: float, maximum: float) -> void:
 func _on_health_died() -> void:
 	print("[Enemy] morreu")
 	queue_free()
+
+
+func _on_detection_area_body_entered(body: Node2D) -> void:
+	if body == null:
+		return
+	if body.is_in_group("player") == false:
+		return
+
+	var player_cc: CombatController = body.get("controller") as CombatController
+	if player_cc == null:
+		print("[Enemy] DetectionArea ENTER: player encontrado, MAS sem 'controller' válido. body=", body.name)
+	else:
+		print("[Enemy] DetectionArea ENTER: player encontrado; controller OK. body=", body.name)
+		ai_driver.set_target_controller(player_cc)
+
+	ai_driver.set_target_in_range(true)
+	print("[Enemy] in_range=true")
+
+
+func _on_detection_area_body_exited(body: Node2D) -> void:
+	if body == null:
+		return
+	if body.is_in_group("player") == false:
+		return
+
+	ai_driver.set_target_in_range(false)
+	print("[Enemy] DetectionArea EXIT: in_range=false. body=", body.name)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=661 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=662 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -5445,6 +5445,9 @@ size = Vector2(150, 350)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
 size = Vector2(150, 350)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_x24ca"]
+size = Vector2(628, 388)
+
 [node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health") groups=["enemy", "fighter"]]
 collision_layer = 4
 collision_mask = 2
@@ -5480,12 +5483,14 @@ libraries = {
 }
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
+visible = false
 collision_layer = 16
 collision_mask = 0
 monitoring = false
 script = ExtResource("3_5uy6h")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
 shape = SubResource("RectangleShape2D_lsnsy")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
@@ -5541,8 +5546,10 @@ metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 script = ExtResource("16_ile5s")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
 
-[node name="EnemyAIDriver" type="Node" parent="."]
+[node name="EnemyAIDriver" type="Node" parent="." node_paths=PackedStringArray("controller")]
 script = ExtResource("30_lioqc")
+profile = ExtResource("7_1f82d")
+controller = NodePath("../CombatController")
 metadata/_custom_type_script = "uid://bixm1f4soqfxu"
 
 [node name="ParryRecoilDriver" type="Node" parent="."]
@@ -5557,3 +5564,14 @@ metadata/_custom_type_script = "uid://q6tq6r8cv0q8"
 [node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
 script = ExtResource("59_13roy")
 metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
+
+[node name="DetectionArea" type="Area2D" parent="."]
+visible = false
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("RectangleShape2D_x24ca")
+
+[connection signal="body_entered" from="DetectionArea" to="." method="_on_detection_area_body_entered"]
+[connection signal="body_exited" from="DetectionArea" to="." method="_on_detection_area_body_exited"]

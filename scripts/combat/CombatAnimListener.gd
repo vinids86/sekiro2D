@@ -85,7 +85,6 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 
 	# ATTACK: na virada para STARTUP de cada golpe, toca o clipe do golpe
 	if st == CombatController.State.ATTACK:
-		print("phase: ", phase, " cfg: ", cfg, " cfg.body_clip: ", cfg.body_clip)
 		if phase == CombatController.Phase.STARTUP and cfg != null and cfg.body_clip != StringName():
 			_play(cfg.body_clip)
 		return
@@ -115,7 +114,6 @@ func _play(clip: StringName) -> void:
 	if _animation == null:
 		return
 	if not _has_clip(clip):
-		print("[CombatAnimListener] Clip inexistente: ", String(clip))
 		return
 	# Garantimos speed_scale neutro
 	_animation.speed_scale = 1.0
