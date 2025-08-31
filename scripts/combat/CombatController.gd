@@ -22,7 +22,7 @@ enum Phase { STARTUP, ACTIVE, SUCCESS, RECOVER }
 enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 
 # =========================
-# CONSTANTES
+# CONSTANTES / CAMPOS
 # =========================
 
 var _state: int = State.IDLE
@@ -43,9 +43,14 @@ var _counter: CounterProfile
 var _dodge: DodgeProfile
 
 var _last_dodge_dir: int = 0
-var _wants_chain: bool = false
 
 var _phase_timer: Timer
+
+# ===== Buffer de 1 slot (primeiro da janela vence) =====
+var _buf_has: bool = false
+var _buf_kind: AttackKind = AttackKind.LIGHT
+var _buf_heavy_cfg: AttackConfig
+var _buf_combo_seq: Array[AttackConfig] = []
 
 func initialize(
 		attack_set: AttackSet,
@@ -67,6 +72,7 @@ func initialize(
 	phase = -1
 	combo_index = 0
 	current_cfg = null
+	_buffer_clear()
 
 func _ready() -> void:
 	CombatStateRegistry.bind_states(State)
@@ -84,40 +90,43 @@ func update(_dt: float) -> void:
 # =========================
 
 func on_attack_pressed() -> void:
+	# LIGHT
 	if _state == State.IDLE:
 		var first: AttackConfig = _get_attack_from_set(0)
 		_start_attack(AttackKind.LIGHT, first)
-	elif _state == State.ATTACK:
-		_wants_chain = true
+		return
+
+	if _is_attack_buffer_window_open() and not _buf_has:
+		_buffer_capture_light()
+		return
+	# Fora de janela: ignora (sem queue fora da janela)
 
 func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
-	if not CombatStateRegistry.get_state_for(_state).allows_heavy_start(self):
+	# HEAVY
+	var st: StateBase = CombatStateRegistry.get_state_for(_state)
+	# Start imediato só se permitido
+	if _state == State.IDLE and st.allows_heavy_start(self):
+		_start_attack(AttackKind.HEAVY, cfg)
 		return
-	_start_attack(AttackKind.HEAVY, cfg)
+
+	# Caso contrário, tenta capturar no buffer se a janela do estado estiver aberta
+	if _is_attack_buffer_window_open() and not _buf_has:
+		_buffer_capture_heavy(cfg)
+		return
+	# Fora de janela: ignora
 
 func on_combo_pressed(seq: Array[AttackConfig]) -> void:
-	if not allows_attack_input_now():
+	# COMBO
+	# Start imediato se permitido agora (ex.: em IDLE)
+	if allows_attack_input_now():
+		_start_combo_from_seq(seq)
 		return
 
-	current_kind = AttackKind.COMBO
-	_combo_seq.clear()
-	_combo_hit = -1
-
-	if seq != null:
-		for ac: AttackConfig in seq:
-			if ac != null:
-				_combo_seq.append(ac)
-
-	if _combo_seq.size() <= 0:
+	# Senão, tenta capturar no buffer se a janela estiver aberta (v1: StateAttack de COMBO deve retornar false)
+	if _is_attack_buffer_window_open() and not _buf_has:
+		_buffer_capture_combo(seq)
 		return
-
-	_combo_hit = 0
-	current_cfg = _combo_seq[_combo_hit]
-	combo_index = 0
-
-	_change_state(State.ATTACK, current_cfg)
-	_change_phase(Phase.STARTUP, current_cfg)
-	_safe_start_timer(current_cfg.startup)
+	# Fora de janela: ignora
 
 func on_parry_pressed() -> void:
 	if not allows_parry_input_now():
@@ -136,39 +145,6 @@ func on_dodge_pressed(dir: int) -> void:
 	_change_state(State.DODGE, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_dodge.startup)
-
-# =========================
-# NOTIFIES (AnimationPlayer → Controller) — ignorados
-# =========================
-func on_phase_startup_end() -> void:
-	print("[WARN] on_phase_startup_end() ignorado: FSM usa timer interno.")
-
-func on_phase_hit_end() -> void:
-	print("[WARN] on_phase_hit_end() ignorado: FSM usa timer interno.")
-
-func on_phase_recover_end() -> void:
-	print("[WARN] on_phase_recover_end() ignorado: FSM usa timer interno.")
-
-func on_parry_window_on() -> void:
-	print("[WARN] on_parry_window_on() ignorado: FSM usa timer interno.")
-
-func on_parry_window_off() -> void:
-	print("[WARN] on_parry_window_off() ignorado: FSM usa timer interno.")
-
-func on_parry_fail_end() -> void:
-	print("[WARN] on_parry_fail_end() ignorado: FSM usa timer interno.")
-
-func on_parry_success_end() -> void:
-	print("[WARN] on_parry_success_end() ignorado: FSM usa timer interno.")
-
-func on_parried_end() -> void:
-	print("[WARN] on_parried_end() ignorado: FSM usa timer interno.")
-
-func on_guard_hit_end() -> void:
-	print("[WARN] on_guard_hit_end() ignorado: FSM usa timer interno.")
-
-func on_hitstun_end() -> void:
-	print("[WARN] on_hitstun_end() ignorado: FSM usa timer interno.")
 
 # =========================
 # TIMER TICK
@@ -208,7 +184,6 @@ func _tick_attack() -> void:
 
 	if phase == Phase.STARTUP:
 		_change_phase(Phase.ACTIVE, current_cfg)
-		# HIT configurado em segundos no AttackConfig.hit
 		var hit_time: float = _phase_duration_from_cfg(current_cfg, Phase.ACTIVE)
 		_safe_start_timer(hit_time)
 		return
@@ -231,19 +206,13 @@ func _tick_attack() -> void:
 			_exit_to_idle()
 			return
 
-		# Encadeamento manual via AttackSet (combo "normal")
-		if _wants_chain and attack_set != null:
-			var next_idx: int = attack_set.next_index(combo_index)
-			if next_idx >= 0:
-				combo_index = next_idx
-				var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
-				if next_cfg != null:
-					current_cfg = next_cfg
-					_change_phase(Phase.STARTUP, current_cfg)
-					_wants_chain = false
-					_safe_start_timer(current_cfg.startup)
-					return
+		# Consumo do buffer no primeiro instante possível dentro de ATTACK (encadeamento)
+		if _buffer_consume_in_attack_recover():
+			return
+
+		# Sem buffer: cair para IDLE
 		_exit_to_idle()
+		return
 
 func _tick_parry() -> void:
 	# Sem STARTUP: entramos direto em ACTIVE
@@ -312,12 +281,20 @@ func allows_attack_input_now() -> bool:
 	return st.allows_attack_input(self)
 
 func allows_parry_input_now() -> bool:
+	if _buf_has:
+		return false
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
 	return st.allows_parry_input(self)
 
 func allows_dodge_input_now() -> bool:
+	if _buf_has:
+		return false
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
 	return st.allows_dodge_input(self)
+
+func is_interruptible_now() -> bool:
+	var st: StateBase = CombatStateRegistry.get_state_for(_state)
+	return st.is_interruptible(self)
 
 # ======= Entradas de reação (armam timer) =======
 
@@ -329,16 +306,19 @@ func enter_parry_success() -> void:
 	_safe_start_timer(_parry_profile.success)
 
 func enter_guard_hit() -> void:
+	_buffer_clear()
 	_change_state(State.GUARD_HIT, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_guard.block_recover)
 
 func enter_guard_broken() -> void:
+	_buffer_clear()
 	_change_state(State.GUARD_BROKEN, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_guard.broken_lock)
 
 func enter_hit_react() -> void:
+	_buffer_clear()
 	_change_state(State.STUNNED, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_hitreact.stun)
@@ -412,6 +392,27 @@ func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
 	_change_phase(Phase.STARTUP, current_cfg)
 	_safe_start_timer(current_cfg.startup)
 
+func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
+	current_kind = AttackKind.COMBO
+	_combo_seq.clear()
+	_combo_hit = -1
+
+	if seq != null:
+		for ac: AttackConfig in seq:
+			if ac != null:
+				_combo_seq.append(ac)
+
+	if _combo_seq.size() <= 0:
+		return
+
+	_combo_hit = 0
+	current_cfg = _combo_seq[_combo_hit]
+	combo_index = 0
+
+	_change_state(State.ATTACK, current_cfg)
+	_change_phase(Phase.STARTUP, current_cfg)
+	_safe_start_timer(current_cfg.startup)
+
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
 
@@ -422,10 +423,13 @@ func _exit_to_idle() -> void:
 
 	current_cfg = null
 	combo_index = 0
-	_wants_chain = false
 
 	_combo_seq.clear()
 	_combo_hit = -1
+
+	# Consumo tardio (fallback): se ainda há slot, iniciar agora em IDLE
+	if _buf_has:
+		_buffer_consume_in_idle()
 
 func _change_state(new_state: int, cfg: AttackConfig) -> void:
 	var same: bool = new_state == _state
@@ -448,7 +452,6 @@ func _change_state(new_state: int, cfg: AttackConfig) -> void:
 
 		var prev_name: String = State.keys()[prev]
 		var new_name: String = State.keys()[new_state]
-		print("[CombatController] ", actor, " state: ", prev_name, " -> ", new_name)
 
 		emit_signal("state_exited", prev, cfg)
 		_state = new_state
@@ -462,7 +465,6 @@ func _change_phase(new_phase: Phase, cfg: AttackConfig) -> void:
 	var prev: Phase = phase
 	var prev_name: String = Phase.keys()[prev]
 	var new_name: String = Phase.keys()[new_phase]
-	print("[CombatController] phase: ", prev_name, " -> ", new_name)
 
 	phase = new_phase
 	emit_signal("phase_changed", phase, cfg)
@@ -505,8 +507,8 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 			who = parent_node.name
 
 	var res_name: String = ContactArbiter.DefenderResult.keys()[result]
-	print("[Impact:DEF] ", who, " result=", res_name, " absorbed=", str(metrics.absorbed), " hp=", str(metrics.hp_damage))
 
+	# --- Casos de alta prioridade (sempre interrompem/encadeiam fluxo específico) ---
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
 		enter_parry_success()
 		return
@@ -515,35 +517,33 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		enter_broken_after_finisher()
 		return
 
+	# --- BLOCO puro (stamina absorveu tudo) ---
 	var only_block: bool = metrics.absorbed > 0.0 and metrics.hp_damage <= 0.0
 	if only_block:
 		enter_guard_hit()
-	else:
-		if metrics.hp_damage > 0.0:
+		return
+
+	# --- DANOS em HP (sem auto-block suficiente) ---
+	if metrics.hp_damage > 0.0:
+		# A decisão de interromper é binária e depende do estado/fase/attack kind atuais
+		if is_interruptible_now():
 			enter_hit_react()
 		else:
+			# Hyper armor / segue o heavy/combo sem trocar de estado
 			pass
+	# Sem HP e sem bloco (caso raro): não faz nada.
 
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
-	var who: String = "unknown"
-	var parent_node: Node = get_parent()
-	if parent_node != null:
-		if parent_node.is_in_group("player"):
-			who = "player"
-		elif parent_node.is_in_group("enemy"):
-			who = "enemy"
-		else:
-			who = parent_node.name
-
-	var fb_name: String = ContactArbiter.AttackerFeedback.keys()[feedback]
-	print("[Impact:ATK] ", who, " feedback=", fb_name, " absorbed=", str(metrics.absorbed), " hp=", str(metrics.hp_damage))
-
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
-		_change_state(State.PARRIED, null)
-		_change_phase(Phase.STARTUP, null)
-		_safe_start_timer(_parried.lock)
-		return
+		# v1: limpar buffer no parry para validar o buffer sem o "ataque indesejado"
+		_buffer_clear()
+
+		if is_interruptible_now():
+			_change_state(State.PARRIED, null)
+			_change_phase(Phase.STARTUP, null)
+			_safe_start_timer(_parried.lock)
+			return
 
 	if feedback == ContactArbiter.AttackerFeedback.FINISHER_CONFIRMED:
 		start_finisher()
@@ -551,3 +551,103 @@ func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetric
 
 func _on_stamina_emptied() -> void:
 	enter_guard_broken()
+
+# =========================
+# BUFFER: helpers
+# =========================
+
+func _is_attack_buffer_window_open() -> bool:
+	var st: StateBase = CombatStateRegistry.get_state_for(_state)
+	# v1: delega para o estado atual decidir a janela; se não existir o método, considera fechado
+	#if st.has_method("is_attack_buffer_window_open"):
+	return st.is_attack_buffer_window_open(self)
+	#return false
+
+func _buffer_clear() -> void:
+	_buf_has = false
+	_buf_kind = AttackKind.LIGHT
+	_buf_heavy_cfg = null
+	_buf_combo_seq.clear()
+
+func _buffer_capture_light() -> void:
+	_buf_has = true
+	_buf_kind = AttackKind.LIGHT
+	_buf_heavy_cfg = null
+	_buf_combo_seq.clear()
+
+func _buffer_capture_heavy(cfg: AttackConfig) -> void:
+	_buf_has = true
+	_buf_kind = AttackKind.HEAVY
+	_buf_heavy_cfg = cfg
+	_buf_combo_seq.clear()
+
+func _buffer_capture_combo(seq: Array[AttackConfig]) -> void:
+	_buf_has = true
+	_buf_kind = AttackKind.COMBO
+	_buf_heavy_cfg = null
+	_buf_combo_seq.clear()
+	if seq != null:
+		for ac: AttackConfig in seq:
+			if ac != null:
+				_buf_combo_seq.append(ac)
+
+func _buffer_consume_in_attack_recover() -> bool:
+	# Consumir na janela de encadeamento (Phase.RECOVER de ATTACK não-combo)
+	if not _buf_has:
+		return false
+
+	if _buf_kind == AttackKind.LIGHT:
+		if attack_set == null:
+			# Sem AttackSet: consumir em IDLE
+			return false
+		var next_idx: int = attack_set.next_index(combo_index)
+		if next_idx >= 0:
+			combo_index = next_idx
+			var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
+			if next_cfg != null:
+				current_cfg = next_cfg
+				current_kind = AttackKind.LIGHT
+				_change_phase(Phase.STARTUP, current_cfg)
+				_buf_has = false
+				_safe_start_timer(current_cfg.startup)
+				return true
+		# Sem próximo LIGHT: deixa para IDLE
+		return false
+
+	if _buf_kind == AttackKind.HEAVY:
+		if _buf_heavy_cfg != null:
+			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
+			_buf_has = false
+			return true
+		return false
+
+	if _buf_kind == AttackKind.COMBO:
+		if _buf_combo_seq.size() > 0:
+			_start_combo_from_seq(_buf_combo_seq.duplicate())
+			_buf_has = false
+			return true
+		return false
+
+	return false
+
+func _buffer_consume_in_idle() -> void:
+	if not _buf_has:
+		return
+
+	if _buf_kind == AttackKind.LIGHT:
+		var first: AttackConfig = _get_attack_from_set(0)
+		_start_attack(AttackKind.LIGHT, first)
+		_buf_has = false
+		return
+
+	if _buf_kind == AttackKind.HEAVY:
+		if _buf_heavy_cfg != null:
+			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
+			_buf_has = false
+			return
+
+	if _buf_kind == AttackKind.COMBO:
+		if _buf_combo_seq.size() > 0:
+			_start_combo_from_seq(_buf_combo_seq.duplicate())
+			_buf_has = false
+			return

@@ -69,12 +69,11 @@ func resolve(cfg: AttackConfig) -> void:
 
 	# ========== 3) PARRY ==========
 	var parryable: bool = bool(cfg.parryable)
-	print("parry_active: ", parry_active)
-	print("parryable: ", parryable)
+
 	if parry_active and parryable:
 		emit_signal("defender_impact", cfg, m, DefenderResult.PARRY_SUCCESS)
-		if cfg.kind != CombatTypes.AttackKind.COMBO:
-			emit_signal("attacker_impact", cfg, AttackerFeedback.ATTACK_PARRIED, m)
+		# Sempre notifica o atacante que foi parryado; quem decide interromper é o Controller do atacante
+		emit_signal("attacker_impact", cfg, AttackerFeedback.ATTACK_PARRIED, m)
 		return
 
 	# ========== 4) BLOQUEIO AUTOMÁTICO / DANO NORMAL ==========
