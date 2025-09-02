@@ -8,7 +8,6 @@ class_name EnemyAIDriver
 @export var controller: CombatController
 @export var target_controller: CombatController
 
-# O Enemy.gd informa quando o alvo entra/sai do alcance
 var _target_in_range: bool = false
 
 # =============================
@@ -16,11 +15,10 @@ var _target_in_range: bool = false
 # =============================
 var _think_timer: Timer
 var _sequence_timer: Timer
-var _heavy_cd_timer: Timer
 var _parried_cd_timer: Timer
 var _post_chain_cd_timer: Timer
 var _defense_bias_timer: Timer
-var _parried_dodge_timer: Timer
+var _parried_parry_timer: Timer
 
 # =============================
 # RNG
@@ -32,26 +30,25 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # =============================
 var _enabled: bool = true
 
-enum SeqKind { NONE, NORMAL, SPECIAL, HEAVY }
+enum SeqKind { NONE, NORMAL }
 var _sequence_kind: int = SeqKind.NONE
 var _sequence_running: bool = false
 var _normal_step_count: int = 0
 var _awaiting_chain_end: bool = false
-
-var _sequence_attempts_normal: int = 0 # para disparar SPECIAL
-var _successful_parries_count: int = 0 # para disparar HEAVY
-var _heavy_locked: bool = false        # cooldown mínimo entre heavies
-var _lock_inputs_until_idle: bool = false # trava inputs enquanto SPECIAL/HEAVY/aguardando fim
+var _lock_inputs_until_idle: bool = false
 
 var _parried_cd_active: bool = false
 var _post_chain_cd_active: bool = false
 var _defense_bias_active: bool = false
 
-# Parried-dodge
-var _parried_dodge_armed: bool = false
-var _parried_dodge_used: bool = false
+# “Parry armado” quando em PARRIED (reage ao próximo STARTUP do player)
+var _parried_parry_armed: bool = false
+var _parried_parry_used: bool = false
 
-# Pressão cresce quando a IA sofre contatos ofensivos (guard/hit/break/parried)
+# Sinalizador para iniciar o cooldown pós-parry AO SAIR de PARRIED
+var _pending_post_parried_cd: bool = false
+
+# Pressão cresce quando sofre contatos ofensivos
 var _pressure_streak: int = 0
 
 # Snapshot do estado/fase do inimigo e do player
@@ -115,11 +112,6 @@ func _setup_timers() -> void:
 	add_child(_sequence_timer)
 	_sequence_timer.timeout.connect(_on_sequence_timeout)
 
-	_heavy_cd_timer = Timer.new()
-	_heavy_cd_timer.one_shot = true
-	add_child(_heavy_cd_timer)
-	_heavy_cd_timer.timeout.connect(_on_heavy_cd_timeout)
-
 	_parried_cd_timer = Timer.new()
 	_parried_cd_timer.one_shot = true
 	add_child(_parried_cd_timer)
@@ -135,10 +127,10 @@ func _setup_timers() -> void:
 	add_child(_defense_bias_timer)
 	_defense_bias_timer.timeout.connect(_on_defense_bias_timeout)
 
-	_parried_dodge_timer = Timer.new()
-	_parried_dodge_timer.one_shot = true
-	add_child(_parried_dodge_timer)
-	_parried_dodge_timer.timeout.connect(_on_parried_dodge_timeout)
+	_parried_parry_timer = Timer.new()
+	_parried_parry_timer.one_shot = true
+	add_child(_parried_parry_timer)
+	_parried_parry_timer.timeout.connect(_on_parried_parry_timeout)
 
 func _think_timer_start() -> void:
 	_think_timer.stop()
@@ -152,19 +144,22 @@ func _think_timer_stop() -> void:
 
 func _cancel_all_schedules() -> void:
 	_sequence_timer.stop()
-	_heavy_cd_timer.stop()
 	_parried_cd_timer.stop()
 	_post_chain_cd_timer.stop()
 	_defense_bias_timer.stop()
-	_parried_dodge_timer.stop()
+	_parried_parry_timer.stop()
+
 	_lock_inputs_until_idle = false
 	_sequence_running = false
 	_sequence_kind = SeqKind.NONE
+
 	_parried_cd_active = false
 	_post_chain_cd_active = false
 	_defense_bias_active = false
-	_parried_dodge_armed = false
-	_parried_dodge_used = false
+
+	_parried_parry_armed = false
+	_parried_parry_used = false
+	_pending_post_parried_cd = false
 
 func _reset_counters_soft() -> void:
 	_pressure_streak = 0
@@ -229,13 +224,7 @@ func _on_think_timeout() -> void:
 
 	var can_attack_now: bool = _can_start_sequence_now()
 	if can_attack_now:
-		# Prioridade: HEAVY > SPECIAL > NORMAL
-		if _should_start_heavy():
-			_start_heavy_sequence()
-		elif _should_start_special():
-			_start_special_sequence()
-		else:
-			_start_normal_sequence()
+		_start_normal_sequence()
 
 	_think_timer_start()
 
@@ -257,13 +246,12 @@ func _can_start_sequence_now() -> bool:
 	return false
 
 # =============================
-# Normal Sequence (multi-inputs)
+# Sequência normal (multi-inputs)
 # =============================
 func _start_normal_sequence() -> void:
 	_sequence_running = true
 	_sequence_kind = SeqKind.NORMAL
 	_normal_step_count = 0
-	_sequence_attempts_normal += 1
 	_pressure_streak = 0 # retomou iniciativa
 	_press_attack_input() # step 1
 
@@ -313,99 +301,22 @@ func _schedule_next_normal_hit(cfg: AttackConfig) -> void:
 	_sequence_timer.start(delay)
 
 # =============================
-# Special Combo (um input, vai até o fim)
-# =============================
-func _should_start_special() -> bool:
-	if profile == null:
-		return false
-	if profile.normal_sequences_until_special <= 0:
-		return false
-	if profile.special_combo.size() == 0:
-		return false
-	if _sequence_attempts_normal < profile.normal_sequences_until_special:
-		return false
-	return true
-
-func _start_special_sequence() -> void:
-	_sequence_attempts_normal = 0
-	_lock_inputs_until_idle = true
-	_sequence_running = false
-	_sequence_kind = SeqKind.SPECIAL
-	_pressure_streak = 0 # retomou iniciativa
-
-	if controller.has_method("on_combo_pressed"):
-		controller.on_combo_pressed(profile.special_combo)
-	else:
-		for cfg in profile.special_combo:
-			_press_attack_input()
-
-# =============================
-# Heavy após X parries da IA
-# =============================
-func _should_start_heavy() -> bool:
-	if profile == null:
-		return false
-	if profile.heavy_after_successful_parries <= 0:
-		return false
-	if _successful_parries_count < profile.heavy_after_successful_parries:
-		return false
-	if profile.heavy_attack == null:
-		return false
-	if _heavy_locked:
-		return false
-	return true
-
-func _start_heavy_sequence() -> void:
-	_successful_parries_count = 0
-	_heavy_locked = true
-	_lock_inputs_until_idle = true
-	_sequence_running = false
-	_sequence_kind = SeqKind.HEAVY
-	_pressure_streak = 0 # retomou iniciativa
-
-	var cd: float = profile.min_seconds_between_heavies
-	if cd < 0.0:
-		cd = 0.0
-	_heavy_cd_timer.stop()
-	_heavy_cd_timer.start(cd)
-
-	if controller.has_method("on_combo_pressed"):
-		var seq: Array[AttackConfig] = []
-		seq.append(profile.heavy_attack)
-		controller.on_combo_pressed(seq)
-	else:
-		_press_attack_input()
-
-func _on_heavy_cd_timeout() -> void:
-	_heavy_locked = false
-
-# =============================
-# Parry + Dodge durante PARRIED
+# Parry (global + em PARRIED)
 # =============================
 func _on_player_phase_changed(phase: int, cfg: AttackConfig) -> void:
 	_player_phase = phase
 	if cfg != null:
 		_last_player_recovery = cfg.recovery
 
-	# Reage apenas ao STARTUP do golpe do player
+	# Só reagimos ao STARTUP do player
 	if _enabled == false:
 		return
 	if phase != CombatController.Phase.STARTUP:
 		return
 
-	# Se estamos PARRIED: chance de tentar DODGE (armada na entrada do PARRIED)
-	if _self_state == CombatController.State.PARRIED:
-		if _parried_dodge_armed and _parried_dodge_used == false:
-			var delay: float = profile.parried_dodge_react_delay
-			if delay <= 0.0:
-				_try_press_dodge()
-			else:
-				if _parried_dodge_timer.is_stopped():
-					_parried_dodge_timer.start(delay)
-		# Em PARRIED não tentamos parry — devolvemos cedo
+	# Bloqueios de turno / prioridades: nesses casos NÃO tentamos parry
+	if _parried_cd_active:
 		return
-
-	# Se a IA está no "seu turno", não tenta parry
 	if _sequence_running:
 		return
 	if _self_state == CombatController.State.ATTACK:
@@ -413,17 +324,31 @@ func _on_player_phase_changed(phase: int, cfg: AttackConfig) -> void:
 	if _lock_inputs_until_idle:
 		return
 
-	# Chance de parry cresce conforme pressão
-	var idx: int = _pressure_to_index(_pressure_streak)
+	# === Cálculo de chance ===
 	var chance: float = 0.0
-	if profile != null:
-		if profile.parry_chance_by_hit.size() >= 4:
-			chance = profile.parry_chance_by_hit[idx]
+	if _self_state == CombatController.State.PARRIED:
+		# Chance específica quando o inimigo está PARRIED
+		if profile != null:
+			chance = max(0.0, min(1.0, profile.parried_parry_chance))
+	else:
+		# Chance por pressão (guard/hit contam para _pressure_streak)
+		if profile != null and profile.parry_chance_by_hit.size() >= 4:
+			var idx: int = _pressure_to_index(_pressure_streak)
+			chance = max(0.0, min(1.0, profile.parry_chance_by_hit[idx]))
 
+	# Rola o dado; se não passar, não pressiona
 	var roll: float = _rng.randf()
-	var should_parry: bool = roll <= chance
-	if should_parry:
-		_try_press_parry()
+	if roll >= chance:
+		return
+
+	# Verificação opcional do controller (se existir gate)
+	if controller.has_method("allows_parry_input_now"):
+		var ok: bool = controller.allows_parry_input_now()
+		if ok == false:
+			return
+
+	# Pressiona parry: a partir daqui o sucesso/fracasso é do seu FSM
+	_press_parry_input()
 
 func _pressure_to_index(pressure: int) -> int:
 	if pressure <= 1:
@@ -441,33 +366,27 @@ func _try_press_parry() -> void:
 			return
 	_press_parry_input()
 
-func _try_press_dodge() -> void:
-	# Só tenta se ainda estiver PARRIED e se não usamos a chance já
-	if _self_state != CombatController.State.PARRIED:
-		return
-	if _parried_dodge_used:
-		return
-
-	# Se o controller expõe um gate de dodge, respeita
-	if controller.has_method("allows_dodge_input_now"):
-		var ok: bool = controller.allows_dodge_input_now()
-		if ok == false:
-			_parried_dodge_used = true
-			_parried_dodge_armed = false
-			return
-
-	_press_dodge_input()
-	_parried_dodge_used = true
-	_parried_dodge_armed = false
-
 # =============================
 # Handlers (SELF)
 # =============================
 func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
+	# Guardar o estado anterior antes de trocar
+	var prev_state: int = _self_state
 	_self_state = state
 
+	# Se acabamos de SAIR de PARRIED, inicia o cooldown pós-parry agora
+	if prev_state == CombatController.State.PARRIED and state != CombatController.State.PARRIED:
+		if _pending_post_parried_cd:
+			_begin_parried_cd()
+			_pending_post_parried_cd = false
+		# Limpa qualquer resto de "parry armado"
+		_parried_parry_armed = false
+		_parried_parry_used = false
+		if _parried_parry_timer != null:
+			_parried_parry_timer.stop()
+
 	# Regra genérica: se sequência NORMAL está em curso e o estado mudou para algo
-	# que não é ATTACK nem IDLE, considera interrupção e cancela.
+	# que não seja ATTACK nem IDLE, considera interrupção e cancela.
 	var is_attack_state: bool = state == CombatController.State.ATTACK
 	var is_idle_state: bool = state == CombatController.State.IDLE
 	if _sequence_running and _sequence_kind == SeqKind.NORMAL:
@@ -477,12 +396,17 @@ func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
 	# Pressão + ajustes de "turno"
 	if state == CombatController.State.PARRIED:
 		_increment_pressure()
-		_begin_parried_cd()
-		_arm_parried_dodge()
+		# (Re)arma parry específico para PARRIED conforme chance do Profile.
+		# Se a chance for 0.0, permanecerá desarmado (e o hard-gate vai bloquear).
+		_arm_parried_parry()
+		_parried_parry_used = false
+		_pending_post_parried_cd = true
 	else:
-		# Saímos de PARRIED: desarma o dodge se não foi usado
-		_parried_dodge_armed = false
-		_parried_dodge_used = false
+		# Em qualquer estado que não seja PARRIED, garante flags limpas
+		_parried_parry_armed = false
+		_parried_parry_used = false
+		if _parried_parry_timer != null:
+			_parried_parry_timer.stop()
 
 	if state == CombatController.State.GUARD_HIT:
 		_increment_pressure()
@@ -517,7 +441,6 @@ func _on_player_state_entered(state: int, cfg: AttackConfig) -> void:
 	_player_state = state
 	# Player entrou em PARRIED => IA parryou com sucesso
 	if state == CombatController.State.PARRIED:
-		_successful_parries_count += 1
 		_pressure_streak = 0
 
 # =============================
@@ -538,21 +461,23 @@ func _press_attack_input() -> void:
 					_awaiting_chain_end = true
 					_lock_inputs_until_idle = true
 
-	var called: bool = false
 	if controller.has_method("on_attack_pressed"):
 		controller.on_attack_pressed()
-		called = true
-	elif controller.has_method("try_attack"):
+		return
+	if controller.has_method("try_attack"):
 		controller.try_attack()
-		called = true
-	elif controller.has_method("press_attack"):
+		return
+	if controller.has_method("press_attack"):
 		controller.press_attack()
-		called = true
-	# Se nenhum método existir, silenciosamente não faz nada
+		return
 
 func _press_parry_input() -> void:
-	if controller == null:
-		return
+	# Gate opcional do controller (mantive por segurança)
+	if controller.has_method("allows_parry_input_now"):
+		var ok: bool = controller.allows_parry_input_now()
+		if ok == false:
+			return
+
 	if controller.has_method("on_parry_pressed"):
 		controller.on_parry_pressed()
 		return
@@ -563,20 +488,6 @@ func _press_parry_input() -> void:
 		controller.press_parry()
 		return
 
-func _press_dodge_input() -> void:
-	if controller == null:
-		return
-	# Sem direção — você disse que o dodge é único
-	if controller.has_method("on_dodge_pressed"):
-		controller.on_dodge_pressed(0)
-		return
-	if controller.has_method("try_dodge"):
-		controller.try_dodge()
-		return
-	if controller.has_method("press_dodge"):
-		controller.press_dodge()
-		return
-
 # =============================
 # Cancelamentos e flags
 # =============================
@@ -585,10 +496,9 @@ func _cancel_normal_sequence(reason: String) -> void:
 		_sequence_timer.stop()
 		_sequence_running = false
 		_sequence_kind = SeqKind.NONE
-		# Opcional: print("[AI] cancel normal sequence: ", reason)
 
 # =============================
-# Timers de “troca de turno” / viés defensivo / dodge
+# Timers: troca de turno / viés defensivo
 # =============================
 func _begin_parried_cd() -> void:
 	var cd: float = profile.post_parried_cooldown
@@ -623,23 +533,36 @@ func _begin_defense_bias() -> void:
 func _on_defense_bias_timeout() -> void:
 	_defense_bias_active = false
 
-func _arm_parried_dodge() -> void:
-	_parried_dodge_armed = false
-	_parried_dodge_used = false
+# =============================
+# Parry armado em PARRIED
+# =============================
+# =============================
+# Parry armado em PARRIED
+# =============================
+func _arm_parried_parry() -> void:
+	_parried_parry_armed = false
+	_parried_parry_used = false
 	if profile == null:
 		return
-	var p: float = profile.parried_dodge_chance
+	var p: float = profile.parried_parry_chance
 	if p <= 0.0:
 		return
 	if p >= 1.0:
-		_parried_dodge_armed = true
+		_parried_parry_armed = true
 		return
 	var roll: float = _rng.randf()
-	if roll <= p:
-		_parried_dodge_armed = true
+	if roll < p: # estrito: com p==0.0 nunca arma
+		_parried_parry_armed = true
 
-func _on_parried_dodge_timeout() -> void:
-	_try_press_dodge()
+func _on_parried_parry_timeout() -> void:
+	# Timer de reação do parry armado em PARRIED
+	if _parried_parry_used:
+		return
+	if _self_state != CombatController.State.PARRIED:
+		return
+	_try_press_parry()
+	_parried_parry_used = true
+	_parried_parry_armed = false
 
 # =============================
 # Pressão

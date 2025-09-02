@@ -1,4 +1,4 @@
-[gd_scene load_steps=662 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=651 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -20,28 +20,20 @@
 [ext_resource type="Resource" uid="uid://o762wyf72smd" path="res://resources/combat/configs/parried.tres" id="8_lsnsy"]
 [ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="8_otmr2"]
 [ext_resource type="Resource" uid="uid://cnov3igxso054" path="res://resources/combat/configs/guard.tres" id="9_78kod"]
+[ext_resource type="Script" uid="uid://b5s08od8vddst" path="res://scripts/combat/parry/counter_profile.gd" id="10_uiwvf"]
 [ext_resource type="Script" uid="uid://cqj4e3s0okuso" path="res://scripts/stats/health.gd" id="10_w8i8w"]
-[ext_resource type="Resource" uid="uid://qh8obnadst0p" path="res://resources/combat/configs/counter.tres" id="11_7v6cf"]
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="11_otmr2"]
-[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="12_0pw1s"]
 [ext_resource type="Texture2D" uid="uid://xk6i0t8uahff" path="res://art/parry-startup.png" id="12_wrm80"]
-[ext_resource type="Resource" uid="uid://dgq0rys7bj1f4" path="res://resources/combat/configs/player/combo1_1.tres" id="13_b5geg"]
 [ext_resource type="Script" uid="uid://cfihtbf31nc3x" path="res://scripts/combat/CombatController.gd" id="13_wtq4b"]
-[ext_resource type="Resource" uid="uid://usmldwiqhvlp" path="res://resources/combat/configs/player/combo1_2.tres" id="14_g0yyi"]
-[ext_resource type="Resource" uid="uid://dfr4x738wpj5w" path="res://resources/combat/configs/player/combo1_3.tres" id="15_5utat"]
 [ext_resource type="Texture2D" uid="uid://basglik1bxrch" path="res://art/parry-success-a.png" id="15_qaulx"]
-[ext_resource type="Resource" uid="uid://fb685k2a07ca" path="res://resources/combat/configs/player/combo1_4.tres" id="16_0b4fd"]
 [ext_resource type="Texture2D" uid="uid://cgv3ww6ie6ngp" path="res://art/parry-success-b.png" id="16_1f82d"]
 [ext_resource type="Texture2D" uid="uid://be77s0ufnef7g" path="res://art/block-hit.png" id="16_2sbpf"]
 [ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="16_6awcb"]
 [ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="16_ile5s"]
-[ext_resource type="Resource" uid="uid://ul8dys3n538t" path="res://resources/combat/configs/player/combo1_5.tres" id="17_13roy"]
 [ext_resource type="Texture2D" uid="uid://c85tlq2wlksn7" path="res://art/c1-atk4-to-idle-Sheet.png" id="17_605iw"]
 [ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="18_2pwtc"]
 [ext_resource type="Texture2D" uid="uid://dkhbodpnkd7oe" path="res://art/parry_recover.png" id="18_78kod"]
-[ext_resource type="Resource" uid="uid://uhgn084kriap" path="res://resources/combat/configs/player/combo1_6.tres" id="18_a5akt"]
-[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/parry/dodge_profile.gd" id="19_0b4fd"]
 [ext_resource type="Texture2D" uid="uid://d2rnb752hiymj" path="res://art/guard_broken_finisher.png" id="21_hyejq"]
 [ext_resource type="Texture2D" uid="uid://cx5mnt78lt665" path="res://art/counter_a.png" id="21_qiusc"]
 [ext_resource type="Texture2D" uid="uid://cwsb7y4fbi6sr" path="res://art/counter_a_to_idle.png" id="22_5ie7m"]
@@ -54,24 +46,17 @@
 [ext_resource type="Texture2D" uid="uid://dma8d7lyafsv0" path="res://art/combo1_atk2.png" id="31_x24ca"]
 [ext_resource type="Texture2D" uid="uid://c0vxoodry2uod" path="res://art/combo1_atk3.png" id="32_3yi8r"]
 [ext_resource type="Texture2D" uid="uid://l8bku4q6onkb" path="res://art/dodge_down.png" id="33_g0yyi"]
-[ext_resource type="Script" uid="uid://ddu8u3t2xh1nj" path="res://scripts/combat/parry/parry_recoil_driver.gd" id="33_thsr5"]
 [ext_resource type="Texture2D" uid="uid://2wck1xr5q13u" path="res://art/combo1_atk4.png" id="33_yb7ap"]
 [ext_resource type="Texture2D" uid="uid://cui7k6vx800nj" path="res://art/combo1_atk5.png" id="34_by3os"]
 [ext_resource type="Texture2D" uid="uid://3o0b5kljojcg" path="res://art/combo1_atk6.png" id="35_o6r7o"]
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="37_5utat"]
-[ext_resource type="Script" uid="uid://q6tq6r8cv0q8" path="res://scripts/combat/parry/parry_ai_driver.gd" id="38_2tuss"]
-[ext_resource type="Resource" uid="uid://3fo1u88gf0gi" path="res://resources/ai/ParryAIProfile.tres" id="39_7v6cf"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
 [ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="59_13roy"]
 
-[sub_resource type="Resource" id="Resource_13roy"]
-script = ExtResource("19_0b4fd")
-startup = 0.01
-active = 0.25
-recover = 0.3
-anim_fps = 12.0
-metadata/_custom_type_script = "uid://637klubkv6ym"
+[sub_resource type="Resource" id="Resource_0pw1s"]
+script = ExtResource("10_uiwvf")
+metadata/_custom_type_script = "uid://b5s08od8vddst"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
 shader = ExtResource("2_md484")
@@ -5442,11 +5427,11 @@ size = Vector2(167, 145)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_md0e3"]
 size = Vector2(150, 350)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
-size = Vector2(150, 350)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_x24ca"]
 size = Vector2(628, 388)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
+size = Vector2(150, 350)
 
 [node name="Enemy" type="CharacterBody2D" node_paths=PackedStringArray("hurtbox", "health") groups=["enemy", "fighter"]]
 collision_layer = 4
@@ -5457,15 +5442,12 @@ hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
 anim_profile = ExtResource("3_1x4g4")
 parry_profile = ExtResource("4_rogs8")
-parry_ai_profile = ExtResource("39_7v6cf")
 hit_react_profile = ExtResource("5_2mchx")
 sfx_bank = ExtResource("6_2mchx")
 attack_profile = ExtResource("7_1f82d")
 parried_profile = ExtResource("8_lsnsy")
 guard_profile = ExtResource("9_78kod")
-counter_profile = ExtResource("11_7v6cf")
-special_sequence_primary = Array[ExtResource("12_0pw1s")]([ExtResource("13_b5geg"), ExtResource("14_g0yyi"), ExtResource("15_5utat"), ExtResource("16_0b4fd"), ExtResource("17_13roy"), ExtResource("18_a5akt")])
-dodge_profile = SubResource("Resource_13roy")
+counter_profile = SubResource("Resource_0pw1s")
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("8_0lg75")
@@ -5496,6 +5478,14 @@ shape = SubResource("RectangleShape2D_lsnsy")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 visible = false
 shape = SubResource("RectangleShape2D_md0e3")
+
+[node name="DetectionArea" type="Area2D" parent="."]
+visible = false
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("RectangleShape2D_x24ca")
 
 [node name="Hurtbox" type="Area2D" parent="." groups=["hurtbox"]]
 visible = false
@@ -5546,32 +5536,15 @@ metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 script = ExtResource("16_ile5s")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
 
+[node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
+script = ExtResource("59_13roy")
+metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
+
 [node name="EnemyAIDriver" type="Node" parent="." node_paths=PackedStringArray("controller")]
 script = ExtResource("30_lioqc")
 profile = ExtResource("7_1f82d")
 controller = NodePath("../CombatController")
 metadata/_custom_type_script = "uid://bixm1f4soqfxu"
-
-[node name="ParryRecoilDriver" type="Node" parent="."]
-script = ExtResource("33_thsr5")
-metadata/_custom_type_script = "uid://ddu8u3t2xh1nj"
-
-[node name="ParryAIDriver" type="Node" parent="."]
-script = ExtResource("38_2tuss")
-profile = ExtResource("39_7v6cf")
-metadata/_custom_type_script = "uid://q6tq6r8cv0q8"
-
-[node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
-script = ExtResource("59_13roy")
-metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
-
-[node name="DetectionArea" type="Area2D" parent="."]
-visible = false
-collision_layer = 0
-collision_mask = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
-shape = SubResource("RectangleShape2D_x24ca")
 
 [connection signal="body_entered" from="DetectionArea" to="." method="_on_detection_area_body_entered"]
 [connection signal="body_exited" from="DetectionArea" to="." method="_on_detection_area_body_exited"]

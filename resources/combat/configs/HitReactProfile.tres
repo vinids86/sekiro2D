@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_opmac")
-stun = 0.2
+stun = 0.4
 metadata/_custom_type_script = "uid://dquuyyerht1am"

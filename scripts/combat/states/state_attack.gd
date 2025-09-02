@@ -14,7 +14,7 @@ func allows_dodge_input(_cc: CombatController) -> bool:
 	else: return false
 
 func autoblock_enabled(_cc: CombatController) -> bool:
-	if _cc.phase == CombatController.Phase.RECOVER:
+	if _cc.phase != CombatController.Phase.ACTIVE:
 		return true
 	return false
 	

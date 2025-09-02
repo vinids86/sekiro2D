@@ -132,24 +132,19 @@ func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	# Fora de janela: ignora
 
 func on_parry_pressed() -> void:
+
+	# Gate normal (mantém suas regras; não bloqueamos PARRIED)
 	if not allows_parry_input_now():
 		return
-
-	var frame: int = Engine.get_physics_frames()
-	var now_ms: int = Time.get_ticks_msec()
-	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " BEFORE: state=", State.keys()[_state], " phase=", Phase.keys()[phase])
 
 	# Entra em PARRY já em ACTIVE (sem STARTUP)
 	_change_state(State.PARRY, null)
 	_change_phase(Phase.ACTIVE, null)
 
-	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " AFTER-CHANGE: state=", State.keys()[_state], " phase=", Phase.keys()[phase])
-
 	_safe_start_timer(_parry_profile.window)
 
 	var owner_state_name: String = State.keys()[_timer_owner_state]
 	var owner_phase_name: String = Phase.keys()[_timer_owner_phase]
-	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " TIMER-SET owner_state=", owner_state_name, " owner_phase=", owner_phase_name, " wait=", _parry_profile.window)
 
 func on_dodge_pressed(dir: int) -> void:
 	if not allows_dodge_input_now():
@@ -164,19 +159,9 @@ func on_dodge_pressed(dir: int) -> void:
 # TIMER TICK
 # =========================
 func _on_phase_timer_timeout() -> void:
-	var frame: int = Engine.get_physics_frames()
-	var now_ms: int = Time.get_ticks_msec()
-	var cur_state_name: String = State.keys()[_state]
-	var cur_phase_name: String = Phase.keys()[phase]
-	var owner_state_name: String = State.keys()[_timer_owner_state]
-	var owner_phase_name: String = Phase.keys()[_timer_owner_phase]
-
 	# Blindagem: ignora timeouts atrasados de outro estado/fase
 	if _state != _timer_owner_state or phase != _timer_owner_phase:
-		print("[FSM] TIMEOUT-IGNORED frame=", frame, " ms=", now_ms, " current=", cur_state_name, "/", cur_phase_name, " owner=", owner_state_name, "/", owner_phase_name)
 		return
-
-	print("[FSM] TIMEOUT frame=", frame, " ms=", now_ms, " current=", cur_state_name, "/", cur_phase_name, " owner=", owner_state_name, "/", owner_phase_name)
 
 	if _state == State.ATTACK:
 		_tick_attack()
@@ -292,14 +277,7 @@ func is_stunned() -> bool:
 	return _state == State.STUNNED
 
 func is_parry_window() -> bool:
-	var frame: int = Engine.get_physics_frames()
-	var now_ms: int = Time.get_ticks_msec()
-	var cur_state_name: String = State.keys()[_state]
-	var cur_phase_name: String = Phase.keys()[phase]
-
 	var active: bool = (_state == State.PARRY and phase == Phase.ACTIVE)
-	print("[FSM] is_parry_window? frame=", frame, " ms=", now_ms, " state=", cur_state_name, " phase=", cur_phase_name, " -> ", active)
-
 	return active
 
 func is_dodge_active() -> bool:
@@ -317,14 +295,10 @@ func allows_attack_input_now() -> bool:
 	return st.allows_attack_input(self)
 
 func allows_parry_input_now() -> bool:
-	if _buf_has:
-		return false
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
 	return st.allows_parry_input(self)
 
 func allows_dodge_input_now() -> bool:
-	if _buf_has:
-		return false
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
 	return st.allows_dodge_input(self)
 
@@ -449,10 +423,6 @@ func _safe_start_timer(duration: float) -> void:
 
 	_phase_timer.wait_time = d
 	_phase_timer.start()
-
-	var frame: int = Engine.get_physics_frames()
-	var now_ms: int = Time.get_ticks_msec()
-	print("[FSM] _safe_start_timer() frame=", frame, " ms=", now_ms, " OWNER state=", State.keys()[_timer_owner_state], " phase=", Phase.keys()[_timer_owner_phase], " wait=", d)
 
 func _stop_phase_timer() -> void:
 	if _phase_timer != null:

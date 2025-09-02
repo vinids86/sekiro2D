@@ -8,7 +8,6 @@ class_name Enemy
 @export var health: Health
 @export var anim_profile: AnimProfile
 @export var parry_profile: ParryProfile
-@export var parry_ai_profile: ParryAIProfile
 @export var hit_react_profile: HitReactProfile
 @export var sfx_bank: SfxBank
 @export var attack_profile: EnemyAttackProfile
@@ -38,7 +37,6 @@ class_name Enemy
 @onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
 @onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
 @onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
-@onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 @onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 
 # ---------------- Internos ----------------
@@ -85,8 +83,6 @@ func _ready() -> void:
 		sfx_heavy,
 		sfx_combo_parry_enter
 	)
-	recoil.setup(self, controller, hub, parried_profile)
-
 	# Estado visual inicial
 	_driver.play_idle(idle_clip)
 
