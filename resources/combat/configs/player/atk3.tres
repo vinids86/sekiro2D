@@ -5,19 +5,15 @@
 
 [resource]
 script = ExtResource("1_1e1l8")
-name_id = &"atk3"
 startup = 0.16
-hit = 0.09
+hit = 0.08
 recovery = 0.18
 body_clip = &"atk3"
-body_frames = 13
-body_fps = 30.0
-to_idle_clip = &"atk3_to_idle"
-to_parried_clip = &"atk3_to_parried"
+anim_fps = 30.0
 hitbox_offset = Vector2(60, 0)
 sfx_swing = ExtResource("2_fvgu0")
 damage = 1.0
-is_finisher = false
-heavy = false
+kind = 0
+parryable = true
 required_dodge_dir = 0
 metadata/_custom_type_script = "uid://bpr26trni32iq"

@@ -6,8 +6,8 @@
 [resource]
 script = ExtResource("1_bi3vv")
 startup = 0.367
-hit = 0.08
-recovery = 0.267
+hit = 0.8
+recovery = 0.1
 body_clip = &"atk1"
 anim_fps = 30.0
 hitbox_offset = Vector2(60, 0)

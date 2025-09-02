@@ -52,6 +52,9 @@ var _buf_kind: AttackKind = AttackKind.LIGHT
 var _buf_heavy_cfg: AttackConfig
 var _buf_combo_seq: Array[AttackConfig] = []
 
+var _timer_owner_state: int = -1
+var _timer_owner_phase: int = -1
+
 func initialize(
 		attack_set: AttackSet,
 		parry_profile: ParryProfile,
@@ -132,10 +135,21 @@ func on_parry_pressed() -> void:
 	if not allows_parry_input_now():
 		return
 
+	var frame: int = Engine.get_physics_frames()
+	var now_ms: int = Time.get_ticks_msec()
+	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " BEFORE: state=", State.keys()[_state], " phase=", Phase.keys()[phase])
+
 	# Entra em PARRY já em ACTIVE (sem STARTUP)
 	_change_state(State.PARRY, null)
 	_change_phase(Phase.ACTIVE, null)
+
+	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " AFTER-CHANGE: state=", State.keys()[_state], " phase=", Phase.keys()[phase])
+
 	_safe_start_timer(_parry_profile.window)
+
+	var owner_state_name: String = State.keys()[_timer_owner_state]
+	var owner_phase_name: String = Phase.keys()[_timer_owner_phase]
+	print("[FSM] on_parry_pressed() frame=", frame, " ms=", now_ms, " TIMER-SET owner_state=", owner_state_name, " owner_phase=", owner_phase_name, " wait=", _parry_profile.window)
 
 func on_dodge_pressed(dir: int) -> void:
 	if not allows_dodge_input_now():
@@ -150,6 +164,20 @@ func on_dodge_pressed(dir: int) -> void:
 # TIMER TICK
 # =========================
 func _on_phase_timer_timeout() -> void:
+	var frame: int = Engine.get_physics_frames()
+	var now_ms: int = Time.get_ticks_msec()
+	var cur_state_name: String = State.keys()[_state]
+	var cur_phase_name: String = Phase.keys()[phase]
+	var owner_state_name: String = State.keys()[_timer_owner_state]
+	var owner_phase_name: String = Phase.keys()[_timer_owner_phase]
+
+	# Blindagem: ignora timeouts atrasados de outro estado/fase
+	if _state != _timer_owner_state or phase != _timer_owner_phase:
+		print("[FSM] TIMEOUT-IGNORED frame=", frame, " ms=", now_ms, " current=", cur_state_name, "/", cur_phase_name, " owner=", owner_state_name, "/", owner_phase_name)
+		return
+
+	print("[FSM] TIMEOUT frame=", frame, " ms=", now_ms, " current=", cur_state_name, "/", cur_phase_name, " owner=", owner_state_name, "/", owner_phase_name)
+
 	if _state == State.ATTACK:
 		_tick_attack()
 		return
@@ -251,6 +279,12 @@ func _tick_guard_hit() -> void:
 	_exit_to_idle()
 
 func _tick_parried() -> void:
+	# Timer do PARRIED terminou.
+	# Se o primeiro input dentro de PARRIED foi ataque, ele já está no buffer.
+	if _buf_has:
+		if _buffer_consume_after_parried():
+			return
+	# Não houve ataque capturado durante PARRIED: fluxo normal.
 	_exit_to_idle()
 
 func _tick_guard_broken() -> void:
@@ -264,7 +298,15 @@ func is_stunned() -> bool:
 	return _state == State.STUNNED
 
 func is_parry_window() -> bool:
-	return _state == State.PARRY and phase == Phase.ACTIVE
+	var frame: int = Engine.get_physics_frames()
+	var now_ms: int = Time.get_ticks_msec()
+	var cur_state_name: String = State.keys()[_state]
+	var cur_phase_name: String = Phase.keys()[phase]
+
+	var active: bool = (_state == State.PARRY and phase == Phase.ACTIVE)
+	print("[FSM] is_parry_window? frame=", frame, " ms=", now_ms, " state=", cur_state_name, " phase=", cur_phase_name, " -> ", active)
+
+	return active
 
 func is_dodge_active() -> bool:
 	return _state == State.DODGE and phase == Phase.ACTIVE
@@ -333,6 +375,47 @@ func start_finisher() -> void:
 # =========================
 # HELPERS
 # =========================
+func _buffer_consume_after_parried() -> bool:
+	if not _buf_has:
+		return false
+
+	# LIGHT: continua a sequência no PRÓXIMO índice (não reinicia do primeiro).
+	if _buf_kind == AttackKind.LIGHT:
+		if attack_set == null:
+			return false
+		var next_idx: int = attack_set.next_index(combo_index)
+		if next_idx >= 0:
+			combo_index = next_idx
+			var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
+			if next_cfg != null:
+				current_cfg = next_cfg
+				current_kind = AttackKind.LIGHT
+				_buf_has = false
+				_change_state(State.ATTACK, current_cfg)
+				_change_phase(Phase.STARTUP, current_cfg)
+				_safe_start_timer(current_cfg.startup)
+				return true
+		# Fim da sequência: não inicia nada automaticamente.
+		return false
+
+	# HEAVY: inicia normalmente com o cfg bufferizado.
+	if _buf_kind == AttackKind.HEAVY:
+		if _buf_heavy_cfg != null:
+			_buf_has = false
+			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
+			return true
+		return false
+
+	# COMBO: inicia a sequência bufferizada.
+	if _buf_kind == AttackKind.COMBO:
+		if _buf_combo_seq.size() > 0:
+			var seq: Array[AttackConfig] = _buf_combo_seq.duplicate()
+			_buf_has = false
+			_start_combo_from_seq(seq)
+			return true
+		return false
+
+	return false
 
 func _phase_duration_from_cfg(cfg: AttackConfig, p: Phase) -> float:
 	var dur: float = 0.0
@@ -350,9 +433,13 @@ func _phase_duration_from_cfg(cfg: AttackConfig, p: Phase) -> float:
 	return dur
 
 func _schedule_phase_timeout(seconds: float) -> void:
+	_timer_owner_state = _state
+	_timer_owner_phase = phase
+
 	if seconds <= 0.0:
 		_on_phase_timer_timeout()
 		return
+
 	_phase_timer.stop()
 	_phase_timer.start(seconds)
 
@@ -361,8 +448,17 @@ func _safe_start_timer(duration: float) -> void:
 		return
 	_phase_timer.stop()
 	var d: float = maxf(duration, 0.0)
+
+	# Registra dono do timer (estado/fase vigentes no momento do armamento)
+	_timer_owner_state = _state
+	_timer_owner_phase = phase
+
 	_phase_timer.wait_time = d
 	_phase_timer.start()
+
+	var frame: int = Engine.get_physics_frames()
+	var now_ms: int = Time.get_ticks_msec()
+	print("[FSM] _safe_start_timer() frame=", frame, " ms=", now_ms, " OWNER state=", State.keys()[_timer_owner_state], " phase=", Phase.keys()[_timer_owner_phase], " wait=", d)
 
 func _stop_phase_timer() -> void:
 	if _phase_timer != null:
@@ -536,10 +632,12 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
-		# v1: limpar buffer no parry para validar o buffer sem o "ataque indesejado"
-		_buffer_clear()
-
 		if is_interruptible_now():
+			var frame: int = Engine.get_physics_frames()
+			var now_ms: int = Time.get_ticks_msec()
+			print("[FSM] ENTER-PARRIED frame=", frame, " ms=", now_ms, " from state=", State.keys()[_state], " phase=", Phase.keys()[phase], " lock=", _parried.lock)
+
+			_buffer_clear()
 			_change_state(State.PARRIED, null)
 			_change_phase(Phase.STARTUP, null)
 			_safe_start_timer(_parried.lock)

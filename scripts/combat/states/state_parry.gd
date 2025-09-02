@@ -5,8 +5,13 @@ func allows_attack_input(_cc: CombatController) -> bool:
 	return false
 
 func allows_parry_input(cc: CombatController) -> bool:
-	# Rearme manual só durante a pose de sucesso
 	return cc.phase == CombatController.Phase.SUCCESS
+
+func is_parry_window(_cc: CombatController) -> bool:
+	if _cc.phase == 3:
+		print("Deu ruim")
+	return _cc.get_state() == CombatController.State.PARRY \
+		and _cc.phase == CombatController.Phase.ACTIVE
 
 func allows_dodge_input(_cc: CombatController) -> bool:
 	return false

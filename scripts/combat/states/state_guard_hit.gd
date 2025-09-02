@@ -5,7 +5,7 @@ func allows_attack_input(_cc: CombatController) -> bool:
 	return false
 
 func allows_parry_input(_cc: CombatController) -> bool:
-	return false
+	return true
 
 func allows_dodge_input(_cc: CombatController) -> bool:
 	return false
