@@ -14,9 +14,7 @@ func autoblock_enabled(_cc: CombatController) -> bool:
 	return false
 
 func is_attack_buffer_window_open(_cc: CombatController) -> bool:
-	# Em PARRIED queremos capturar ataque no buffer.
-	# O controller decide quando consumir; aqui só liberamos a janela.
-	return true
+	return false
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false

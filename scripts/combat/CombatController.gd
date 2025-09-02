@@ -279,12 +279,6 @@ func _tick_guard_hit() -> void:
 	_exit_to_idle()
 
 func _tick_parried() -> void:
-	# Timer do PARRIED terminou.
-	# Se o primeiro input dentro de PARRIED foi ataque, ele já está no buffer.
-	if _buf_has:
-		if _buffer_consume_after_parried():
-			return
-	# Não houve ataque capturado durante PARRIED: fluxo normal.
 	_exit_to_idle()
 
 func _tick_guard_broken() -> void:
@@ -632,16 +626,15 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
+		# Volta ao comportamento original: limpar buffer e entrar em PARRIED
+		# somente se o golpe atual for interrompível.
 		if is_interruptible_now():
-			var frame: int = Engine.get_physics_frames()
-			var now_ms: int = Time.get_ticks_msec()
-			print("[FSM] ENTER-PARRIED frame=", frame, " ms=", now_ms, " from state=", State.keys()[_state], " phase=", Phase.keys()[phase], " lock=", _parried.lock)
-
 			_buffer_clear()
 			_change_state(State.PARRIED, null)
 			_change_phase(Phase.STARTUP, null)
 			_safe_start_timer(_parried.lock)
 			return
+		# Não-interrompível (ex.: COMBO): não altera estado/buffer.
 
 	if feedback == ContactArbiter.AttackerFeedback.FINISHER_CONFIRMED:
 		start_finisher()
