@@ -18,9 +18,15 @@ func get_attack(index: int) -> AttackConfig:
 	return attacks[index]
 
 func next_index(current_index: int) -> int:
+	if attacks == null:
+		return -1
+	var count: int = attacks.size()
+	if count <= 0:
+		return -1
+
+	assert(current_index >= -1 and current_index < count, "AttackSet.next_index: current_index fora do intervalo.")
+
 	var i: int = current_index + 1
-	if i < attacks.size():
+	if i < count:
 		return i
-	if loop and attacks.size() > 0:
-		return 0
 	return -1

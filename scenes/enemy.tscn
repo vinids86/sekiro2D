@@ -35,7 +35,7 @@
 [ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="18_2pwtc"]
 [ext_resource type="Texture2D" uid="uid://dkhbodpnkd7oe" path="res://art/parry_recover.png" id="18_78kod"]
-[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/parry/dodge_profile.gd" id="19_0b4fd"]
+[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/dodge/dodge_profile.gd" id="19_0b4fd"]
 [ext_resource type="Texture2D" uid="uid://d2rnb752hiymj" path="res://art/guard_broken_finisher.png" id="21_hyejq"]
 [ext_resource type="Texture2D" uid="uid://cx5mnt78lt665" path="res://art/counter_a.png" id="21_qiusc"]
 [ext_resource type="Texture2D" uid="uid://cwsb7y4fbi6sr" path="res://art/counter_a_to_idle.png" id="22_5ie7m"]
@@ -65,6 +65,7 @@ startup = 0.01
 active = 0.25
 recover = 0.3
 anim_fps = 12.0
+stamina_cost = 3.0
 metadata/_custom_type_script = "uid://637klubkv6ym"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]

@@ -544,9 +544,18 @@ func is_combo_offense_active() -> bool:
 	return _state == State.ATTACK and (phase == Phase.STARTUP or phase == Phase.ACTIVE)
 
 func is_combo_last_attack() -> bool:
-	if attack_set == null:
-		return true
-	return attack_set.next_index(combo_index) < 0
+	# Se estivermos executando um COMBO com sequência interna (_combo_seq),
+	# "último" é o último índice dessa sequência.
+	if current_kind == AttackKind.COMBO:
+		assert(_combo_seq.size() > 0, "is_combo_last_attack: COMBO ativo mas _combo_seq está vazio.")
+		assert(_combo_hit >= 0 and _combo_hit < _combo_seq.size(), "is_combo_last_attack: _combo_hit fora do intervalo.")
+		return _combo_hit >= _combo_seq.size() - 1
+
+	# Caso contrário, considera-se a sequência do AttackSet (LIGHT encadeado, etc.)
+	assert(attack_set != null, "is_combo_last_attack: attack_set é null.")
+	assert(attack_set.attacks.size() > 0, "is_combo_last_attack: attack_set.attacks vazio.")
+	assert(combo_index >= 0 and combo_index < attack_set.attacks.size(), "is_combo_last_attack: combo_index fora do intervalo.")
+	return combo_index >= attack_set.attacks.size() - 1
 
 # --- CAPACIDADES DEFENSIVAS CONSULTADAS PELO MEDIADOR ---
 

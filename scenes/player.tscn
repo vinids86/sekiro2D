@@ -20,7 +20,7 @@
 [ext_resource type="Resource" uid="uid://qh8obnadst0p" path="res://resources/combat/configs/counter.tres" id="9_jc3p3"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="10_3v2ag"]
 [ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="10_6e8lb"]
-[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/parry/dodge_profile.gd" id="10_74r1k"]
+[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/dodge/dodge_profile.gd" id="10_74r1k"]
 [ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="10_a8ls1"]
 [ext_resource type="Resource" uid="uid://dgq0rys7bj1f4" path="res://resources/combat/configs/player/combo1_1.tres" id="11_2gdjj"]
 [ext_resource type="Resource" uid="uid://qju8vaf1bfbq" path="res://resources/combat/heavy.tres" id="11_8svfe"]
@@ -70,6 +70,7 @@ startup = 0.01
 active = 0.25
 recover = 0.3
 anim_fps = 12.0
+stamina_cost = 3.0
 metadata/_custom_type_script = "uid://637klubkv6ym"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y4r1p"]
