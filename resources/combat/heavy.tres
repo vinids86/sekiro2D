@@ -14,6 +14,6 @@ hitbox_offset = Vector2(60, 0)
 sfx_swing = ExtResource("2_is2j6")
 damage = 20.0
 kind = 0
-parryable = true
+parryable = false
 required_dodge_dir = 1
 metadata/_custom_type_script = "uid://bpr26trni32iq"
