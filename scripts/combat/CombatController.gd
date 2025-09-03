@@ -513,18 +513,6 @@ func get_finisher_cfg() -> AttackConfig:
 
 # ===== Handlers de impacto (DEFENSOR) =====
 func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
-	var who: String = "unknown"
-	var parent_node: Node = get_parent()
-	if parent_node != null:
-		if parent_node.is_in_group("player"):
-			who = "player"
-		elif parent_node.is_in_group("enemy"):
-			who = "enemy"
-		else:
-			who = parent_node.name
-
-	var res_name: String = ContactArbiter.DefenderResult.keys()[result]
-
 	# --- Casos de alta prioridade (sempre interrompem/encadeiam fluxo específico) ---
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
 		enter_parry_success()
