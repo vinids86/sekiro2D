@@ -49,8 +49,16 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	if state == CombatController.State.ATTACK:
 		return
 
+	# FINISHER_READY: sem clipe por enquanto (janela/pose fica por conta do lock visual)
+	if state == CombatController.State.FINISHER_READY:
+		return
+
 	if state == CombatController.State.PARRY:
 		# Entradas de clipe por fase (ACTIVE/SUCCESS/RECOVER) serão tratadas em _on_phase_changed
+		return
+
+	if state == CombatController.State.IDLE:
+		_play(&"idle")
 		return
 
 	if state == CombatController.State.DODGE:
@@ -70,12 +78,11 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		return
 
 	if state == CombatController.State.GUARD_BROKEN:
-		print("[Anim] Guard Broken")
 		_play(&"guard_broken")
 		return
 
-	if state == CombatController.State.IDLE:
-		_play(&"idle")
+	if state == CombatController.State.BROKEN_FINISHER:
+		_play(&"broken_finisher")
 		return
 
 func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
@@ -83,8 +90,22 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 
 	# ATTACK: na virada para STARTUP de cada golpe, toca o clipe do golpe
 	if st == CombatController.State.ATTACK:
-		if phase == CombatController.Phase.STARTUP and cfg != null and cfg.body_clip != StringName():
-			_play(cfg.body_clip)
+		if phase == CombatController.Phase.STARTUP:
+			if cfg == null:
+				push_error("CombatAnimListener: ATTACK STARTUP com cfg nulo")
+				return
+
+			# Finisher: exige body_clip configurado; sem fallback.
+			if _cc.current_kind == CombatController.AttackKind.FINISHER:
+				if cfg.body_clip == StringName():
+					push_error("CombatAnimListener: Finisher sem body_clip configurado")
+					return
+				_play(cfg.body_clip)
+				return
+
+			# Outros ataques: mantém comportamento atual (toca se vier clip)
+			if cfg.body_clip != StringName():
+				_play(cfg.body_clip)
 		return
 
 	# PARRY: clipes separados por fase

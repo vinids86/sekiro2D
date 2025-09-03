@@ -14,6 +14,8 @@ enum State {
 	STUNNED,
 	GUARD_HIT,
 	GUARD_BROKEN,
+	FINISHER_READY,
+	BROKEN_FINISHER,
 	DEAD,
 }
 
@@ -41,6 +43,7 @@ var _parried: ParriedProfile
 var _guard: GuardProfile
 var _counter: CounterProfile
 var _dodge: DodgeProfile
+var _finisher: FinisherProfile
 
 var _last_dodge_dir: int = 0
 
@@ -62,7 +65,8 @@ func initialize(
 		parried_profile: ParriedProfile,
 		guard_profile: GuardProfile,
 		counter_profile: CounterProfile,
-		dodge_profile: DodgeProfile
+		dodge_profile: DodgeProfile,
+		finisher_profile: FinisherProfile
 	) -> void:
 	self.attack_set = attack_set
 	_parry_profile = parry_profile
@@ -71,6 +75,8 @@ func initialize(
 	_guard = guard_profile
 	_counter = counter_profile
 	_dodge = dodge_profile
+	_finisher = finisher_profile
+
 	_state = State.IDLE
 	phase = -1
 	combo_index = 0
@@ -93,7 +99,15 @@ func update(_dt: float) -> void:
 # =========================
 
 func on_attack_pressed() -> void:
-	# LIGHT
+	print("[ATK] input: state=", State.keys()[_state])
+
+	# FINISHER READY: qualquer ataque inicia finisher
+	if _state == State.FINISHER_READY:
+		print("[ATK] FINISHER_READY -> start_finisher()")
+		start_finisher()
+		return
+
+	# LIGHT normal
 	if _state == State.IDLE:
 		var first: AttackConfig = _get_attack_from_set(0)
 		_start_attack(AttackKind.LIGHT, first)
@@ -102,7 +116,6 @@ func on_attack_pressed() -> void:
 	if _is_attack_buffer_window_open() and not _buf_has:
 		_buffer_capture_light()
 		return
-	# Fora de janela: ignora (sem queue fora da janela)
 
 func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
@@ -110,15 +123,15 @@ func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
 		_start_attack(AttackKind.HEAVY, cfg)
 		return
 
-	print("[FSM] try buff heavy")
 	if _is_attack_buffer_window_open() and not _buf_has:
-		print("[FSM] buff heavy successfully")
 		_buffer_capture_heavy(cfg)
 		return
 
 func on_combo_pressed(seq: Array[AttackConfig]) -> void:
+	if _state == State.FINISHER_READY:
+		return
+
 	# COMBO
-	# Start imediato se permitido agora (ex.: em IDLE)
 	if allows_attack_input_now():
 		_start_combo_from_seq(seq)
 		return
@@ -130,9 +143,7 @@ func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	# Fora de janela: ignora
 
 func on_parry_pressed() -> void:
-	print("[FSM] on_parry_pressed")
 	if not allows_parry_input_now():
-		print("[FSM] on_parry_pressed not allowed")
 		return
 
 	_buffer_clear()
@@ -183,6 +194,13 @@ func _on_phase_timer_timeout() -> void:
 	if _state == State.GUARD_BROKEN:
 		_tick_guard_broken()
 		return
+	if _state == State.FINISHER_READY:
+		_tick_finisher_ready()
+		return
+	if _state == State.BROKEN_FINISHER:
+		_tick_broken_finisher()
+		return
+
 	# DEAD/IDLE/etc.: sem ação do timer
 
 # =========================
@@ -268,6 +286,15 @@ func _tick_parried() -> void:
 func _tick_guard_broken() -> void:
 	_exit_to_idle()
 
+func _tick_finisher_ready() -> void:
+	if phase == Phase.STARTUP:
+		_change_phase(Phase.ACTIVE, null)
+		# Sem rearmar timer: aguarda input do jogador para iniciar o finisher
+		return
+	if phase == Phase.ACTIVE:
+		# Continua aguardando input do jogador
+		return
+
 # =========================
 # Consultas
 # =========================
@@ -313,6 +340,12 @@ func enter_parry_success() -> void:
 	_stop_phase_timer()
 	_change_phase(Phase.SUCCESS, null)
 	_safe_start_timer(_parry_profile.success)
+	
+func enter_parried() -> void:
+	_buffer_clear()
+	_change_state(State.PARRIED, null)
+	_change_phase(Phase.STARTUP, null)
+	_safe_start_timer(_parried.lock)
 
 func enter_guard_hit() -> void:
 	_buffer_clear()
@@ -324,20 +357,48 @@ func enter_guard_broken() -> void:
 	_buffer_clear()
 	_change_state(State.GUARD_BROKEN, null)
 	_change_phase(Phase.STARTUP, null)
-	_safe_start_timer(_guard.broken_lock)
+	_safe_start_timer(_guard.broken_finisher_lock)
 
 func enter_hit_react() -> void:
 	_buffer_clear()
 	_change_state(State.STUNNED, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_hitreact.stun)
+	
+func enter_finisher_ready() -> void:
+	# Parar timers do golpe atual e limpar tudo que conflita
+	_stop_phase_timer()
+	_buffer_clear()
+	_combo_seq.clear()
+	_combo_hit = -1
+	combo_index = 0
+	current_cfg = null
+	current_kind = AttackKind.LIGHT
+
+	# Trocar de estado, fase e armar o lock visual
+	_change_state(State.FINISHER_READY, null)
+	_change_phase(Phase.STARTUP, null)
+	_safe_start_timer(_finisher.ready_lock)
 
 func enter_broken_after_finisher() -> void:
-	enter_guard_broken()
+	print("[FSM] Enter broken finisher for ", _guard.broken_finisher_lock)
+	_buffer_clear()
+	_change_state(State.BROKEN_FINISHER, null)
+	_change_phase(Phase.STARTUP, null)
+
+	assert(_guard != null, "enter_broken_after_finisher: GuardProfile nulo")
+	assert(_guard.broken_finisher_lock > 0.0, "GuardProfile.broken_finisher_lock deve ser > 0.0")
+
+	_safe_start_timer(_guard.broken_finisher_lock)
+
+func _tick_broken_finisher() -> void:
+	print("[DEF] _tick_broken_finisher -> exit to IDLE")
+
+	_exit_to_idle()
 
 func start_finisher() -> void:
-	if _guard != null and _guard.finisher != null:
-		_start_attack(AttackKind.FINISHER, _guard.finisher)
+	print("[ATK] start_finisher cfg=", _finisher != null and _finisher.attack, " kind=FINISHER")
+	_start_attack(AttackKind.FINISHER, _finisher.attack)
 
 # =========================
 # HELPERS
@@ -391,6 +452,8 @@ func _get_attack_from_set(index: int) -> AttackConfig:
 	return attack_set.get_attack(index)
 
 func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
+	print("[ATK] _start_attack kind=", kind, " cfg=", cfg)
+
 	if cfg == null:
 		return
 	current_kind = kind
@@ -430,6 +493,9 @@ func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
 	_change_phase(Phase.STARTUP, current_cfg)
 	_safe_start_timer(current_cfg.startup)
 
+func get_state() -> int:
+	return _state
+
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
 
@@ -449,6 +515,7 @@ func _exit_to_idle() -> void:
 		_buffer_consume_in_idle()
 
 func _change_state(new_state: int, cfg: AttackConfig) -> void:
+	print("[FSM] change state: ", new_state)
 	var same: bool = new_state == _state
 	var reentry_allowed: bool = CombatStateRegistry.get_state_for(_state).allows_reentry(self)
 
@@ -456,19 +523,6 @@ func _change_state(new_state: int, cfg: AttackConfig) -> void:
 		_stop_phase_timer()
 
 		var prev: int = _state
-
-		var parent_node: Node = get_parent()
-		var actor: String = "unknown"
-		if parent_node != null:
-			if parent_node.is_in_group("player"):
-				actor = "player"
-			elif parent_node.is_in_group("enemy"):
-				actor = "enemy"
-			else:
-				actor = parent_node.name
-
-		var prev_name: String = State.keys()[prev]
-		var new_name: String = State.keys()[new_state]
 
 		emit_signal("state_exited", prev, cfg)
 		_state = new_state
@@ -486,9 +540,6 @@ func _change_phase(new_phase: Phase, cfg: AttackConfig) -> void:
 	phase = new_phase
 	emit_signal("phase_changed", phase, cfg)
 
-func get_state() -> int:
-	return _state
-
 func is_combo_offense_active() -> bool:
 	return _state == State.ATTACK and (phase == Phase.STARTUP or phase == Phase.ACTIVE)
 
@@ -500,7 +551,9 @@ func is_combo_last_attack() -> bool:
 # --- CAPACIDADES DEFENSIVAS CONSULTADAS PELO MEDIADOR ---
 
 func is_guard_broken_active() -> bool:
-	return get_state() == State.GUARD_BROKEN
+	print("[FSM] is_guard_broken_active: ", _state == State.GUARD_BROKEN)
+	print("[FSM] _state is: ", _state)
+	return _state == State.GUARD_BROKEN
 
 func get_guard_absorb_cap() -> float:
 	assert(_guard != null, "CombatController.get_guard_absorb_cap: GuardProfile nulo")
@@ -513,41 +566,57 @@ func get_finisher_cfg() -> AttackConfig:
 
 # ===== Handlers de impacto (DEFENSOR) =====
 func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
+	print("[DEF] res=", result, " name=", ContactArbiter.DefenderResult.keys()[result],
+	  " absorbed=", metrics.absorbed, " hp=", metrics.hp_damage,
+	  " state_before=", State.keys()[_state])
+
+	# PARRY
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
 		enter_parry_success()
 		return
 
+	print("[FSM] result is: ", result)
+	# FINISHER acertou: vai para BROKEN_FINISHER
 	if result == ContactArbiter.DefenderResult.FINISHER_HIT:
+		print("[DEF] enter_broken_after_finisher lock=", _guard.broken_finisher_lock)
+
 		enter_broken_after_finisher()
 		return
 
+	# Entrou em guard broken neste hit
+	if result == ContactArbiter.DefenderResult.GUARD_BROKEN_ENTERED:
+		enter_guard_broken()
+		return
+
+	# BLOCO puro
 	if metrics.absorbed > 0.0:
 		enter_guard_hit()
 		return
 
+	# Dano HP
 	if metrics.hp_damage > 0.0:
 		if is_interruptible_now():
 			enter_hit_react()
-		# Caso contrário, hyper armor/heavy/combo continuam sem trocar de estado
 		return
-	# Sem HP e sem absorção: não faz nada.
+	# Sem efeito: ignora
 
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
-	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
-		# Volta ao comportamento original: limpar buffer e entrar em PARRIED
-		# somente se o golpe atual for interrompível.
-		if is_interruptible_now():
-			_buffer_clear()
-			_change_state(State.PARRIED, null)
-			_change_phase(Phase.STARTUP, null)
-			_safe_start_timer(_parried.lock)
-			return
-		# Não-interrompível (ex.: COMBO): não altera estado/buffer.
+	print("[ATK] fb=", feedback, " name=", ContactArbiter.AttackerFeedback.keys()[feedback])
 
-	if feedback == ContactArbiter.AttackerFeedback.FINISHER_CONFIRMED:
-		start_finisher()
+	# Parry recebido
+	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
+		if is_interruptible_now():
+			enter_parried()
+			return
+
+	# Guard broken confirmado neste hit -> entrar em FINISHER_READY
+	if feedback == ContactArbiter.AttackerFeedback.GUARD_BROKEN_CONFIRMED:
+		print("[ATK] enter_finisher_ready()")
+		enter_finisher_ready()
 		return
+
+	# (Demais feedbacks: ignorar aqui)
 
 func _on_stamina_emptied() -> void:
 	enter_guard_broken()

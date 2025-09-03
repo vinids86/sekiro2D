@@ -15,8 +15,9 @@ class_name Enemy
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
-@export var special_sequence_primary: Array[AttackConfig]    # <--- combo do inimigo
+@export var special_sequence_primary: Array[AttackConfig]
 @export var dodge_profile: DodgeProfile
+@export var finisher_profile: FinisherProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -58,7 +59,7 @@ func _ready() -> void:
 	assert(counter_profile != null, "CounterProfile não atribuído no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile)
 
 	# Listeners
 	anim_listener.setup(

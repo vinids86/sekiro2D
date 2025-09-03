@@ -1,4 +1,4 @@
-[gd_scene load_steps=658 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=668 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -25,6 +25,7 @@
 [ext_resource type="Resource" uid="uid://dgq0rys7bj1f4" path="res://resources/combat/configs/player/combo1_1.tres" id="11_2gdjj"]
 [ext_resource type="Resource" uid="uid://qju8vaf1bfbq" path="res://resources/combat/heavy.tres" id="11_8svfe"]
 [ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="11_jej6c"]
+[ext_resource type="Resource" uid="uid://ck31ap674ierg" path="res://resources/combat/configs/finisher_profile.tres" id="11_nubpm"]
 [ext_resource type="Resource" uid="uid://usmldwiqhvlp" path="res://resources/combat/configs/player/combo1_2.tres" id="12_sc3ue"]
 [ext_resource type="Resource" uid="uid://dfr4x738wpj5w" path="res://resources/combat/configs/player/combo1_3.tres" id="13_lxlsd"]
 [ext_resource type="Texture2D" uid="uid://xk6i0t8uahff" path="res://art/parry-startup.png" id="14_4ni07"]
@@ -59,6 +60,7 @@
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="35_lxlsd"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="38_2gdjj"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="43_42b1b"]
+[ext_resource type="Texture2D" uid="uid://djys0ag82iy4h" path="res://assets/test/sprite/spritesheet.png" id="46_ua5cf"]
 [ext_resource type="AudioStream" uid="uid://3mqu0nlpt266" path="res://audio/heavy_attack.wav" id="47_74r1k"]
 [ext_resource type="AudioStream" uid="uid://c5mramjfes6we" path="res://audio/pre_combo.wav" id="51_2a3c5"]
 
@@ -2101,6 +2103,26 @@ region = Rect2(0, 2160, 1920, 1080)
 [sub_resource type="AtlasTexture" id="AtlasTexture_1nht2"]
 atlas = ExtResource("10_a8ls1")
 region = Rect2(1920, 2160, 1920, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g66sh"]
+atlas = ExtResource("46_ua5cf")
+region = Rect2(50, 50, 1569, 1541)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8icmu"]
+atlas = ExtResource("46_ua5cf")
+region = Rect2(1619, 50, 1569, 1541)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x6nws"]
+atlas = ExtResource("46_ua5cf")
+region = Rect2(3188, 50, 1569, 1541)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_edpmo"]
+atlas = ExtResource("46_ua5cf")
+region = Rect2(50, 1591, 1569, 1541)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_elu1g"]
+atlas = ExtResource("46_ua5cf")
+region = Rect2(1619, 1591, 1569, 1541)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kkgei"]
 atlas = ExtResource("14_4ni07")
@@ -4457,6 +4479,26 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_g66sh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8icmu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x6nws")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_edpmo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_elu1g")
+}],
+"loop": true,
+"name": &"idle_test",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_yc32c")
 }, {
 "duration": 1.0,
@@ -5399,6 +5441,92 @@ tracks/1/keys = {
 }]
 }
 
+[sub_resource type="Animation" id="Animation_2w11d"]
+resource_name = "guard_broken"
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666667, 0.75, 0.833333, 0.916667),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"guard_broken"]
+}
+
+[sub_resource type="Animation" id="Animation_770dr"]
+resource_name = "broken_finisher"
+length = 4.50001
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666666, 0.75, 0.833333, 0.916666, 1, 1.08333, 1.16667, 1.25, 1.33333, 1.41667, 1.5, 1.58333, 1.66667, 1.75, 1.83333, 1.91667, 2, 2.08333, 2.16667, 2.25, 2.33333, 2.41667, 2.5, 2.58333, 2.66667, 2.75, 2.83333, 2.91667, 3, 3.08333, 3.16667, 3.25, 3.33333, 3.41667, 3.5, 3.58901, 3.66667, 3.75, 3.83333, 3.91667, 4, 4.08333, 4.16667, 4.25, 4.33333, 4.41666),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"broken_finisher"]
+}
+
+[sub_resource type="Animation" id="Animation_8f1cb"]
+resource_name = "finisher"
+length = 3.41667
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:animation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"finisher"]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666666, 0.75, 0.833333, 0.916666, 1, 1.08333, 1.16667, 1.25, 1.33333, 1.41667, 1.5, 1.58333, 1.66667, 1.75, 1.83333, 1.91667, 2, 2.08333, 2.16667, 2.25, 2.33333, 2.41667, 2.5, 2.58333, 2.66667, 2.75, 2.83333, 2.91667, 3, 3.08333, 3.16667, 3.25, 3.33333),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_au7lq"]
 _data = {
 &"RESET": SubResource("Animation_h7ic4"),
@@ -5407,6 +5535,7 @@ _data = {
 &"atk3": SubResource("Animation_nubpm"),
 &"atk4": SubResource("Animation_ua5cf"),
 &"block_hit": SubResource("Animation_0b4fd"),
+&"broken_finisher": SubResource("Animation_770dr"),
 &"combo": SubResource("Animation_8txt3"),
 &"combo1_atk1": SubResource("Animation_vyr4o"),
 &"combo1_atk2": SubResource("Animation_e3iar"),
@@ -5415,6 +5544,8 @@ _data = {
 &"combo1_atk5": SubResource("Animation_cpn3g"),
 &"combo1_atk6": SubResource("Animation_6dibf"),
 &"dodge_down": SubResource("Animation_51ujp"),
+&"finisher": SubResource("Animation_8f1cb"),
+&"guard_broken": SubResource("Animation_2w11d"),
 &"heavy_up": SubResource("Animation_8svfe"),
 &"hitstun": SubResource("Animation_13roy"),
 &"idle": SubResource("Animation_a5akt"),
@@ -5446,6 +5577,7 @@ guard_profile = ExtResource("8_bj30b")
 counter_profile = ExtResource("9_jc3p3")
 dodge_profile = SubResource("Resource_8svfe")
 hitreact_profile = ExtResource("5_ujl30")
+finisher_profile = ExtResource("11_nubpm")
 heavy_up_config = ExtResource("11_8svfe")
 special_sequence_primary = Array[ExtResource("10_6e8lb")]([ExtResource("11_2gdjj"), ExtResource("12_sc3ue"), ExtResource("13_lxlsd"), ExtResource("14_ha2mi"), ExtResource("15_apa73"), ExtResource("16_74r1k")])
 
@@ -5457,7 +5589,6 @@ fx_sprite_path = NodePath("AnimatedSprite2D")
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
 animation = &"heavy_up"
-frame = 11
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Facing"]
 libraries = {

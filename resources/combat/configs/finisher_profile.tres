@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="FinisherProfile" load_steps=5 format=3 uid="uid://ck31ap674ierg"]
+
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_1x8uq"]
+[ext_resource type="Script" uid="uid://1g4p4hkkrffu" path="res://scripts/combat/finisher/finisher_profile.gd" id="1_2kun4"]
+[ext_resource type="AudioStream" uid="uid://tbdd6cm3o1wa" path="res://audio/finisher.wav" id="2_c4u4o"]
+
+[sub_resource type="Resource" id="Resource_c4u4o"]
+script = ExtResource("1_1x8uq")
+startup = 0.25
+hit = 0.08
+recovery = 10.0
+body_clip = &"finisher"
+anim_fps = 12.0
+hitbox_offset = Vector2(60, 0)
+sfx_swing = ExtResource("2_c4u4o")
+damage = 70.0
+kind = 3
+parryable = true
+required_dodge_dir = 0
+metadata/_custom_type_script = "uid://bpr26trni32iq"
+
+[resource]
+script = ExtResource("1_2kun4")
+ready_lock = 0.15
+attack = SubResource("Resource_c4u4o")
+metadata/_custom_type_script = "uid://1g4p4hkkrffu"

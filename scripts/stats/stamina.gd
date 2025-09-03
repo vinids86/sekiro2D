@@ -23,8 +23,6 @@ func set_current(value: float) -> void:
 	current = clampf(value, 0.0, maximum)
 	if current != prev:
 		_emit_changed()
-		if prev > 0.0 and current <= 0.0:
-			emit_signal("emptied")
 
 func set_maximum(value: float, keep_ratio: bool = true) -> void:
 	var prev_max: float = maximum
@@ -70,14 +68,3 @@ func get_percentage() -> float:
 
 func _emit_changed() -> void:
 	emit_signal("changed", current, maximum)
-
-# ===== LISTENER DO ARBITER (DEFENSOR) =====
-func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
-	if metrics == null:
-		return
-	var absorbed: float = metrics.absorbed
-	if absorbed <= 0.0:
-		return
-	var taken: float = consume(absorbed)
-	# Log opcional (curto)
-	# print("[Stamina] absorbed=%.2f -> new=%.2f (took=%.2f)" % [absorbed, current, taken])

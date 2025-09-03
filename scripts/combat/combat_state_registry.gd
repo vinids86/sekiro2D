@@ -15,8 +15,10 @@ static func bind_states(state_enum: Dictionary) -> void:
 	_map[_S.DODGE]        = StateDodge.new()
 	_map[_S.STUNNED]      = StateStunned.new()
 	_map[_S.GUARD_BROKEN] = StateGuardBroken.new()
-	_map[_S.DEAD]         = StateDead.new()
 	_map[_S.GUARD_HIT]    = StateGuardHit.new()
+	_map[_S.FINISHER_READY]   = StateFinisherReady.new()
+	_map[_S.BROKEN_FINISHER]  = StateBrokenFinisher.new()
+	_map[_S.DEAD]         = StateDead.new()
 
 static func get_state_for(state_id: int) -> StateBase:
 	assert(_map.has(state_id), "CombatStateRegistry: estado sem classe registrada (id=%s)" % [str(state_id)])

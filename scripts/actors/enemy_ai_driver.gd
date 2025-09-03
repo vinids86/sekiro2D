@@ -606,9 +606,10 @@ func _press_parry_input(reason: String = "unspecified") -> void:
 		return
 
 func _dbg_after_press_snapshot(reason: String) -> void:
-	print("[AI][check] after-press(", reason, ") self=",
-		CombatController.State.keys()[controller.get_state()], "/",
-		CombatController.Phase.keys()[controller.phase])
+	pass
+	#print("[AI][check] after-press(", reason, ") self=",
+		#CombatController.State.keys()[controller.get_state()], "/",
+		#CombatController.Phase.keys()[controller.phase])
 
 # =============================
 # Cancelamentos e flags
@@ -736,4 +737,4 @@ func _dbg(msg: String) -> void:
 		return
 	var frame: int = Engine.get_physics_frames()
 	var now_ms: int = Time.get_ticks_msec()
-	print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)
+#	print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)

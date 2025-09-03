@@ -17,6 +17,7 @@ const DIR_THRESHOLD: float = 0.45
 @export var counter_profile: CounterProfile
 @export var dodge_profile: DodgeProfile
 @export var hitreact_profile: HitReactProfile
+@export var finisher_profile: FinisherProfile
 @export var heavy_up_config: AttackConfig
 @export var special_sequence_primary: Array[AttackConfig]
 
@@ -49,7 +50,7 @@ func _ready() -> void:
 	assert(attack_set != null)
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile)
 
 	hitbox.setup(controller, self)
 	anim_listener.setup(
