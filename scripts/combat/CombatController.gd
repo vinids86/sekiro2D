@@ -105,18 +105,16 @@ func on_attack_pressed() -> void:
 	# Fora de janela: ignora (sem queue fora da janela)
 
 func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
-	# HEAVY
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	# Start imediato só se permitido
-	if _state == State.IDLE and st.allows_heavy_start(self):
+	if st.allows_heavy_start(self):
 		_start_attack(AttackKind.HEAVY, cfg)
 		return
 
-	# Caso contrário, tenta capturar no buffer se a janela do estado estiver aberta
+	print("[FSM] try buff heavy")
 	if _is_attack_buffer_window_open() and not _buf_has:
+		print("[FSM] buff heavy successfully")
 		_buffer_capture_heavy(cfg)
 		return
-	# Fora de janela: ignora
 
 func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	# COMBO
@@ -132,12 +130,12 @@ func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	# Fora de janela: ignora
 
 func on_parry_pressed() -> void:
-
-	# Gate normal (mantém suas regras; não bloqueamos PARRIED)
+	print("[FSM] on_parry_pressed")
 	if not allows_parry_input_now():
+		print("[FSM] on_parry_pressed not allowed")
 		return
 
-	# Entra em PARRY já em ACTIVE (sem STARTUP)
+	_buffer_clear()
 	_change_state(State.PARRY, null)
 	_change_phase(Phase.ACTIVE, null)
 
@@ -151,6 +149,7 @@ func on_dodge_pressed(dir: int) -> void:
 		return
 	_last_dodge_dir = dir
 
+	_buffer_clear()
 	_change_state(State.DODGE, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_dodge.startup)
@@ -343,48 +342,6 @@ func start_finisher() -> void:
 # =========================
 # HELPERS
 # =========================
-func _buffer_consume_after_parried() -> bool:
-	if not _buf_has:
-		return false
-
-	# LIGHT: continua a sequência no PRÓXIMO índice (não reinicia do primeiro).
-	if _buf_kind == AttackKind.LIGHT:
-		if attack_set == null:
-			return false
-		var next_idx: int = attack_set.next_index(combo_index)
-		if next_idx >= 0:
-			combo_index = next_idx
-			var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
-			if next_cfg != null:
-				current_cfg = next_cfg
-				current_kind = AttackKind.LIGHT
-				_buf_has = false
-				_change_state(State.ATTACK, current_cfg)
-				_change_phase(Phase.STARTUP, current_cfg)
-				_safe_start_timer(current_cfg.startup)
-				return true
-		# Fim da sequência: não inicia nada automaticamente.
-		return false
-
-	# HEAVY: inicia normalmente com o cfg bufferizado.
-	if _buf_kind == AttackKind.HEAVY:
-		if _buf_heavy_cfg != null:
-			_buf_has = false
-			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
-			return true
-		return false
-
-	# COMBO: inicia a sequência bufferizada.
-	if _buf_kind == AttackKind.COMBO:
-		if _buf_combo_seq.size() > 0:
-			var seq: Array[AttackConfig] = _buf_combo_seq.duplicate()
-			_buf_has = false
-			_start_combo_from_seq(seq)
-			return true
-		return false
-
-	return false
-
 func _phase_duration_from_cfg(cfg: AttackConfig, p: Phase) -> float:
 	var dur: float = 0.0
 	match p:
@@ -619,10 +576,7 @@ func _on_stamina_emptied() -> void:
 
 func _is_attack_buffer_window_open() -> bool:
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	# v1: delega para o estado atual decidir a janela; se não existir o método, considera fechado
-	#if st.has_method("is_attack_buffer_window_open"):
 	return st.is_attack_buffer_window_open(self)
-	#return false
 
 func _buffer_clear() -> void:
 	_buf_has = false

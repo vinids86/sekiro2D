@@ -5474,6 +5474,7 @@ monitoring = false
 script = ExtResource("10_3v2ag")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
 shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 script = ExtResource("8_smehm")

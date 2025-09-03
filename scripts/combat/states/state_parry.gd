@@ -8,8 +8,6 @@ func allows_parry_input(cc: CombatController) -> bool:
 	return cc.phase == CombatController.Phase.SUCCESS
 
 func is_parry_window(_cc: CombatController) -> bool:
-	if _cc.phase == 3:
-		print("Deu ruim")
 	return _cc.get_state() == CombatController.State.PARRY \
 		and _cc.phase == CombatController.Phase.ACTIVE
 
@@ -17,7 +15,7 @@ func allows_dodge_input(_cc: CombatController) -> bool:
 	return false
 
 func autoblock_enabled(_cc: CombatController) -> bool:
-	return false
+	return true
 
 func allows_heavy_start(_cc: CombatController) -> bool:
 	return false

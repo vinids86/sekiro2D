@@ -6,7 +6,8 @@ func allows_attack_input(cc: CombatController) -> bool:
 	return cc.is_combo_offense_active()
 
 func allows_parry_input(_cc: CombatController) -> bool:
-	if _cc.phase == CombatController.Phase.RECOVER: return true
+	if _cc.phase == CombatController.Phase.RECOVER and _cc.current_kind == CombatController.AttackKind.LIGHT: 
+		return true
 	else: return false
 
 func allows_dodge_input(_cc: CombatController) -> bool:
