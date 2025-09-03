@@ -513,7 +513,6 @@ func get_finisher_cfg() -> AttackConfig:
 
 # ===== Handlers de impacto (DEFENSOR) =====
 func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
-	# --- Casos de alta prioridade (sempre interrompem/encadeiam fluxo específico) ---
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
 		enter_parry_success()
 		return
@@ -522,21 +521,16 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		enter_broken_after_finisher()
 		return
 
-	# --- BLOCO puro (stamina absorveu tudo) ---
-	var only_block: bool = metrics.absorbed > 0.0 and metrics.hp_damage <= 0.0
-	if only_block:
+	if metrics.absorbed > 0.0:
 		enter_guard_hit()
 		return
 
-	# --- DANOS em HP (sem auto-block suficiente) ---
 	if metrics.hp_damage > 0.0:
-		# A decisão de interromper é binária e depende do estado/fase/attack kind atuais
 		if is_interruptible_now():
 			enter_hit_react()
-		else:
-			# Hyper armor / segue o heavy/combo sem trocar de estado
-			pass
-	# Sem HP e sem bloco (caso raro): não faz nada.
+		# Caso contrário, hyper armor/heavy/combo continuam sem trocar de estado
+		return
+	# Sem HP e sem absorção: não faz nada.
 
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
