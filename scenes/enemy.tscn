@@ -1,4 +1,4 @@
-[gd_scene load_steps=651 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=650 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -52,7 +52,6 @@
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="37_5utat"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
-[ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="59_13roy"]
 
 [sub_resource type="Resource" id="Resource_0pw1s"]
 script = ExtResource("10_uiwvf")
@@ -5535,10 +5534,6 @@ metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 [node name="CombatAnimListener" type="Node" parent="."]
 script = ExtResource("16_ile5s")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
-
-[node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
-script = ExtResource("59_13roy")
-metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
 
 [node name="EnemyAIDriver" type="Node" parent="." node_paths=PackedStringArray("controller")]
 script = ExtResource("30_lioqc")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=659 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=658 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -61,7 +61,6 @@
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="43_42b1b"]
 [ext_resource type="AudioStream" uid="uid://3mqu0nlpt266" path="res://audio/heavy_attack.wav" id="47_74r1k"]
 [ext_resource type="AudioStream" uid="uid://c5mramjfes6we" path="res://audio/pre_combo.wav" id="51_2a3c5"]
-[ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="58_2a3c5"]
 
 [sub_resource type="Resource" id="Resource_8svfe"]
 script = ExtResource("10_74r1k")
@@ -5531,7 +5530,3 @@ metadata/_custom_type_script = "uid://s1v4ano08fya"
 [node name="CombatAnimListener" type="Node" parent="."]
 script = ExtResource("17_4r5pv")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
-
-[node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
-script = ExtResource("58_2a3c5")
-metadata/_custom_type_script = "uid://4p3r8ooxy8eb"

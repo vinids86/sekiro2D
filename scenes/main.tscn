@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://raw8okub6mh6"]
+[gd_scene load_steps=12 format=3 uid="uid://raw8okub6mh6"]
 
 [ext_resource type="Script" uid="uid://dcgawgj5mqx13" path="res://scenes/main.gd" id="1_85g3d"]
 [ext_resource type="Texture2D" uid="uid://dmk4vk4a0c4ga" path="res://assets/terrace.png" id="1_ya4ey"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
 [ext_resource type="Script" uid="uid://bji2s1rkpwwaj" path="res://scripts/hub/combat_event_hub.gd" id="8_tipki"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
+[ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="11_ya4ey"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_85g3d")
@@ -111,3 +112,7 @@ position = Vector2(960, 542)
 [node name="CombatEventHub" type="Node" parent="."]
 script = ExtResource("8_tipki")
 metadata/_custom_type_script = "uid://bji2s1rkpwwaj"
+
+[node name="ContactArbiterRegistry" type="Node" parent="."]
+script = ExtResource("11_ya4ey")
+metadata/_custom_type_script = "uid://4p3r8ooxy8eb"
