@@ -29,7 +29,6 @@ const DIR_THRESHOLD: float = 0.45
 
 @onready var health: Health = $Health
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
-@onready var recoil: ParryRecoilDriver = $ParryRecoilDriver
 @onready var stamina: Stamina = $Stamina
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
@@ -63,8 +62,6 @@ func _ready() -> void:
 		parried_profile,
 		guard_profile,
 	)
-
-	recoil.setup(self, controller, hub, parried_profile)
 
 	# >>> ATUALIZADO: adiciona o player de COMBO_PARRY_ENTER no final <<<
 	sfx_driver.setup(

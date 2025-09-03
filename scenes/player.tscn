@@ -1,4 +1,4 @@
-[gd_scene load_steps=660 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=659 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -54,7 +54,6 @@
 [ext_resource type="Texture2D" uid="uid://c0vxoodry2uod" path="res://art/combo1_atk3.png" id="31_51ujp"]
 [ext_resource type="Texture2D" uid="uid://l8bku4q6onkb" path="res://art/dodge_down.png" id="31_sc3ue"]
 [ext_resource type="Texture2D" uid="uid://2wck1xr5q13u" path="res://art/combo1_atk4.png" id="32_tk41t"]
-[ext_resource type="Script" uid="uid://ddu8u3t2xh1nj" path="res://scripts/combat/parry/parry_recoil_driver.gd" id="33_487ah"]
 [ext_resource type="Texture2D" uid="uid://cui7k6vx800nj" path="res://art/combo1_atk5.png" id="33_fuw3a"]
 [ext_resource type="Texture2D" uid="uid://3o0b5kljojcg" path="res://art/combo1_atk6.png" id="34_8txt3"]
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="35_lxlsd"]
@@ -5532,10 +5531,6 @@ metadata/_custom_type_script = "uid://s1v4ano08fya"
 [node name="CombatAnimListener" type="Node" parent="."]
 script = ExtResource("17_4r5pv")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
-
-[node name="ParryRecoilDriver" type="Node" parent="."]
-script = ExtResource("33_487ah")
-metadata/_custom_type_script = "uid://ddu8u3t2xh1nj"
 
 [node name="ContactArbiterRegistry" type="Node" parent="." groups=["contact_registry"]]
 script = ExtResource("58_2a3c5")
