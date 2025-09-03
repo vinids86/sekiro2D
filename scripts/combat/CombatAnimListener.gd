@@ -70,10 +70,8 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		return
 
 	if state == CombatController.State.GUARD_BROKEN:
-		if _has_clip(&"guard_broken"):
-			_play(&"guard_broken")
-		else:
-			_play(&"hitstun")
+		print("[Anim] Guard Broken")
+		_play(&"guard_broken")
 		return
 
 	if state == CombatController.State.IDLE:
@@ -111,18 +109,8 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 # ===================== HELPERS =====================
 
 func _play(clip: StringName) -> void:
-	if _animation == null:
-		return
-	if not _has_clip(clip):
-		return
-	# Garantimos speed_scale neutro
 	_animation.speed_scale = 1.0
 	_animation.play(clip)
-
-func _has_clip(clip: StringName) -> bool:
-	if _animation == null:
-		return false
-	return _animation.has_animation(clip)
 
 # ===================== NOTIFIES (se existirem no AnimationPlayer) =====================
 # Mantidos apenas para compat: não usamos mais notifies para trocar fase/estado.

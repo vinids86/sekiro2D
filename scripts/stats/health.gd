@@ -50,3 +50,14 @@ func get_percentage() -> float:
 
 func _emit_changed() -> void:
 	emit_signal("changed", current, maximum)
+
+# ===== LISTENER DO ARBITER (DEFENSOR) =====
+func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
+	if metrics == null:
+		return
+	var hp_dmg: float = metrics.hp_damage
+	if hp_dmg <= 0.0:
+		return
+	damage(hp_dmg)
+	# Log opcional (curto)
+	# print("[Health] hp_damage=%.2f -> new=%.2f" % [hp_dmg, current])

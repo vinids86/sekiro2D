@@ -1,4 +1,4 @@
-[gd_scene load_steps=650 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=653 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -34,6 +34,7 @@
 [ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
 [ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="18_2pwtc"]
 [ext_resource type="Texture2D" uid="uid://dkhbodpnkd7oe" path="res://art/parry_recover.png" id="18_78kod"]
+[ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/parry/dodge_profile.gd" id="19_0b4fd"]
 [ext_resource type="Texture2D" uid="uid://d2rnb752hiymj" path="res://art/guard_broken_finisher.png" id="21_hyejq"]
 [ext_resource type="Texture2D" uid="uid://cx5mnt78lt665" path="res://art/counter_a.png" id="21_qiusc"]
 [ext_resource type="Texture2D" uid="uid://cwsb7y4fbi6sr" path="res://art/counter_a_to_idle.png" id="22_5ie7m"]
@@ -56,6 +57,14 @@
 [sub_resource type="Resource" id="Resource_0pw1s"]
 script = ExtResource("10_uiwvf")
 metadata/_custom_type_script = "uid://b5s08od8vddst"
+
+[sub_resource type="Resource" id="Resource_uiwvf"]
+script = ExtResource("19_0b4fd")
+startup = 0.01
+active = 0.25
+recover = 0.3
+anim_fps = 12.0
+metadata/_custom_type_script = "uid://637klubkv6ym"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
 shader = ExtResource("2_md484")
@@ -5396,6 +5405,34 @@ tracks/1/keys = {
 }]
 }
 
+[sub_resource type="Animation" id="Animation_uiwvf"]
+resource_name = "guard_broken"
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666667, 0.75, 0.833333, 0.916667),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"guard_broken"]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_au7lq"]
 _data = {
 &"RESET": SubResource("Animation_h7ic4"),
@@ -5412,6 +5449,7 @@ _data = {
 &"combo1_atk5": SubResource("Animation_cpn3g"),
 &"combo1_atk6": SubResource("Animation_6dibf"),
 &"dodge_down": SubResource("Animation_51ujp"),
+&"guard_broken": SubResource("Animation_uiwvf"),
 &"heavy_up": SubResource("Animation_8svfe"),
 &"hitstun": SubResource("Animation_13roy"),
 &"idle": SubResource("Animation_a5akt"),
@@ -5447,6 +5485,7 @@ attack_profile = ExtResource("7_1f82d")
 parried_profile = ExtResource("8_lsnsy")
 guard_profile = ExtResource("9_78kod")
 counter_profile = SubResource("Resource_0pw1s")
+dodge_profile = SubResource("Resource_uiwvf")
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("8_0lg75")

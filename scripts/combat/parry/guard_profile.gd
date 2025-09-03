@@ -12,3 +12,4 @@ class_name GuardProfile
 # Duração do estado após sofrer o FINISHER (animação pós-golpe).
 
 @export var block_recover: float = 0.2
+@export var broken_lock: float = 2.0
