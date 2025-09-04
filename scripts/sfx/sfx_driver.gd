@@ -12,8 +12,6 @@ var _p_dodge: AudioStreamPlayer2D
 var _p_heavy_startup: AudioStreamPlayer2D
 var _p_combo_parry_enter: AudioStreamPlayer2D
 
-var _wired: bool = false
-
 func setup(
 	controller: CombatController,
 	bank: SfxBank,
@@ -38,10 +36,6 @@ func setup(
 
 	assert(_cc != null, "SfxDriver: controller nulo")
 	assert(_bank != null, "SfxDriver: SfxBank nulo")
-
-	if _wired:
-		return
-	_wired = true
 
 	# Nova integração: ouvir mudanças de fase e entradas de estado
 	_cc.phase_changed.connect(_on_phase_changed)

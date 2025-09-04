@@ -46,7 +46,7 @@ func resolve(cfg: AttackConfig) -> void:
 	print("[ARB@", pf, ":", ms, "] start kind=", int(cfg.kind),
 		" dmg=", float(cfg.damage),
 		" parryable=", bool(cfg.parryable),
-		" req_dodge=", int(cfg.required_dodge_dir))
+	)
 	print("[ARB@", pf, "] ctx parry=", parry_active,
 		" dodge=", dodge_active,
 		" autoblock_now=", autoblock_now,
@@ -62,20 +62,9 @@ func resolve(cfg: AttackConfig) -> void:
 
 	# ========== 1) DODGE ==========
 	if dodge_active:
-		var req: int = int(cfg.required_dodge_dir)
-		var last: int = _def_cc.get_last_dodge_dir()
-		var ok_dir: bool = false
-		if req == 0:
-			ok_dir = true
-		else:
-			if last == req:
-				ok_dir = true
-		print("[ARB@", pf, "] branch=DODGE req=", req, " last=", last, " ok=", ok_dir)
-		if ok_dir:
-			print("[ARB@", pf, "] emit DEF=DODGED  ATK=WHIFFED")
-			emit_signal("defender_impact", cfg, m, DefenderResult.DODGED)
-			emit_signal("attacker_impact", cfg, AttackerFeedback.WHIFFED, m)
-			return
+		emit_signal("defender_impact", cfg, m, DefenderResult.DODGED)
+		emit_signal("attacker_impact", cfg, AttackerFeedback.WHIFFED, m)
+		return
 
 	# ========== 2) PARRY ==========
 	var parryable: bool = bool(cfg.parryable)
