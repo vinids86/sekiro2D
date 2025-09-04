@@ -5657,7 +5657,6 @@ metadata/_custom_type_script = "uid://cqj4e3s0okuso"
 
 [node name="Stamina" type="Node" parent="."]
 script = ExtResource("15_a8ls1")
-regen_per_second = 20.0
 metadata/_custom_type_script = "uid://s1v4ano08fya"
 
 [node name="CombatAnimListener" type="Node" parent="."]

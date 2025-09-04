@@ -84,6 +84,9 @@ func _ready() -> void:
 		sfx_heavy,
 		sfx_combo_parry_enter
 	)
+	
+	stamina.setup(controller)
+	
 	# Estado visual inicial
 	_driver.play_idle(idle_clip)
 
