@@ -24,16 +24,6 @@ func set_current(value: float) -> void:
 	if current != prev:
 		_emit_changed()
 
-func set_maximum(value: float, keep_ratio: bool = true) -> void:
-	var prev_max: float = maximum
-	maximum = maxf(0.0, value)
-	if keep_ratio and prev_max > 0.0:
-		var ratio: float = current / prev_max
-		current = clampf(maximum * ratio, 0.0, maximum)
-	else:
-		current = clampf(current, 0.0, maximum)
-	_emit_changed()
-
 # “Tudo ou nada”: só consome se houver stamina suficiente.
 func try_consume(amount: float) -> bool:
 	if amount <= 0.0:
