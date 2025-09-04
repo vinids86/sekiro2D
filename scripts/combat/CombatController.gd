@@ -155,15 +155,23 @@ func on_parry_pressed() -> void:
 	var owner_state_name: String = State.keys()[_timer_owner_state]
 	var owner_phase_name: String = Phase.keys()[_timer_owner_phase]
 
-func on_dodge_pressed(dir: int) -> void:
+func on_dodge_pressed(stamina: Stamina, dir: int) -> void:
+	assert(stamina != null, "CombatController.on_dodge_pressed: parâmetro 'stamina' é null.")
 	if not allows_dodge_input_now():
 		return
-	_last_dodge_dir = dir
 
+	var cost: float = maxf(0.0, _dodge.stamina_cost)
+	if cost > 0.0:
+		if not stamina.try_consume(cost):
+			return
+	
+	_last_dodge_dir = dir
+	
 	_buffer_clear()
 	_change_state(State.DODGE, null)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_dodge.startup)
+	return
 
 # =========================
 # TIMER TICK
@@ -492,6 +500,26 @@ func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
 	_change_state(State.ATTACK, current_cfg)
 	_change_phase(Phase.STARTUP, current_cfg)
 	_safe_start_timer(current_cfg.startup)
+
+func _try_start_dodge(stamina: Stamina) -> bool:
+	assert(stamina != null, "CombatController._try_start_dodge_with_stamina: parâmetro 'stamina' é null.")
+
+	# Janela de permissão vem do estado atual (StateAttack.allows_dodge_input).
+	var allowed: bool = allows_dodge_input_now()
+	if not allowed:
+		return false
+
+	var cost: float = maxf(0.0, _dodge.stamina_cost)
+	if cost > 0.0:
+		var ok: bool = stamina.try_consume(cost)
+		if not ok:
+			return false
+
+	_buffer_clear()
+	_change_state(State.DODGE, null)
+	_change_phase(Phase.STARTUP, null)
+	_safe_start_timer(_dodge.startup)
+	return true
 
 func get_state() -> int:
 	return _state

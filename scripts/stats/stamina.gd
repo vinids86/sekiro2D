@@ -34,16 +34,6 @@ func set_maximum(value: float, keep_ratio: bool = true) -> void:
 		current = clampf(current, 0.0, maximum)
 	_emit_changed()
 
-# Consome até 'amount' e retorna QUANTO foi consumido (0..amount).
-func consume(amount: float) -> float:
-	if amount <= 0.0:
-		return 0.0
-	var take: float = amount
-	if current < take:
-		take = current
-	set_current(current - take)
-	return take
-
 # “Tudo ou nada”: só consome se houver stamina suficiente.
 func try_consume(amount: float) -> bool:
 	if amount <= 0.0:
@@ -57,14 +47,6 @@ func recover(amount: float) -> void:
 	if amount <= 0.0:
 		return
 	set_current(current + amount)
-
-func is_empty() -> bool:
-	return current <= 0.0
-
-func get_percentage() -> float:
-	if maximum <= 0.0:
-		return 0.0
-	return clampf(current / maximum, 0.0, 1.0)
 
 func _emit_changed() -> void:
 	emit_signal("changed", current, maximum)

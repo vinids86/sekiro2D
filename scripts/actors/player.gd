@@ -89,7 +89,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# --- DODGE + direção (queremos só DOWN por enquanto) ---
 	if event.is_action_pressed("dodge"):
 		var dir: int = _read_dodge_dir()
-		controller.on_dodge_pressed(CombatTypes.DodgeDir.DOWN)
+		controller.on_dodge_pressed(stamina, CombatTypes.DodgeDir.DOWN)
 		return
 		
 	# --- HEAVY + UP (prévia visual) ---
