@@ -15,3 +15,6 @@ func autoblock_enabled(_cc: CombatController) -> bool:
 
 func allows_heavy_start(_cc: CombatController) -> bool:
 	return true
+
+func allows_stamina_regen(controller: CombatController) -> bool:
+	return true

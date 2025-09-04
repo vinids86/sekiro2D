@@ -29,7 +29,9 @@ func allows_reentry(_cc: CombatController) -> bool:
 	return false
 	
 func is_attack_buffer_window_open(cc: CombatController) -> bool:
-	# Default: estados que não sobrescrevem NÃO abrem janela
+	return false
+
+func allows_stamina_regen(controller: CombatController) -> bool:
 	return false
 
 func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
