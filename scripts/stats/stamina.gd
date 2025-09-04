@@ -30,6 +30,10 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	_idle_elapsed = 0.0
 
 func _on_state_exited(state: int, cfg: AttackConfig) -> void:
+	var st: StateBase = CombatStateRegistry.get_state_for(state)
+	if st.refills_stamina_on_exit(_controller):
+		set_current(maximum)
+
 	_can_regen = false
 	_idle_elapsed = 0.0
 

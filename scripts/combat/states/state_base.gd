@@ -34,6 +34,9 @@ func is_attack_buffer_window_open(cc: CombatController) -> bool:
 func allows_stamina_regen(controller: CombatController) -> bool:
 	return false
 
+func refills_stamina_on_exit(controller: CombatController) -> bool:
+	return false
+
 func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
 	pass
 
