@@ -32,7 +32,7 @@ scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 
 [node name="Enemy" parent="." node_paths=PackedStringArray("hub") instance=ExtResource("9_85g3d")]
-position = Vector2(1428, 597)
+position = Vector2(1552, 572)
 scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 

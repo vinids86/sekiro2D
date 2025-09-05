@@ -28,7 +28,7 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 # =========================
 
 var _state: int = State.IDLE
-var phase: Phase = -1
+var phase: int = -1
 var current_kind: AttackKind = AttackKind.LIGHT
 var combo_index: int = 0
 var current_cfg: AttackConfig
@@ -49,11 +49,8 @@ var _last_dodge_dir: int = 0
 
 var _phase_timer: Timer
 
-# ===== Buffer de 1 slot (primeiro da janela vence) =====
+# ===== Buffer: apenas LIGHT na janela de RECOVER com próximo golpe disponível =====
 var _buf_has: bool = false
-var _buf_kind: AttackKind = AttackKind.LIGHT
-var _buf_heavy_cfg: AttackConfig
-var _buf_combo_seq: Array[AttackConfig] = []
 
 var _timer_owner_state: int = -1
 var _timer_owner_phase: int = -1
@@ -107,13 +104,14 @@ func on_attack_pressed() -> void:
 		start_finisher()
 		return
 
-	# LIGHT normal
+	# LIGHT normal (primeiro da sequência)
 	if _state == State.IDLE:
 		var first: AttackConfig = _get_attack_from_set(0)
 		_start_attack(AttackKind.LIGHT, first)
 		return
 
-	if _is_attack_buffer_window_open() and not _buf_has:
+	# Buffer APENAS para LIGHT durante RECOVER de LIGHT e com próximo golpe disponível
+	if _can_buffer_light_now() and not _buf_has:
 		_buffer_capture_light()
 		return
 
@@ -122,23 +120,15 @@ func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
 	if st.allows_heavy_start(self):
 		_start_attack(AttackKind.HEAVY, cfg)
 		return
-
-	if _is_attack_buffer_window_open() and not _buf_has:
-		_buffer_capture_heavy(cfg)
-		return
+	# Sem buffer para HEAVY: fora de janela, ignora
 
 func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	if _state == State.FINISHER_READY:
 		return
 
-	# COMBO
+	# COMBO inicia apenas se permitido agora; sem buffer
 	if allows_attack_input_now():
 		_start_combo_from_seq(seq)
-		return
-
-	# Senão, tenta capturar no buffer se a janela estiver aberta (v1: StateAttack de COMBO deve retornar false)
-	if _is_attack_buffer_window_open() and not _buf_has:
-		_buffer_capture_combo(seq)
 		return
 	# Fora de janela: ignora
 
@@ -162,7 +152,8 @@ func on_dodge_pressed(stamina: Stamina, dir: int) -> void:
 
 	var cost: float = maxf(0.0, _dodge.stamina_cost)
 	if cost > 0.0:
-		if not stamina.try_consume(cost):
+		var ok: bool = stamina.try_consume(cost)
+		if not ok:
 			return
 	
 	_last_dodge_dir = dir
@@ -244,7 +235,7 @@ func _tick_attack() -> void:
 			_exit_to_idle()
 			return
 
-		# Consumo do buffer no primeiro instante possível dentro de ATTACK (encadeamento)
+		# Consumo do buffer para LIGHT (encadeamento)
 		if _buffer_consume_in_attack_recover():
 			return
 
@@ -538,9 +529,9 @@ func _exit_to_idle() -> void:
 	_combo_seq.clear()
 	_combo_hit = -1
 
-	# Consumo tardio (fallback): se ainda há slot, iniciar agora em IDLE
+	# Sem consumo tardio em IDLE: buffer só serve para RECOVER de LIGHT
 	if _buf_has:
-		_buffer_consume_in_idle()
+		_buffer_clear()
 
 func _change_state(new_state: int, cfg: AttackConfig) -> void:
 	print("[FSM] change state: ", new_state)
@@ -561,7 +552,7 @@ func _change_state(new_state: int, cfg: AttackConfig) -> void:
 			_combo_hit = -1
 
 func _change_phase(new_phase: Phase, cfg: AttackConfig) -> void:
-	var prev: Phase = phase
+	var prev: int = phase
 	var prev_name: String = Phase.keys()[prev]
 	var new_name: String = Phase.keys()[new_phase]
 
@@ -668,89 +659,57 @@ func _is_attack_buffer_window_open() -> bool:
 
 func _buffer_clear() -> void:
 	_buf_has = false
-	_buf_kind = AttackKind.LIGHT
-	_buf_heavy_cfg = null
-	_buf_combo_seq.clear()
 
 func _buffer_capture_light() -> void:
+	# pré-condição: _can_buffer_light_now() == true
 	_buf_has = true
-	_buf_kind = AttackKind.LIGHT
-	_buf_heavy_cfg = null
-	_buf_combo_seq.clear()
-
-func _buffer_capture_heavy(cfg: AttackConfig) -> void:
-	_buf_has = true
-	_buf_kind = AttackKind.HEAVY
-	_buf_heavy_cfg = cfg
-	_buf_combo_seq.clear()
-
-func _buffer_capture_combo(seq: Array[AttackConfig]) -> void:
-	_buf_has = true
-	_buf_kind = AttackKind.COMBO
-	_buf_heavy_cfg = null
-	_buf_combo_seq.clear()
-	if seq != null:
-		for ac: AttackConfig in seq:
-			if ac != null:
-				_buf_combo_seq.append(ac)
 
 func _buffer_consume_in_attack_recover() -> bool:
-	# Consumir na janela de encadeamento (Phase.RECOVER de ATTACK não-combo)
+	# Consumo durante ATTACK/RECOVER apenas para LIGHT com próximo disponível
 	if not _buf_has:
 		return false
-
-	if _buf_kind == AttackKind.LIGHT:
-		if attack_set == null:
-			# Sem AttackSet: consumir em IDLE
-			return false
-		var next_idx: int = attack_set.next_index(combo_index)
-		if next_idx >= 0:
-			combo_index = next_idx
-			var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
-			if next_cfg != null:
-				current_cfg = next_cfg
-				current_kind = AttackKind.LIGHT
-				_change_phase(Phase.STARTUP, current_cfg)
-				_buf_has = false
-				_safe_start_timer(current_cfg.startup)
-				return true
-		# Sem próximo LIGHT: deixa para IDLE
-		return false
-
-	if _buf_kind == AttackKind.HEAVY:
-		if _buf_heavy_cfg != null:
-			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
-			_buf_has = false
-			return true
-		return false
-
-	if _buf_kind == AttackKind.COMBO:
-		if _buf_combo_seq.size() > 0:
-			_start_combo_from_seq(_buf_combo_seq.duplicate())
-			_buf_has = false
-			return true
-		return false
-
-	return false
-
-func _buffer_consume_in_idle() -> void:
-	if not _buf_has:
-		return
-
-	if _buf_kind == AttackKind.LIGHT:
-		var first: AttackConfig = _get_attack_from_set(0)
-		_start_attack(AttackKind.LIGHT, first)
+	if attack_set == null:
 		_buf_has = false
-		return
+		return false
+	if current_kind != AttackKind.LIGHT:
+		# segurança: não deveria chegar aqui com buffer armado fora de LIGHT
+		_buf_has = false
+		return false
 
-	if _buf_kind == AttackKind.HEAVY:
-		if _buf_heavy_cfg != null:
-			_start_attack(AttackKind.HEAVY, _buf_heavy_cfg)
-			_buf_has = false
-			return
+	var next_idx: int = attack_set.next_index(combo_index)
+	if next_idx < 0:
+		_buf_has = false
+		return false
 
-	if _buf_kind == AttackKind.COMBO:
-		if _buf_combo_seq.size() > 0:
-			_start_combo_from_seq(_buf_combo_seq.duplicate())
-			_buf_has = false
-			return
+	combo_index = next_idx
+	var next_cfg: AttackConfig = attack_set.get_attack(combo_index)
+	if next_cfg == null:
+		_buf_has = false
+		return false
+
+	current_cfg = next_cfg
+	current_kind = AttackKind.LIGHT
+	_change_phase(Phase.STARTUP, current_cfg)
+	_buf_has = false
+	_safe_start_timer(current_cfg.startup)
+	return true
+
+# =========================
+# Regras auxiliares (buffer só para LIGHT)
+# =========================
+func _can_buffer_light_now() -> bool:
+	# Deve estar em ATTACK/RECOVER de um golpe LIGHT
+	if _state != State.ATTACK:
+		return false
+	if phase != Phase.RECOVER:
+		return false
+	if current_kind != AttackKind.LIGHT:
+		return false
+	if attack_set == null:
+		return false
+	# Só permite se houver PRÓXIMO golpe na sequência normal
+	var next_idx: int = attack_set.next_index(combo_index)
+	if next_idx < 0:
+		return false
+	print("BUFFER ")
+	return true
