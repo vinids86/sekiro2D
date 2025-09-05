@@ -10,7 +10,6 @@ const DIR_THRESHOLD: float = 0.45
 @export var anim_profile: AnimProfile
 @export var parry_profile: ParryProfile
 @export var hit_react_profile: HitReactProfile
-@export var sfx_bank: SfxBank
 @export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
@@ -30,6 +29,7 @@ const DIR_THRESHOLD: float = 0.45
 
 @onready var health: Health = $Health
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
+@onready var sfx_listener: CombatSfxListener = $CombatSfxListener
 @onready var stamina: Stamina = $Stamina
 
 @onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
@@ -39,7 +39,6 @@ const DIR_THRESHOLD: float = 0.45
 @onready var sfx_dodge: AudioStreamPlayer2D = $Sfx/Dodge
 @onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
 @onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
-@onready var sfx_driver: SfxDriver = $Sfx/SfxDriver
 
 var _driver: AnimationDriver
 
@@ -63,18 +62,13 @@ func _ready() -> void:
 		parried_profile,
 		guard_profile,
 	)
-
-	# >>> ATUALIZADO: adiciona o player de COMBO_PARRY_ENTER no final <<<
-	sfx_driver.setup(
+	sfx_listener.setup(
 		controller,
-		sfx_bank,
-		sfx_swing,
-		sfx_impact,
-		sfx_parry_startup,
-		sfx_parry_success,
-		sfx_dodge,
-		sfx_heavy,
-		sfx_combo_parry_enter
+		parry_profile,
+		dodge_profile,
+		hitreact_profile,
+		parried_profile,
+		guard_profile,
 	)
 	stamina.setup(controller)
 

@@ -91,6 +91,7 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 	# ATTACK: na virada para STARTUP de cada golpe, toca o clipe do golpe
 	if st == CombatController.State.ATTACK:
 		if phase == CombatController.Phase.STARTUP:
+			print("[ANIM] STARTUP clip=", cfg.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
 			if cfg == null:
 				push_error("CombatAnimListener: ATTACK STARTUP com cfg nulo")
 				return
@@ -106,6 +107,8 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 			# Outros ataques: mantém comportamento atual (toca se vier clip)
 			if cfg.body_clip != StringName():
 				_play(cfg.body_clip)
+				print("Depois de play [ANIM] STARTUP clip=", cfg.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
+
 		return
 
 	# PARRY: clipes separados por fase

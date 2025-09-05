@@ -10,3 +10,12 @@ class_name GuardProfile
 @export var block_recover: float = 2.2
 
 @export var broken_finisher_lock: float = 10.0 # OBRIGATÓRIO configurar (> 0), validado em runtime
+
+# ===== SONS (diretos) =====
+# Block normal (auto-block)
+@export var block_effect_stream: AudioStream
+@export var block_voice_stream: AudioStream
+
+# Guard quebrada
+@export var broken_effect_stream: AudioStream
+@export var broken_voice_stream: AudioStream

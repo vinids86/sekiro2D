@@ -1,10 +1,14 @@
-[gd_resource type="Resource" script_class="ParryProfile" load_steps=2 format=3 uid="uid://dxtuaxnns713q"]
+[gd_resource type="Resource" script_class="ParryProfile" load_steps=4 format=3 uid="uid://dxtuaxnns713q"]
 
 [ext_resource type="Script" uid="uid://c6ohe4w818cto" path="res://scripts/combat/parry/parry_profile.gd" id="1_kxspm"]
+[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="2_3jlyf"]
+[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="3_x32xu"]
 
 [resource]
 script = ExtResource("1_kxspm")
 window = 0.1
 recover = 0.6
 success = 0.4
+startup_effect_stream = ExtResource("2_3jlyf")
+success_effect_stream = ExtResource("3_x32xu")
 metadata/_custom_type_script = "uid://c6ohe4w818cto"

@@ -12,12 +12,18 @@ const AttackKind := CombatTypes.AttackKind
 
 @export var hitbox_offset: Vector2 = Vector2(60, 0)
 
-@export var sfx_swing: AudioStream
+# ===== SONS DO ATAQUE (effects) =====
+@export var sfx_startup_stream: AudioStream
+@export var sfx_swing_stream: AudioStream
+@export var sfx_recover_stream: AudioStream
+
+# ===== VOZ DO ATAQUE (voice) =====
+@export var voice_startup_stream: AudioStream
+@export var voice_swing_stream: AudioStream
+@export var voice_recover_stream: AudioStream
 
 # dano ÚNICO; a regra global decide spillover para HP
 @export var damage: float = 1.0
-
-# finisher segue sua lógica atual
 
 @export_enum("LIGHT", "HEAVY", "COUNTER", "FINISHER", "COMBO")
 var kind: int = AttackKind.LIGHT

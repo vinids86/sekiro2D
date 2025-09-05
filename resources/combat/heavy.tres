@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="AttackConfig" load_steps=3 format=3 uid="uid://qju8vaf1bfbq"]
+[gd_resource type="Resource" script_class="AttackConfig" load_steps=4 format=3 uid="uid://qju8vaf1bfbq"]
 
 [ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_m5p8e"]
 [ext_resource type="AudioStream" uid="uid://3mqu0nlpt266" path="res://audio/heavy_attack.wav" id="2_is2j6"]
+[ext_resource type="AudioStream" uid="uid://c2vtm8gcpocvv" path="res://audio/pre_heavy.wav" id="3_h5kp4"]
 
 [resource]
 script = ExtResource("1_m5p8e")
@@ -11,9 +12,9 @@ recovery = 1.8
 body_clip = &"heavy_up"
 anim_fps = 30.0
 hitbox_offset = Vector2(60, 0)
-sfx_swing = ExtResource("2_is2j6")
+sfx_swing_stream = ExtResource("2_is2j6")
+voice_startup_stream = ExtResource("3_h5kp4")
 damage = 20.0
 kind = 0
 parryable = false
-required_dodge_dir = 1
 metadata/_custom_type_script = "uid://bpr26trni32iq"

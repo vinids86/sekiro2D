@@ -1,11 +1,12 @@
 [gd_resource type="Resource" script_class="GuardProfile" load_steps=3 format=3 uid="uid://cnov3igxso054"]
 
 [ext_resource type="Script" uid="uid://c37ktahqlpp0s" path="res://scripts/combat/parry/guard_profile.gd" id="1_gpebp"]
-[ext_resource type="Resource" uid="uid://cek6k1gdss4dd" path="res://resources/combat/configs/finisher.tres" id="1_tjry8"]
+[ext_resource type="AudioStream" uid="uid://bcfa1sky1hlx5" path="res://audio/block.wav" id="1_tjry8"]
 
 [resource]
 script = ExtResource("1_gpebp")
 defense_absorb_cap = 5.0
-finisher = ExtResource("1_tjry8")
 block_recover = 0.4
+broken_finisher_lock = 10.0
+block_effect_stream = ExtResource("1_tjry8")
 metadata/_custom_type_script = "uid://c37ktahqlpp0s"

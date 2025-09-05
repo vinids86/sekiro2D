@@ -6,3 +6,7 @@ class_name DodgeProfile
 @export var recover: float = 0.30
 @export var anim_fps: float = 12
 @export var stamina_cost: float = 3.0
+
+# ===== SONS (diretos) =====
+@export var effect_stream: AudioStream
+@export var voice_stream: AudioStream

@@ -12,11 +12,10 @@ recovery = 10.0
 body_clip = &"finisher"
 anim_fps = 12.0
 hitbox_offset = Vector2(60, 0)
-sfx_swing = ExtResource("2_c4u4o")
+sfx_swing_stream = ExtResource("2_c4u4o")
 damage = 20.0
 kind = 3
 parryable = true
-required_dodge_dir = 0
 metadata/_custom_type_script = "uid://bpr26trni32iq"
 
 [resource]

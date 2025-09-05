@@ -1,8 +1,10 @@
-[gd_resource type="Resource" script_class="HitReactProfile" load_steps=2 format=3 uid="uid://b0uudpt73r847"]
+[gd_resource type="Resource" script_class="HitReactProfile" load_steps=3 format=3 uid="uid://b0uudpt73r847"]
 
 [ext_resource type="Script" uid="uid://dquuyyerht1am" path="res://scripts/combat/hitbox/HitReactProfile.gd" id="1_opmac"]
+[ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="2_es0ke"]
 
 [resource]
 script = ExtResource("1_opmac")
 stun = 0.4
+stun_effect_stream = ExtResource("2_es0ke")
 metadata/_custom_type_script = "uid://dquuyyerht1am"

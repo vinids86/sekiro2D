@@ -1,4 +1,4 @@
-[gd_scene load_steps=656 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=653 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -6,13 +6,11 @@
 [ext_resource type="Resource" uid="uid://c2wswk56ahat6" path="res://resources/anim/anim.tres" id="3_1x4g4"]
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="3_4ra3w"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="3_5uy6h"]
-[ext_resource type="AudioStream" uid="uid://bfvlxs4loafke" path="res://audio/hit.wav" id="3_wrm80"]
 [ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="4_ipns3"]
 [ext_resource type="Resource" uid="uid://dxtuaxnns713q" path="res://resources/combat/configs/parry.tres" id="4_rogs8"]
 [ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_2mchx"]
 [ext_resource type="Texture2D" uid="uid://buicnrtdybg40" path="res://art/c1-atk2-sheet.png" id="5_8qclf"]
-[ext_resource type="Resource" uid="uid://dh5c4gshfxebt" path="res://resources/sfx/sfx_bank.tres" id="6_2mchx"]
 [ext_resource type="Texture2D" uid="uid://dska00fioxoka" path="res://art/c1-atk3-sheet.png" id="6_w8i8w"]
 [ext_resource type="Resource" uid="uid://corrmcvkqxhfn" path="res://resources/ai/EnemyAttackProfile.tres" id="7_1f82d"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="7_otmr2"]
@@ -20,6 +18,7 @@
 [ext_resource type="Resource" uid="uid://o762wyf72smd" path="res://resources/combat/configs/parried.tres" id="8_lsnsy"]
 [ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="8_otmr2"]
 [ext_resource type="Resource" uid="uid://cnov3igxso054" path="res://resources/combat/configs/guard.tres" id="9_78kod"]
+[ext_resource type="AudioStream" uid="uid://dtorbderwj3ta" path="res://audio/dodge_recoverring.wav" id="10_5lniq"]
 [ext_resource type="Script" uid="uid://b5s08od8vddst" path="res://scripts/combat/parry/counter_profile.gd" id="10_uiwvf"]
 [ext_resource type="Script" uid="uid://cqj4e3s0okuso" path="res://scripts/stats/health.gd" id="10_w8i8w"]
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="11_otmr2"]
@@ -29,11 +28,8 @@
 [ext_resource type="Texture2D" uid="uid://basglik1bxrch" path="res://art/parry-success-a.png" id="15_qaulx"]
 [ext_resource type="Texture2D" uid="uid://cgv3ww6ie6ngp" path="res://art/parry-success-b.png" id="16_1f82d"]
 [ext_resource type="Texture2D" uid="uid://be77s0ufnef7g" path="res://art/block-hit.png" id="16_2sbpf"]
-[ext_resource type="AudioStream" uid="uid://dhnb7btnev3i5" path="res://audio/parry_active.wav" id="16_6awcb"]
 [ext_resource type="Script" uid="uid://bcv08kia0pix4" path="res://scripts/combat/CombatAnimListener.gd" id="16_ile5s"]
 [ext_resource type="Texture2D" uid="uid://c85tlq2wlksn7" path="res://art/c1-atk4-to-idle-Sheet.png" id="17_605iw"]
-[ext_resource type="AudioStream" uid="uid://ckpakop8flq1d" path="res://audio/parry_success.wav" id="17_wjec0"]
-[ext_resource type="Script" uid="uid://bqh02walasq6j" path="res://scripts/sfx/sfx_driver.gd" id="18_2pwtc"]
 [ext_resource type="Texture2D" uid="uid://dkhbodpnkd7oe" path="res://art/parry_recover.png" id="18_78kod"]
 [ext_resource type="Script" uid="uid://637klubkv6ym" path="res://scripts/combat/dodge/dodge_profile.gd" id="19_0b4fd"]
 [ext_resource type="Texture2D" uid="uid://d2rnb752hiymj" path="res://art/guard_broken_finisher.png" id="21_hyejq"]
@@ -54,6 +50,7 @@
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="37_5utat"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
+[ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="50_sm4rh"]
 
 [sub_resource type="Resource" id="Resource_0pw1s"]
 script = ExtResource("10_uiwvf")
@@ -66,6 +63,7 @@ active = 0.25
 recover = 0.3
 anim_fps = 12.0
 stamina_cost = 3.0
+effect_stream = ExtResource("10_5lniq")
 metadata/_custom_type_script = "uid://637klubkv6ym"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ipns3"]
@@ -5541,8 +5539,7 @@ hurtbox = NodePath("Hurtbox")
 health = NodePath("Health")
 anim_profile = ExtResource("3_1x4g4")
 parry_profile = ExtResource("4_rogs8")
-hit_react_profile = ExtResource("5_2mchx")
-sfx_bank = ExtResource("6_2mchx")
+hitreact_profile = ExtResource("5_2mchx")
 attack_profile = ExtResource("7_1f82d")
 parried_profile = ExtResource("8_lsnsy")
 guard_profile = ExtResource("9_78kod")
@@ -5597,29 +5594,6 @@ script = ExtResource("4_c4w8v")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("RectangleShape2D_4ra3w")
 
-[node name="Sfx" type="Node2D" parent="."]
-
-[node name="SfxDriver" type="Node" parent="Sfx"]
-script = ExtResource("18_2pwtc")
-metadata/_custom_type_script = "uid://bqh02walasq6j"
-
-[node name="Swing" type="AudioStreamPlayer2D" parent="Sfx"]
-
-[node name="Impact" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("3_wrm80")
-
-[node name="ParryStartup" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("16_6awcb")
-
-[node name="ParrySuccess" type="AudioStreamPlayer2D" parent="Sfx"]
-stream = ExtResource("17_wjec0")
-
-[node name="Dodge" type="AudioStreamPlayer2D" parent="Sfx"]
-
-[node name="Heavy" type="AudioStreamPlayer2D" parent="Sfx"]
-
-[node name="ComboParryEnter" type="AudioStreamPlayer2D" parent="Sfx"]
-
 [node name="Health" type="Node" parent="."]
 script = ExtResource("10_w8i8w")
 metadata/_custom_type_script = "uid://cqj4e3s0okuso"
@@ -5636,8 +5610,13 @@ metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 script = ExtResource("16_ile5s")
 metadata/_custom_type_script = "uid://bcv08kia0pix4"
 
+[node name="CombatSfxListener" type="Node2D" parent="."]
+script = ExtResource("50_sm4rh")
+metadata/_custom_type_script = "uid://hxnopbe32bk8"
+
 [node name="EnemyAIDriver" type="Node" parent="." node_paths=PackedStringArray("controller")]
 script = ExtResource("30_lioqc")
+debug_ai_logs = false
 profile = ExtResource("7_1f82d")
 controller = NodePath("../CombatController")
 metadata/_custom_type_script = "uid://bixm1f4soqfxu"
