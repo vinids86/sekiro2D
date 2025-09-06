@@ -5657,12 +5657,14 @@ libraries = {
 }
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
+visible = false
 collision_layer = 8
 collision_mask = 0
 monitoring = false
 script = ExtResource("10_3v2ag")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
 shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 script = ExtResource("8_smehm")

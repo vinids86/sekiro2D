@@ -374,9 +374,6 @@ func allows_parry_input_now() -> bool:
 func allows_dodge_input_now() -> bool:
 	return _get_state().allows_dodge_input(self)
 
-func is_interruptible_now() -> bool:
-	return _get_state().is_interruptible(self)
-
 func allows_movement_now() -> bool:
 	return _get_state().allows_movement(self)
 
@@ -714,9 +711,8 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		return
 
 	if result == ContactArbiter.DefenderResult.POISE_BREAK:
-		# Interrupção por poise (único modo de cortar ATTACK, além de GB/Finisher)
-		if is_interruptible_now():
-			enter_hit_react()
+		# Interrupção por poise: SEMPRE corta, independe de "interruptível"
+		enter_hit_react()
 		return
 
 	# A PARTIR DAQUI: resultado base (BLOCKED/DAMAGED/DODGED) -> não deve cortar ATTACK
@@ -724,10 +720,8 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 	if result == ContactArbiter.DefenderResult.DODGED:
 		return
 
-	# Se estamos atacando, BLOCKED/DAMAGED NÃO trocam o estado.
+	# Se estamos atacando, BLOCKED/DAMAGED NÃO trocam o estado (exceto se já estivéssemos em RECOVER).
 	if _state == State.ATTACK and phase != Phase.RECOVER:
-		# Ainda assim, se tomou dano/absorveu fora de ATTACK perderíamos bônus pendente.
-		# Como estamos em ATTACK, não há perda de bônus pendente aqui.
 		return
 
 	# Fora de ATTACK, mantém seu fluxo original:
@@ -738,8 +732,7 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 
 	# Dano HP
 	if metrics.hp_damage > 0.0:
-		if is_interruptible_now():
-			enter_hit_react()
+		enter_hit_react()
 		return
 
 	# Sem efeito adicional
@@ -750,9 +743,14 @@ func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetric
 
 	# Parry recebido
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
-		if is_interruptible_now():
+		# Regra: apenas LIGHT entra em PARRIED; HEAVY/COMBO seguem
+		var kind_now: int = current_kind
+		if kind_now == AttackKind.LIGHT:
+			# Sem checar is_interruptible: parry é soberano para LIGHT
 			enter_parried()
 			return
+		# HEAVY/COMBO/FINISHER não mudam de estado aqui
+		return
 
 	# Guard broken confirmado neste hit -> entrar em FINISHER_READY
 	if feedback == ContactArbiter.AttackerFeedback.GUARD_BROKEN_CONFIRMED:
