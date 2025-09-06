@@ -6,6 +6,10 @@ enum HeavyDir { NEUTRAL, UP }
 
 const DIR_THRESHOLD: float = 0.45
 
+@export var gravity: float = 2500.0
+@export var max_fall_speed: float = 1800.0
+@export var jump_impulse: float = 750.0 # só para o próximo passo (pulo)
+
 @export var attack_set: AttackSet
 @export var anim_profile: AnimProfile
 @export var parry_profile: ParryProfile
@@ -85,12 +89,21 @@ func _physics_process(delta: float) -> void:
 	if mover == null:
 		return
 
+	# ===== Horizontal (Input + MoveController) =====
 	var axis: float = Input.get_axis("move_left", "move_right")
 	var fd: FacingDriver = facing as FacingDriver
-
 	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
 	velocity.x = vx
-	velocity.y = 0.0
+
+	# ===== Gravidade (Vertical) =====
+	if not is_on_floor():
+		velocity.y += gravity * delta
+		if velocity.y > max_fall_speed:
+			velocity.y = max_fall_speed
+	else:
+		# limpa resto de queda quando pousar
+		if velocity.y > 0.0:
+			velocity.y = 0.0
 
 	move_and_slide()
 

@@ -5613,7 +5613,7 @@ _data = {
 size = Vector2(100, 145)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_hqtel"]
-size = Vector2(100, 145)
+size = Vector2(130, 330)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fjrip"]
 size = Vector2(100, 145)

@@ -2,6 +2,10 @@ extends CharacterBody2D
 class_name Enemy
 
 # ---------------- Exports ----------------
+@export var gravity: float = 2500.0
+@export var max_fall_speed: float = 1800.0
+@export var jump_impulse: float = 750.0 # só para o próximo passo (pulo)
+
 @export var attack_set: AttackSet
 @export var idle_clip: StringName = &"idle"
 @export var hurtbox: Hurtbox
@@ -110,12 +114,21 @@ func _physics_process(delta: float) -> void:
 	if ai == null:
 		return
 
+	# ===== Horizontal (AI + MoveController) =====
 	var opp_stamina: Stamina = _try_get_opponent_stamina(fd)
 	var axis: float = ai.get_move_axis(self, fd, stamina, opp_stamina, delta)
-
 	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
 	velocity.x = vx
-	velocity.y = 0.0  # travado no plano lateral; se ativar gravidade/knockback vertical futuramente, tratar aqui
+
+	# ===== Gravidade (Vertical) =====
+	if not is_on_floor():
+		velocity.y += gravity * delta
+		if velocity.y > max_fall_speed:
+			velocity.y = max_fall_speed
+	else:
+		# limpa resto de queda quando pousar
+		if velocity.y > 0.0:
+			velocity.y = 0.0
 
 	move_and_slide()
 

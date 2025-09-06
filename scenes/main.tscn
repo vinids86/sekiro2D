@@ -20,6 +20,7 @@
 [ext_resource type="Texture2D" uid="uid://qdcfo85d5jce" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/branch_side.png" id="12_yc10j"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jscy8"]
+size = Vector2(1930, 40)
 
 [node name="Main" type="Node2D"]
 
@@ -69,11 +70,14 @@ scale = Vector2(0.7, 0.7)
 [node name="Enemy" parent="Arena" instance=ExtResource("9_85g3d")]
 position = Vector2(309, 220)
 scale = Vector2(0.7, 0.7)
+collision_mask = 3
 
 [node name="Floor" type="StaticBody2D" parent="Arena"]
 visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Floor"]
+visible = false
+position = Vector2(0, 380)
 shape = SubResource("RectangleShape2D_jscy8")
 
 [node name="Foreground" type="Node2D" parent="."]
