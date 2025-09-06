@@ -9,14 +9,14 @@
 [ext_resource type="Texture2D" uid="uid://77uu68oaha5v" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/village_roofs.png" id="5_dp3eg"]
 [ext_resource type="Texture2D" uid="uid://cwv3m6q2qjgf1" path="res://assets/progress_stamina.png" id="5_o6xl0"]
 [ext_resource type="Texture2D" uid="uid://s6x32avo6cmy" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/bamboo_back.png" id="6_0ld40"]
-[ext_resource type="Script" uid="uid://beipphnaamrl4" path="res://scripts/ui/hud.gd" id="6_choun"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="6_choun"]
 [ext_resource type="Texture2D" uid="uid://dlxfm0eeca4v8" path="res://tmp/foggy-shot-floating-torii-miyajima-japan-rain.jpg" id="7_dp3eg"]
 [ext_resource type="Texture2D" uid="uid://b8vesjymu5vr" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/clouds.png" id="7_gqmmt"]
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
 [ext_resource type="Texture2D" uid="uid://c3o306er7ojmt" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/grass_front_a.png" id="10_0ld40"]
 [ext_resource type="Texture2D" uid="uid://bxkedqavvvc7v" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/grass_front_b.png" id="11_gqmmt"]
-[ext_resource type="Script" uid="uid://4p3r8ooxy8eb" path="res://scripts/contact_arbiter_registry.gd" id="11_ya4ey"]
+[ext_resource type="Script" path="res://scripts/contact_arbiter_registry.gd" id="11_ya4ey"]
 [ext_resource type="Texture2D" uid="uid://qdcfo85d5jce" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/branch_side.png" id="12_yc10j"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jscy8"]
@@ -66,9 +66,6 @@ visible = false
 [node name="Player" parent="Arena" instance=ExtResource("2_sugp2")]
 position = Vector2(-298, 220)
 scale = Vector2(0.7, 0.7)
-gravity = null
-max_fall_speed = null
-jump_impulse = null
 
 [node name="Enemy" parent="Arena" instance=ExtResource("9_85g3d")]
 position = Vector2(309, 220)

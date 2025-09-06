@@ -1,12 +1,12 @@
 [gd_scene load_steps=656 format=3 uid="uid://bd2t2qkjkliam"]
 
-[ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
+[ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_md484"]
 [ext_resource type="Resource" uid="uid://c2wswk56ahat6" path="res://resources/anim/anim.tres" id="3_1x4g4"]
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="3_4ra3w"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="3_5uy6h"]
-[ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="4_ipns3"]
 [ext_resource type="Resource" uid="uid://dxtuaxnns713q" path="res://resources/combat/configs/parry.tres" id="4_rogs8"]
 [ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_2mchx"]
@@ -14,7 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://dska00fioxoka" path="res://art/c1-atk3-sheet.png" id="6_w8i8w"]
 [ext_resource type="Resource" uid="uid://corrmcvkqxhfn" path="res://resources/ai/EnemyAttackProfile.tres" id="7_1f82d"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="7_otmr2"]
-[ext_resource type="Script" uid="uid://byhw62cn6dl3g" path="res://scripts/actors/facing.gd" id="8_0lg75"]
+[ext_resource type="Script" path="res://scripts/actors/facing.gd" id="8_0lg75"]
 [ext_resource type="Resource" uid="uid://o762wyf72smd" path="res://resources/combat/configs/parried.tres" id="8_lsnsy"]
 [ext_resource type="Texture2D" uid="uid://6q2d38c1jsi2" path="res://art/hit.png" id="8_otmr2"]
 [ext_resource type="Resource" uid="uid://cnov3igxso054" path="res://resources/combat/configs/guard.tres" id="9_78kod"]
@@ -5586,14 +5586,12 @@ libraries = {
 }
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
-visible = false
 collision_layer = 16
 collision_mask = 0
 monitoring = false
 script = ExtResource("3_5uy6h")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
-visible = false
 shape = SubResource("RectangleShape2D_lsnsy")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

@@ -4,13 +4,13 @@ class_name AttackHitbox
 @onready var shape: CollisionShape2D = $CollisionShape2D
 
 # --- wiring ---
-var _cc: CombatController
-var _attacker: Node2D
+var _cc: CombatController = null
+var _attacker: Node2D = null
 var _wired: bool = false
 
 # --- cfg atual / overrides ---
-var _cfg: AttackConfig
-var _effective_cfg: AttackConfig
+var _cfg: AttackConfig = null
+var _effective_cfg: AttackConfig = null
 var _runtime_damage_mul: float = 1.0
 
 # --- posição base local (para aplicar offset por golpe) ---
@@ -19,12 +19,13 @@ var _base_local_pos: Vector2 = Vector2.ZERO
 func _ready() -> void:
 	# Estado inicial desligado
 	monitoring = false
-	shape.disabled = true
+	if shape != null:
+		shape.disabled = true
 	visible = false
 	_base_local_pos = position
 
 func _exit_tree() -> void:
-	# Desconecta com segurança
+	# Desconecta com segurança (assinaturas novas)
 	if _cc != null:
 		if _cc.phase_changed.is_connected(_on_phase_changed):
 			_cc.phase_changed.disconnect(_on_phase_changed)
@@ -32,7 +33,7 @@ func _exit_tree() -> void:
 			_cc.state_exited.disconnect(_on_state_exited)
 
 # -----------------------------------------------------------------------------
-# Setup: conecta direto no CombatController (substitui o antigo HitboxDriver)
+# Setup: conecta direto no CombatController
 # -----------------------------------------------------------------------------
 func setup(controller: CombatController, attacker: Node2D) -> void:
 	_cc = controller
@@ -46,6 +47,9 @@ func setup(controller: CombatController, attacker: Node2D) -> void:
 		return
 	_wired = true
 
+	# Assinaturas novas:
+	# - phase_changed(phase: int, cfg: StateConfig)
+	# - state_exited(state: int, cfg: StateConfig, args: StateArgs)
 	_cc.phase_changed.connect(_on_phase_changed)
 	_cc.state_exited.connect(_on_state_exited)
 
@@ -70,12 +74,14 @@ func enable(cfg: AttackConfig, attacker: Node2D) -> void:
 		_effective_cfg = null
 
 	monitoring = true
-	shape.disabled = false
+	if shape != null:
+		shape.disabled = false
 	visible = true
 
 func disable() -> void:
 	monitoring = false
-	shape.disabled = true
+	if shape != null:
+		shape.disabled = true
 	visible = false
 
 	# Reset de posição local para a base (remove o offset do último golpe)
@@ -90,9 +96,9 @@ func disable() -> void:
 	_runtime_damage_mul = 1.0
 
 # -----------------------------------------------------------------------------
-# Callbacks da FSM
+# Callbacks da FSM (assinaturas novas)
 # -----------------------------------------------------------------------------
-func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
+func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 	if _cc == null:
 		return
 
@@ -101,18 +107,20 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 	# Liga/desliga apenas durante ATTACK
 	if st == CombatController.State.ATTACK:
 		if phase == CombatController.Phase.ACTIVE:
-			# Proteção: só liga se vier cfg válido
-			if cfg == null:
-				push_warning("[AttackHitbox] ACTIVE com cfg nulo (ignorado).")
+			# Proteção: só liga se vier AttackConfig válido
+			var ac: AttackConfig = cfg as AttackConfig
+			if ac == null:
+				push_warning("[AttackHitbox] ACTIVE com cfg que não é AttackConfig (ignorado).")
 				return
-			enable(cfg, _attacker)
+			enable(ac, _attacker)
 		elif phase == CombatController.Phase.RECOVER:
 			disable()
 	elif st == CombatController.State.STUNNED:
+		# Qualquer interrupção dura deve desligar
 		disable()
 
-func _on_state_exited(state: int, _prev_cfg: AttackConfig) -> void:
-	# Garantia: ao sair de ATTACK, desliga
+func _on_state_exited(state: int, _cfg_sc: StateConfig, _args: StateArgs) -> void:
+	# Garantia: ao sair de ATTACK, desliga imediatamente
 	if state == CombatController.State.ATTACK:
 		disable()
 
