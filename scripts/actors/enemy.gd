@@ -10,7 +10,6 @@ class_name Enemy
 @export var parry_profile: ParryProfile
 @export var hitreact_profile: HitReactProfile
 @export var attack_profile: EnemyAttackProfile
-@export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile

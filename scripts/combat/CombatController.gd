@@ -724,7 +724,7 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		return
 
 	# Se estamos atacando, BLOCKED/DAMAGED NÃO trocam o estado.
-	if _state == State.ATTACK:
+	if _state == State.ATTACK and phase != Phase.RECOVER:
 		# Ainda assim, se tomou dano/absorveu fora de ATTACK perderíamos bônus pendente.
 		# Como estamos em ATTACK, não há perda de bônus pendente aqui.
 		return

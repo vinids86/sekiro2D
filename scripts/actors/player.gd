@@ -10,7 +10,6 @@ const DIR_THRESHOLD: float = 0.45
 @export var anim_profile: AnimProfile
 @export var parry_profile: ParryProfile
 @export var hit_react_profile: HitReactProfile
-@export var hub: CombatEventHub
 @export var parried_profile: ParriedProfile
 @export var guard_profile: GuardProfile
 @export var counter_profile: CounterProfile
