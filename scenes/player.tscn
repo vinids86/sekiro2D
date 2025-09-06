@@ -1,4 +1,4 @@
-[gd_scene load_steps=668 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=671 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/Player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -26,6 +26,7 @@
 [ext_resource type="Resource" uid="uid://qju8vaf1bfbq" path="res://resources/combat/heavy.tres" id="11_8svfe"]
 [ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="11_jej6c"]
 [ext_resource type="Resource" uid="uid://ck31ap674ierg" path="res://resources/combat/configs/finisher_profile.tres" id="11_nubpm"]
+[ext_resource type="Resource" uid="uid://y5ygvm2aklo1" path="res://resources/anim/locomotion.tres" id="12_h7ic4"]
 [ext_resource type="Resource" uid="uid://usmldwiqhvlp" path="res://resources/combat/configs/player/combo1_2.tres" id="12_sc3ue"]
 [ext_resource type="Resource" uid="uid://dfr4x738wpj5w" path="res://resources/combat/configs/player/combo1_3.tres" id="13_lxlsd"]
 [ext_resource type="Texture2D" uid="uid://xk6i0t8uahff" path="res://art/parry-startup.png" id="14_4ni07"]
@@ -58,6 +59,7 @@
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="43_42b1b"]
 [ext_resource type="Texture2D" uid="uid://ckecjfkvqy5em" path="res://assets/spritesheet1/spritesheet.png" id="46_2a3c5"]
 [ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="58_2a3c5"]
+[ext_resource type="Script" uid="uid://dyf7ny7kehk38" path="res://scripts/movement/MoveController.gd" id="59_42b1b"]
 
 [sub_resource type="Resource" id="Resource_8svfe"]
 script = ExtResource("10_74r1k")
@@ -5559,6 +5561,36 @@ tracks/1/keys = {
 }]
 }
 
+[sub_resource type="Animation" id="Animation_vdulj"]
+resource_name = "walk"
+length = 1.08334
+loop_mode = 1
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:animation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"walk"]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666667, 0.75, 0.833333, 0.916667, 1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 9, 8, 9, 10, 11, 12]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_au7lq"]
 _data = {
 &"RESET": SubResource("Animation_h7ic4"),
@@ -5583,7 +5615,8 @@ _data = {
 &"idle": SubResource("Animation_a5akt"),
 &"parry": SubResource("Animation_2a3c5"),
 &"parry_success_a": SubResource("Animation_tk41t"),
-&"parry_success_b": SubResource("Animation_fuw3a")
+&"parry_success_b": SubResource("Animation_fuw3a"),
+&"walk": SubResource("Animation_vdulj")
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tuyoq"]
@@ -5609,6 +5642,7 @@ counter_profile = ExtResource("9_jc3p3")
 dodge_profile = SubResource("Resource_8svfe")
 hitreact_profile = ExtResource("5_ujl30")
 finisher_profile = ExtResource("11_nubpm")
+locomotion_profile = ExtResource("12_h7ic4")
 heavy_up_config = ExtResource("11_8svfe")
 special_sequence_primary = Array[ExtResource("10_6e8lb")]([ExtResource("11_2gdjj"), ExtResource("12_sc3ue"), ExtResource("13_lxlsd"), ExtResource("14_ha2mi"), ExtResource("15_apa73"), ExtResource("16_74r1k")])
 
@@ -5620,6 +5654,7 @@ fx_sprite_path = NodePath("AnimatedSprite2D")
 material = SubResource("ShaderMaterial_y4r1p")
 sprite_frames = SubResource("SpriteFrames_giy8y")
 animation = &"heavy_up"
+frame = 11
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Facing"]
 libraries = {
@@ -5670,3 +5705,7 @@ metadata/_custom_type_script = "uid://bcv08kia0pix4"
 [node name="CombatSfxListener" type="Node2D" parent="."]
 script = ExtResource("58_2a3c5")
 metadata/_custom_type_script = "uid://hxnopbe32bk8"
+
+[node name="MoveController" type="Node" parent="."]
+script = ExtResource("59_42b1b")
+metadata/_custom_type_script = "uid://dyf7ny7kehk38"

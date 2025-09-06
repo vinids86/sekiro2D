@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="LocomotionProfile" load_steps=2 format=3 uid="uid://y5ygvm2aklo1"]
+
+[ext_resource type="Script" uid="uid://b2e5jfqm3l0b" path="res://scripts/combat/profiles/LocomotionProfile.gd" id="1_kfk8d"]
+
+[resource]
+script = ExtResource("1_kfk8d")
+idle_clip = &"idle"
+walk_clip = &"walk"
+metadata/_custom_type_script = "uid://b2e5jfqm3l0b"

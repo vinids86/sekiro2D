@@ -386,6 +386,10 @@ func is_interruptible_now() -> bool:
 	var st: StateBase = CombatStateRegistry.get_state_for(_state)
 	return st.is_interruptible(self)
 
+func allows_movement_now() -> bool:
+	var st: StateBase = CombatStateRegistry.get_state_for(_state)
+	return st.allows_movement(self)
+
 # ======= Entradas de reação (armam timer) =======
 
 # ===== enter_parry_success: mantém seu fluxo e acrescenta o bônus =====

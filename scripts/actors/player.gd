@@ -17,6 +17,8 @@ const DIR_THRESHOLD: float = 0.45
 @export var dodge_profile: DodgeProfile
 @export var hitreact_profile: HitReactProfile
 @export var finisher_profile: FinisherProfile
+@export var locomotion_profile: LocomotionProfile
+
 @export var heavy_up_config: AttackConfig
 @export var special_sequence_primary: Array[AttackConfig]
 
@@ -26,6 +28,7 @@ const DIR_THRESHOLD: float = 0.45
 @onready var hitbox: AttackHitbox = $Facing/AttackHitbox
 @onready var facing: Node2D = $Facing
 @onready var hurtbox: Hurtbox = $Hurtbox
+@onready var mover: MoveController = $MoveController
 
 @onready var health: Health = $Health
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
@@ -61,6 +64,8 @@ func _ready() -> void:
 		hitreact_profile,
 		parried_profile,
 		guard_profile,
+		locomotion_profile,
+		mover,
 	)
 	sfx_listener.setup(
 		controller,
@@ -76,6 +81,19 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	controller.update(delta)
+
+func _physics_process(delta: float) -> void:
+	if mover == null:
+		return
+
+	var axis: float = Input.get_axis("move_left", "move_right")
+	var fd: FacingDriver = facing as FacingDriver
+
+	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
+	velocity.x = vx
+	velocity.y = 0.0
+
+	move_and_slide()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if controller.is_stunned():

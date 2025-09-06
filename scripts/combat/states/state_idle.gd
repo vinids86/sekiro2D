@@ -18,3 +18,6 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 
 func allows_stamina_regen(controller: CombatController) -> bool:
 	return true
+
+func allows_movement(_cc: CombatController) -> bool:
+	return true

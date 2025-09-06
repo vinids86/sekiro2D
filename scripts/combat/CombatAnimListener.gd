@@ -14,6 +14,9 @@ var _dodge_profile: DodgeProfile
 var _hitreact_profile: HitReactProfile
 var _parried_profile: ParriedProfile
 var _guard_profile: GuardProfile
+var _locomotion_profile: LocomotionProfile
+
+var _mover: MoveController
 
 var _parry_toggle: bool = false  # alterna success A/B
 
@@ -25,22 +28,54 @@ func setup(
 		dodge_profile: DodgeProfile,
 		hitreact_profile: HitReactProfile,
 		parried_profile: ParriedProfile,
-		guard_profile: GuardProfile
-	) -> void:
+		guard_profile: GuardProfile,
+		locomotion_profile: LocomotionProfile = null,
+		mover: MoveController = null
+) -> void:
 	_cc = controller
 	_animation = animation
 	_sprite = sprite
+
 	_parry_profile = parry_profile
 	_dodge_profile = dodge_profile
 	_hitreact_profile = hitreact_profile
 	_parried_profile = parried_profile
 	_guard_profile = guard_profile
 
-	assert(_cc != null, "CombatAnimListener.setup: controller nulo")
-	assert(_animation != null, "CombatAnimListener.setup: AnimationPlayer nulo")
+	_locomotion_profile = locomotion_profile
+	_mover = mover
 
-	_cc.state_entered.connect(_on_state_entered)
-	_cc.phase_changed.connect(_on_phase_changed)
+	# ===== Reconectar sinais do CombatController (combate) =====
+	if _cc != null:
+		if not _cc.state_entered.is_connected(_on_state_entered):
+			_cc.state_entered.connect(_on_state_entered)
+		if not _cc.phase_changed.is_connected(_on_phase_changed):
+			_cc.phase_changed.connect(_on_phase_changed)
+		# Conecte state_exited aqui se você tiver um handler correspondente:
+		# if not _cc.state_exited.is_connected(_on_state_exited):
+		#     _cc.state_exited.connect(_on_state_exited)
+
+	# ===== Conectar evento de locomoção (andar/parar) =====
+	if _mover != null and not _mover.movement_changed.is_connected(_on_movement_changed):
+		_mover.movement_changed.connect(_on_movement_changed)
+
+	print("[ANIM] listener wired: controller+phases+mover OK")
+
+func _on_movement_changed(moving: bool) -> void:
+	if _cc._state != CombatController.State.IDLE:
+		return
+
+	var clip: StringName = _locomotion_profile.idle_clip
+	if moving:
+		clip = _locomotion_profile.walk_clip
+
+	if not _animation.has_animation(clip):
+		push_warning("[AnimListener] Locomotion clip ausente: %s" % [str(clip)])
+		return
+
+	# Evita resetar animação em todo frame/evento idêntico
+	if _animation.current_animation != clip:
+		_animation.play(clip)
 
 # ===================== ROTEAMENTO POR SINAIS =====================
 
