@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_vgrdp")
-lock = 1.0
+lock = 0.5
 metadata/_custom_type_script = "uid://ds6pgdg0nqcd"

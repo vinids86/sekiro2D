@@ -15,4 +15,6 @@ sfx_swing_stream = ExtResource("2_bi3vv")
 damage = 5.0
 kind = 0
 parryable = true
+poise_break = 10.0
+action_poise = 4.0
 metadata/_custom_type_script = "uid://bpr26trni32iq"

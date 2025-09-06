@@ -17,4 +17,6 @@ voice_startup_stream = ExtResource("3_h5kp4")
 damage = 20.0
 kind = 0
 parryable = false
+poise_break = 20.0
+action_poise = 14.0
 metadata/_custom_type_script = "uid://bpr26trni32iq"

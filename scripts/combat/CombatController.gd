@@ -55,6 +55,14 @@ var _buf_has: bool = false
 var _timer_owner_state: int = -1
 var _timer_owner_phase: int = -1
 
+@export var base_poise: float = 0.0
+var _bonus_poise_pending: float = 0.0
+var _attack_bonus_poise_applied: float = 0.0
+var _bonus_poise_timer: Timer
+
+var _parry_bonus_ready: bool = false
+var _parry_bonus_amount: float = 0.0
+
 func initialize(
 		attack_set: AttackSet,
 		parry_profile: ParryProfile,
@@ -80,6 +88,11 @@ func initialize(
 	current_cfg = null
 	_buffer_clear()
 
+	_bonus_poise_pending = 0.0
+	_attack_bonus_poise_applied = 0.0
+	if _bonus_poise_timer != null:
+		_bonus_poise_timer.stop()
+
 func _ready() -> void:
 	CombatStateRegistry.bind_states(State)
 
@@ -88,8 +101,28 @@ func _ready() -> void:
 	add_child(_phase_timer)
 	_phase_timer.timeout.connect(_on_phase_timer_timeout)
 
+	_bonus_poise_timer = Timer.new()
+	_bonus_poise_timer.one_shot = true
+	add_child(_bonus_poise_timer)
+	_bonus_poise_timer.timeout.connect(_on_bonus_poise_timeout)
+
 func update(_dt: float) -> void:
 	pass
+
+func get_effective_poise() -> float:
+	var action_poise_now: float = 0.0
+	if current_cfg != null:
+		# Usa get() para ser compatível com AttackConfig que ainda não tenham 'action_poise'
+		var ap: Variant = current_cfg.get("action_poise")
+		if typeof(ap) == TYPE_FLOAT or typeof(ap) == TYPE_INT:
+			action_poise_now = float(ap)
+
+	var bonus_now: float = _attack_bonus_poise_applied
+	if _bonus_poise_pending > bonus_now:
+		bonus_now = _bonus_poise_pending
+
+	var total: float = base_poise + action_poise_now + bonus_now
+	return total
 
 # =========================
 # INPUTS
@@ -251,6 +284,28 @@ func _tick_parry() -> void:
 		return
 
 	if phase == Phase.SUCCESS:
+		# ===== SAÍDA DO LOCK DE PARRY: arma a janela agora =====
+		if _parry_bonus_ready:
+			var duration: float = 0.0
+			var d: Variant = _parry_profile.get("bonus_poise_duration")
+			if typeof(d) == TYPE_FLOAT or typeof(d) == TYPE_INT:
+				duration = float(d)
+
+			if duration > 0.0 and _parry_bonus_amount > 0.0:
+				_bonus_poise_pending = _parry_bonus_amount
+				_parry_bonus_amount = 0.0
+				_parry_bonus_ready = false
+
+				if _bonus_poise_timer != null:
+					_bonus_poise_timer.stop()
+					_bonus_poise_timer.start(duration)
+
+				print("[POISE] janela armada ao sair do SUCCESS -> pending=", _bonus_poise_pending, " dur=", duration)
+			else:
+				_parry_bonus_ready = false
+				_parry_bonus_amount = 0.0
+				print("[POISE] janela NÃO armada (duration/amount inválidos)")
+
 		_exit_to_idle()
 		return
 
@@ -333,13 +388,36 @@ func is_interruptible_now() -> bool:
 
 # ======= Entradas de reação (armam timer) =======
 
+# ===== enter_parry_success: mantém seu fluxo e acrescenta o bônus =====
 func enter_parry_success() -> void:
 	if _state != State.PARRY:
 		return
+
 	_stop_phase_timer()
 	_change_phase(Phase.SUCCESS, null)
 	_safe_start_timer(_parry_profile.success)
-	
+
+	# ===== Sinaliza bônus de poise PÓS-parry (sem iniciar timer ainda) =====
+	var amount: float = 0.0
+	var duration: float = 0.0
+
+	var a: Variant = _parry_profile.get("bonus_poise_amount")
+	if typeof(a) == TYPE_FLOAT or typeof(a) == TYPE_INT:
+		amount = float(a)
+
+	var d: Variant = _parry_profile.get("bonus_poise_duration")
+	if typeof(d) == TYPE_FLOAT or typeof(d) == TYPE_INT:
+		duration = float(d)
+
+	if amount > 0.0 and duration > 0.0:
+		_parry_bonus_ready = true
+		_parry_bonus_amount = amount
+		print("[POISE] parry success -> ready amount=", _parry_bonus_amount, " (timer só arma ao sair do SUCCESS)")
+	else:
+		_parry_bonus_ready = false
+		_parry_bonus_amount = 0.0
+		print("[POISE] parry success -> sem bonus (amount/duration inválidos no ParryProfile)")
+
 func enter_parried() -> void:
 	_buffer_clear()
 	_change_state(State.PARRIED, null)
@@ -450,13 +528,22 @@ func _get_attack_from_set(index: int) -> AttackConfig:
 		return null
 	return attack_set.get_attack(index)
 
+# ===== _start_attack: consumir bônus se estiver ativo =====
 func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
 	print("[ATK] _start_attack kind=", kind, " cfg=", cfg)
-
 	if cfg == null:
 		return
+
 	current_kind = kind
 	current_cfg = cfg
+
+	# Latch do bônus de poise se houver pending dentro da janela
+	if _bonus_poise_timer != null and _bonus_poise_timer.time_left > 0.0 and _bonus_poise_pending > 0.0:
+		if _bonus_poise_pending > _attack_bonus_poise_applied:
+			_attack_bonus_poise_applied = _bonus_poise_pending
+		# Consome o pending para garantir que vale APENAS para o próximo ataque
+		_bonus_poise_pending = 0.0
+		print("[POISE] latch -> applied=", _attack_bonus_poise_applied)
 
 	if attack_set != null:
 		var idx: int = attack_set.attacks.find(cfg)
@@ -515,6 +602,7 @@ func _try_start_dodge(stamina: Stamina) -> bool:
 func get_state() -> int:
 	return _state
 
+# ===== _exit_to_idle: limpar bônus aplicado do ataque =====
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
 
@@ -529,7 +617,8 @@ func _exit_to_idle() -> void:
 	_combo_seq.clear()
 	_combo_hit = -1
 
-	# Sem consumo tardio em IDLE: buffer só serve para RECOVER de LIGHT
+	_attack_bonus_poise_applied = 0.0
+
 	if _buf_has:
 		_buffer_clear()
 
@@ -547,7 +636,9 @@ func _change_state(new_state: int, cfg: AttackConfig) -> void:
 		_state = new_state
 		emit_signal("state_entered", _state, cfg)
 
+		# Ao sair de ATTACK, limpar o bônus aplicado
 		if prev == State.ATTACK and new_state != State.ATTACK:
+			_attack_bonus_poise_applied = 0.0
 			_combo_seq.clear()
 			_combo_hit = -1
 
@@ -598,26 +689,45 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 	  " absorbed=", metrics.absorbed, " hp=", metrics.hp_damage,
 	  " state_before=", State.keys()[_state])
 
-	# PARRY
+	# PRIMÁRIO: sinais que sempre têm prioridade, independentemente do estado
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
 		enter_parry_success()
 		return
 
-	print("[FSM] result is: ", result)
-	# FINISHER acertou: vai para BROKEN_FINISHER
 	if result == ContactArbiter.DefenderResult.FINISHER_HIT:
 		print("[DEF] enter_broken_after_finisher lock=", _guard.broken_finisher_lock)
-
 		enter_broken_after_finisher()
 		return
 
-	# Entrou em guard broken neste hit
 	if result == ContactArbiter.DefenderResult.GUARD_BROKEN_ENTERED:
+		# Perde bônus pendente se ainda não estava em ATTACK
+		if _state != State.ATTACK:
+			_bonus_poise_pending = 0.0
+			if _bonus_poise_timer != null:
+				_bonus_poise_timer.stop()
 		enter_guard_broken()
 		return
 
+	if result == ContactArbiter.DefenderResult.POISE_BREAK:
+		# Interrupção por poise (único modo de cortar ATTACK, além de GB/Finisher)
+		if is_interruptible_now():
+			enter_hit_react()
+		return
+
+	# A PARTIR DAQUI: resultado base (BLOCKED/DAMAGED/DODGED) -> não deve cortar ATTACK
+	# DODGED não afeta o defensor
+	if result == ContactArbiter.DefenderResult.DODGED:
+		return
+
+	# Se estamos atacando, BLOCKED/DAMAGED NÃO trocam o estado.
+	if _state == State.ATTACK:
+		# Ainda assim, se tomou dano/absorveu fora de ATTACK perderíamos bônus pendente.
+		# Como estamos em ATTACK, não há perda de bônus pendente aqui.
+		return
+
+	# Fora de ATTACK, mantém seu fluxo original:
 	# BLOCO puro
-	if metrics.absorbed > 0.0:
+	if metrics.absorbed > 0.0 and metrics.hp_damage <= 0.0:
 		enter_guard_hit()
 		return
 
@@ -626,7 +736,8 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		if is_interruptible_now():
 			enter_hit_react()
 		return
-	# Sem efeito: ignora
+
+	# Sem efeito adicional
 
 # ===== Handlers de impacto (ATACANTE) =====
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
@@ -646,8 +757,25 @@ func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetric
 
 	# (Demais feedbacks: ignorar aqui)
 
-func _on_stamina_emptied() -> void:
-	enter_guard_broken()
+func __grant_poise_bonus(amount: float, duration: float) -> void:
+	var amt: float = amount
+	if amt < 0.0:
+		amt = 0.0
+	_bonus_poise_pending = amt
+
+	if _bonus_poise_timer == null:
+		return
+
+	_bonus_poise_timer.stop()
+	var d: float = duration
+	if d < 0.0:
+		d = 0.0
+	_bonus_poise_timer.wait_time = d
+	_bonus_poise_timer.start()
+
+func _on_bonus_poise_timeout() -> void:
+	_bonus_poise_pending = 0.0
+	print("[POISE] bonus pending expirou")
 
 # =========================
 # BUFFER: helpers

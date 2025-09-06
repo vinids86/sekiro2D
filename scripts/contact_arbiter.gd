@@ -4,7 +4,7 @@ class_name ContactArbiter
 signal defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 signal attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics)
 
-enum DefenderResult { DODGED, PARRY_SUCCESS, BLOCKED, DAMAGED, FINISHER_HIT, GUARD_BROKEN_ENTERED }
+enum DefenderResult { DODGED, PARRY_SUCCESS, BLOCKED, DAMAGED, FINISHER_HIT, GUARD_BROKEN_ENTERED, POISE_BREAK }
 enum AttackerFeedback { WHIFFED, ATTACK_PARRIED, BLOCKED, HIT_CONFIRMED, FINISHER_CONFIRMED, GUARD_BROKEN_CONFIRMED }
 
 var _attacker: Node2D
@@ -85,7 +85,6 @@ func resolve(cfg: AttackConfig) -> void:
 		m.hp_damage = fin_dmg
 		print("[ARB@", pf, "] finisher dmg=", fin_dmg, " -> aplicar HP e emitir FINISHER_HIT/HIT_CONFIRMED")
 
-		# Aplicação de HP no defensor (ajuste ao seu Health se precisar)
 		_def_health.damage(m.hp_damage)
 
 		print("[ARB@", pf, "] emit DEF=FINISHER_HIT  ATK=HIT_CONFIRMED")
@@ -155,7 +154,22 @@ func resolve(cfg: AttackConfig) -> void:
 	if m.hp_damage > 0.0:
 		_def_health.damage(m.hp_damage)
 
-	# Resultado base
+	# ======= POISE: calcular ANTES dos sinais base, mas emitir depois =======
+	var should_emit_poise_break: bool = false
+	var def_is_attacking: bool = _def_cc.get_state() == CombatController.State.ATTACK
+	# Se quebrou a guarda agora ou já estava quebrado, poise não se aplica.
+	var guard_broke_now: bool = emptied_now or guard_broken_now
+
+	if def_is_attacking and not guard_broke_now:
+		var def_poise: float = _def_cc.get_effective_poise()
+		var pb: float = float(cfg.poise_break)
+		if pb > def_poise:
+			should_emit_poise_break = true
+		print("[ARB@", pf, "] poise_check: def_is_attacking=", def_is_attacking, " def_poise=", def_poise, " pb=", pb, " -> break?", should_emit_poise_break)
+	else:
+		print("[ARB@", pf, "] poise_check: skipped (attacking=", def_is_attacking, ", guard_broke_now=", guard_broke_now, ")")
+
+	# ===== Resultado base (para feedback/UI) =====
 	var def_res: int = DefenderResult.DAMAGED
 	var atk_fb: int = AttackerFeedback.HIT_CONFIRMED
 	var only_block: bool = m.absorbed > 0.0 and m.hp_damage <= 0.0
@@ -167,9 +181,14 @@ func resolve(cfg: AttackConfig) -> void:
 	emit_signal("defender_impact", cfg, m, def_res)
 	emit_signal("attacker_impact", cfg, atk_fb, m)
 
-	# Eventos pós-aplicação (quebra de guarda no MESMO hit)
+	# ===== Guard Broken no mesmo hit =====
 	print("[ARB@", pf, "] check guard_broken: emptied_now=", emptied_now, " guard_broken_pre=", guard_broken_now)
 	if emptied_now:
 		print("[ARB@", pf, "] emit guard_broken -> DEF=GUARD_BROKEN_ENTERED ATK=GUARD_BROKEN_CONFIRMED")
 		emit_signal("defender_impact", cfg, m, DefenderResult.GUARD_BROKEN_ENTERED)
 		emit_signal("attacker_impact", cfg, AttackerFeedback.GUARD_BROKEN_CONFIRMED, m)
+
+	# ===== Emissão do POISE_BREAK (se aplicável) =====
+	if should_emit_poise_break:
+		print("[ARB@", pf, "] emit POISE_BREAK")
+		emit_signal("defender_impact", cfg, m, DefenderResult.POISE_BREAK)

@@ -4347,41 +4347,6 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_g66sh")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_8icmu")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_x6nws")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_edpmo")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_elu1g")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_vibq4")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_mxj7w")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_kp8yd")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_2myaj")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_jxnvk")
-}],
-"loop": true,
-"name": &"idle",
-"speed": 12.0
-}, {
-"frames": [{
-"duration": 1.0,
 "texture": SubResource("AtlasTexture_0yhus")
 }, {
 "duration": 1.0,
@@ -4526,7 +4491,42 @@ animations = [{
 "texture": SubResource("AtlasTexture_plx2b")
 }],
 "loop": true,
-"name": &"idle1",
+"name": &"idle",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g66sh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8icmu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x6nws")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_edpmo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_elu1g")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vibq4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mxj7w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kp8yd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2myaj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jxnvk")
+}],
+"loop": true,
+"name": &"idle_test",
 "speed": 12.0
 }, {
 "frames": [{
@@ -5618,7 +5618,6 @@ fx_sprite_path = NodePath("AnimatedSprite2D")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Facing"]
 material = SubResource("ShaderMaterial_y4r1p")
-scale = Vector2(0.3, 0.3)
 sprite_frames = SubResource("SpriteFrames_giy8y")
 animation = &"heavy_up"
 
@@ -5635,7 +5634,6 @@ monitoring = false
 script = ExtResource("10_3v2ag")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
-visible = false
 shape = SubResource("RectangleShape2D_tuyoq")
 disabled = true
 script = ExtResource("8_smehm")

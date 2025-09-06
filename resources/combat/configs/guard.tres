@@ -5,8 +5,8 @@
 
 [resource]
 script = ExtResource("1_gpebp")
-defense_absorb_cap = 5.0
+defense_absorb_cap = 10.0
 block_recover = 0.4
-broken_finisher_lock = 10.0
+broken_finisher_lock = 2.0
 block_effect_stream = ExtResource("1_tjry8")
 metadata/_custom_type_script = "uid://c37ktahqlpp0s"

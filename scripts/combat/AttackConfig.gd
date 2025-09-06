@@ -29,3 +29,10 @@ const AttackKind := CombatTypes.AttackKind
 var kind: int = AttackKind.LIGHT
 
 @export var parryable: bool = true
+
+# ====== POISE / INTERRUPÇÃO ======
+# Quanto este golpe consegue "quebrar" poise do alvo ao tentar interrompê-lo.
+@export var poise_break: float = 10.0
+
+# Quanto de poise o ATACANTE ganha enquanto executa este golpe (ATTACK).
+@export var action_poise: float = 4.0
