@@ -27,12 +27,12 @@ stream = ExtResource("3_choun")
 autoplay = true
 
 [node name="Player" parent="." node_paths=PackedStringArray("hub") instance=ExtResource("2_sugp2")]
-position = Vector2(925, 594)
+position = Vector2(586, 586)
 scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 
 [node name="Enemy" parent="." node_paths=PackedStringArray("hub") instance=ExtResource("9_85g3d")]
-position = Vector2(1410, 597)
+position = Vector2(1143, 584)
 scale = Vector2(0.7, 0.7)
 hub = NodePath("../CombatEventHub")
 
