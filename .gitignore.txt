@@ -1,0 +1,14 @@
+# Godot-specific ignores
+.godot/
+!.godot/user_data_guid.txt
+export_presets.cfg
+*.translation
+
+# Mono-specific ignores
+.mono/
+
+# Import files
+*.import
+
+# Asset Library
+asset_library/

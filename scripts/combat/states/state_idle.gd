@@ -1,0 +1,23 @@
+extends StateBase
+class_name StateIdle
+
+func allows_attack_input(_cc: CombatController) -> bool:
+	return true
+
+func allows_parry_input(_cc: CombatController) -> bool:
+	return true
+
+func allows_dodge_input(_cc: CombatController) -> bool:
+	return true
+
+func autoblock_enabled(_cc: CombatController) -> bool:
+	return true
+
+func allows_heavy_start(_cc: CombatController) -> bool:
+	return true
+
+func allows_stamina_regen(controller: CombatController) -> bool:
+	return true
+
+func allows_movement(_cc: CombatController) -> bool:
+	return true

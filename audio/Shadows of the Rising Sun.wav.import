@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b46tjiqtj8apf"
+path="res://.godot/imported/Shadows of the Rising Sun.wav-c75be5464d6dfe421cce666ae3f88c77.sample"
+
+[deps]
+
+source_file="res://audio/Shadows of the Rising Sun.wav"
+dest_files=["res://.godot/imported/Shadows of the Rising Sun.wav-c75be5464d6dfe421cce666ae3f88c77.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

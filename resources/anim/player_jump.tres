@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="JumpProfile" load_steps=2 format=3 uid="uid://bq7fhnha8kehn"]
+
+[ext_resource type="Script" uid="uid://couclr6ty5h5r" path="res://scripts/movement/jump_profile.gd" id="1_k86uq"]
+
+[resource]
+script = ExtResource("1_k86uq")
+impulse = 750.0
+metadata/_custom_type_script = "uid://couclr6ty5h5r"

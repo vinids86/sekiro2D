@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="CounterProfile" load_steps=2 format=3 uid="uid://qh8obnadst0p"]
+
+[ext_resource type="Script" uid="uid://b5s08od8vddst" path="res://scripts/combat/parry/counter_profile.gd" id="1_3wakk"]
+
+[resource]
+script = ExtResource("1_3wakk")
+metadata/_custom_type_script = "uid://b5s08od8vddst"

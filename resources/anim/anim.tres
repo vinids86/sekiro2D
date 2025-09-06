@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AnimProfile" load_steps=2 format=3 uid="uid://c2wswk56ahat6"]
+
+[ext_resource type="Script" uid="uid://cifkta2oce325" path="res://scripts/anim/anim_profile.gd" id="1_j6cbb"]
+
+[resource]
+script = ExtResource("1_j6cbb")
+idle_clip = &"idle"
+hit_clip = &"hitstun"
+parry_startup_clip = &"parry_startup"
+parry_success_clip_a = &"parry_success_a"
+parry_success_clip_b = &"parry_success_b"
+parry_recover_clip = &"parry_recover"
+guard_hit_clip = &"block_hit"
+guard_recover_clip = &"guard_recover"
+metadata/_custom_type_script = "uid://cifkta2oce325"
