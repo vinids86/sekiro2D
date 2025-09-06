@@ -1,4 +1,4 @@
-extends Node2D
+extends CharacterBody2D
 class_name Enemy
 
 # ---------------- Exports ----------------
@@ -16,6 +16,7 @@ class_name Enemy
 @export var special_sequence_primary: Array[AttackConfig]
 @export var dodge_profile: DodgeProfile
 @export var finisher_profile: FinisherProfile
+@export var locomotion_profile: LocomotionProfile
 
 # ---------------- Nós da cena ----------------
 @onready var facing: Node2D = $Facing
@@ -37,6 +38,7 @@ class_name Enemy
 @onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
 @onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
 @onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
+@onready var mover: MoveController = $MoveController
 
 # ---------------- Internos ----------------
 var _driver: AnimationDriver
@@ -68,6 +70,8 @@ func _ready() -> void:
 		hitreact_profile,
 		parried_profile,
 		guard_profile,
+		locomotion_profile,
+		mover,
 	)
 	sfx_listener.setup(
 		controller,
@@ -91,6 +95,29 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	controller.update(delta)
+
+func _physics_process(delta: float) -> void:
+	if mover == null:
+		return
+	if controller == null:
+		return
+	var fd: FacingDriver = facing as FacingDriver
+	if fd == null:
+		return
+	if stamina == null:
+		return
+	var ai: EnemyAIDriver = ai_driver as EnemyAIDriver
+	if ai == null:
+		return
+
+	var opp_stamina: Stamina = _try_get_opponent_stamina(fd)
+	var axis: float = ai.get_move_axis(self, fd, stamina, opp_stamina, delta)
+
+	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
+	velocity.x = vx
+	velocity.y = 0.0  # travado no plano lateral; se ativar gravidade/knockback vertical futuramente, tratar aqui
+
+	move_and_slide()
 
 func _on_health_changed(current: float, maximum: float) -> void:
 	if current < _last_hp:
@@ -128,3 +155,14 @@ func _on_detection_area_body_exited(body: Node2D) -> void:
 
 	ai_driver.set_target_in_range(false)
 	print("[Enemy] DetectionArea EXIT: in_range=false. body=", body.name)
+
+# Helper completo e tipado para buscar a Stamina do oponente por convenção de nó
+func _try_get_opponent_stamina(fd: FacingDriver) -> Stamina:
+	if fd == null:
+		return null
+	var opp: Node = fd.opponent
+	if opp == null:
+		return null
+	# Ajuste este caminho se sua cena do Player organizar diferente
+	var s: Stamina = opp.get_node_or_null("Stamina") as Stamina
+	return s

@@ -29,8 +29,8 @@ func setup(
 		hitreact_profile: HitReactProfile,
 		parried_profile: ParriedProfile,
 		guard_profile: GuardProfile,
-		locomotion_profile: LocomotionProfile = null,
-		mover: MoveController = null
+		locomotion_profile: LocomotionProfile,
+		mover: MoveController,
 ) -> void:
 	_cc = controller
 	_animation = animation

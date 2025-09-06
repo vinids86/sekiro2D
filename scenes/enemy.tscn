@@ -1,4 +1,4 @@
-[gd_scene load_steps=653 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=656 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/Enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -24,6 +24,7 @@
 [ext_resource type="Script" uid="uid://s1v4ano08fya" path="res://scripts/stats/stamina.gd" id="11_otmr2"]
 [ext_resource type="Resource" uid="uid://ck31ap674ierg" path="res://resources/combat/configs/finisher_profile.tres" id="12_0pw1s"]
 [ext_resource type="Texture2D" uid="uid://xk6i0t8uahff" path="res://art/parry-startup.png" id="12_wrm80"]
+[ext_resource type="Resource" uid="uid://y5ygvm2aklo1" path="res://resources/anim/locomotion.tres" id="13_uiwvf"]
 [ext_resource type="Script" uid="uid://cfihtbf31nc3x" path="res://scripts/combat/CombatController.gd" id="13_wtq4b"]
 [ext_resource type="Texture2D" uid="uid://basglik1bxrch" path="res://art/parry-success-a.png" id="15_qaulx"]
 [ext_resource type="Texture2D" uid="uid://cgv3ww6ie6ngp" path="res://art/parry-success-b.png" id="16_1f82d"]
@@ -51,6 +52,7 @@
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
 [ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="50_sm4rh"]
+[ext_resource type="Script" uid="uid://dyf7ny7kehk38" path="res://scripts/movement/MoveController.gd" id="52_7w3jn"]
 
 [sub_resource type="Resource" id="Resource_0pw1s"]
 script = ExtResource("10_uiwvf")
@@ -5481,6 +5483,35 @@ tracks/1/keys = {
 }]
 }
 
+[sub_resource type="Animation" id="Animation_7w3jn"]
+resource_name = "walk"
+length = 1.08334
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:animation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [&"walk"]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666666, 0.75, 0.833333, 0.916666, 1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_au7lq"]
 _data = {
 &"RESET": SubResource("Animation_h7ic4"),
@@ -5505,7 +5536,8 @@ _data = {
 &"idle": SubResource("Animation_a5akt"),
 &"parry": SubResource("Animation_2a3c5"),
 &"parry_success_a": SubResource("Animation_tk41t"),
-&"parry_success_b": SubResource("Animation_fuw3a")
+&"parry_success_b": SubResource("Animation_fuw3a"),
+&"walk": SubResource("Animation_7w3jn")
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lsnsy"]
@@ -5515,7 +5547,7 @@ size = Vector2(167, 145)
 size = Vector2(150, 350)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_x24ca"]
-size = Vector2(628, 388)
+size = Vector2(200, 388)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
 size = Vector2(150, 350)
@@ -5536,6 +5568,7 @@ guard_profile = ExtResource("9_78kod")
 counter_profile = SubResource("Resource_0pw1s")
 dodge_profile = SubResource("Resource_uiwvf")
 finisher_profile = ExtResource("12_0pw1s")
+locomotion_profile = ExtResource("13_uiwvf")
 
 [node name="Facing" type="Node2D" parent="."]
 script = ExtResource("8_0lg75")
@@ -5573,6 +5606,7 @@ collision_layer = 0
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+visible = false
 shape = SubResource("RectangleShape2D_x24ca")
 
 [node name="Hurtbox" type="Area2D" parent="." groups=["hurtbox"]]
@@ -5610,6 +5644,10 @@ debug_ai_logs = false
 profile = ExtResource("7_1f82d")
 controller = NodePath("../CombatController")
 metadata/_custom_type_script = "uid://bixm1f4soqfxu"
+
+[node name="MoveController" type="Node" parent="."]
+script = ExtResource("52_7w3jn")
+metadata/_custom_type_script = "uid://dyf7ny7kehk38"
 
 [connection signal="body_entered" from="DetectionArea" to="." method="_on_detection_area_body_entered"]
 [connection signal="body_exited" from="DetectionArea" to="." method="_on_detection_area_body_exited"]

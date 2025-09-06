@@ -13,6 +13,20 @@ var _parry_intent: bool = false
 @export var controller: CombatController
 @export var target_controller: CombatController
 
+@export var approach_stamina_min: float = 60.0
+@export var retreat_stamina_max: float = 30.0
+@export var approach_until_distance: float = 48.0
+@export var retreat_until_distance: float = 64.0
+@export var dead_zone_distance: float = 8.0
+@export var axis_accel: float = 8.0
+@export var mode_cooldown: float = 0.35           # histerese temporal (segundos)
+
+enum Mode { APPROACH, HOLD, RETREAT }
+
+var _axis: float = 0.0
+var _mode: int = Mode.HOLD
+var _mode_timer: float = 0.0
+
 var _target_in_range: bool = false
 
 # =============================
@@ -607,9 +621,6 @@ func _press_parry_input(reason: String = "unspecified") -> void:
 
 func _dbg_after_press_snapshot(reason: String) -> void:
 	pass
-	#print("[AI][check] after-press(", reason, ") self=",
-		#CombatController.State.keys()[controller.get_state()], "/",
-		#CombatController.Phase.keys()[controller.phase])
 
 # =============================
 # Cancelamentos e flags
@@ -727,6 +738,114 @@ func _schedule_parry_react(cfg: AttackConfig, reason: String) -> void:
 		_parry_react_timer.start(open_time)
 
 # =============================
+# Movimento (decisão de eixo)
+# =============================
+func get_move_axis(
+	enemy: CharacterBody2D,
+	fd: FacingDriver,
+	stamina_self: Stamina,
+	opponent_stamina: Stamina,
+	delta: float
+) -> float:
+	# Timer de histerese temporal
+	if _mode_timer > 0.0:
+		_mode_timer -= delta
+		if _mode_timer < 0.0:
+			_mode_timer = 0.0
+
+	# Sem facing/oponente: relaxa para 0
+	if fd == null or fd.opponent == null:
+		var t0: float = clampf(axis_accel * delta, 0.0, 1.0)
+		_axis = lerp(_axis, 0.0, t0)
+		return _axis
+
+	var opp: Node = fd.opponent
+	var dx: float = opp.global_position.x - enemy.global_position.x
+	var dist: float = absf(dx)
+
+	var dir: float = 0.0
+	if dx > 0.0:
+		dir = 1.0
+	elif dx < 0.0:
+		dir = -1.0
+
+	# Staminas atuais (com nulos tratados)
+	var self_curr: float = 0.0
+	if stamina_self != null:
+		self_curr = stamina_self.current
+
+	var has_opp_stamina: bool = opponent_stamina != null
+	var opp_curr: float = -1.0
+	if has_opp_stamina:
+		opp_curr = opponent_stamina.current
+
+	# --- Regras por stamina ---
+	var want_approach: bool = self_curr >= approach_stamina_min
+
+	var want_retreat: bool = false
+	if self_curr <= retreat_stamina_max:
+		if has_opp_stamina and self_curr < opp_curr:
+			want_retreat = true
+
+	# --- Gate por alcance: dentro do range, ficar em HOLD, exceto RETREAT ---
+	var requested_mode: int = Mode.HOLD
+	var immediate_override: bool = false
+	if _target_in_range:
+		if want_retreat:
+			requested_mode = Mode.RETREAT
+		else:
+			requested_mode = Mode.HOLD
+			immediate_override = true  # parar já, sem esperar cooldown de modo
+	else:
+		if want_retreat:
+			requested_mode = Mode.RETREAT
+		elif want_approach:
+			requested_mode = Mode.APPROACH
+		else:
+			requested_mode = Mode.HOLD
+
+	# Seleção do modo com/sem override imediato
+	if immediate_override:
+		if _mode != requested_mode:
+			_mode = requested_mode
+			_mode_timer = mode_cooldown
+	else:
+		if requested_mode != _mode and _mode_timer > 0.0:
+			requested_mode = _mode
+		elif requested_mode != _mode and _mode_timer <= 0.0:
+			_mode = requested_mode
+			_mode_timer = mode_cooldown
+
+	# Tradução do modo para eixo alvo, com zonas
+	var target_axis: float = 0.0
+	if _mode == Mode.APPROACH:
+		if dist > approach_until_distance:
+			target_axis = dir
+		elif dist <= dead_zone_distance:
+			target_axis = -dir
+		else:
+			target_axis = 0.0
+	elif _mode == Mode.RETREAT:
+		if dist < retreat_until_distance:
+			target_axis = -dir
+		else:
+			target_axis = 0.0
+	else:
+		target_axis = 0.0
+
+	# Suavização do eixo
+	var t: float = clampf(axis_accel * delta, 0.0, 1.0)
+	_axis = lerp(_axis, target_axis, t)
+
+	# Clamp final
+	if _axis > 1.0:
+		_axis = 1.0
+	elif _axis < -1.0:
+		_axis = -1.0
+
+	return _axis
+
+# =============================
 # Pressão
 # =============================
 func _increment_pressure() -> void:
@@ -737,4 +856,4 @@ func _dbg(msg: String) -> void:
 		return
 	var frame: int = Engine.get_physics_frames()
 	var now_ms: int = Time.get_ticks_msec()
-#	print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)
+	# print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)
