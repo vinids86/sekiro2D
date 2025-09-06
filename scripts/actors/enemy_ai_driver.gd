@@ -2,6 +2,8 @@ extends Node
 class_name EnemyAIDriver
 
 @export var debug_ai_logs: bool = true
+@export_group("Debug Level", "debug_")
+@export var debug_level: int = 1  # 0 = None, 1 = Basic, 2 = Verbose
 
 var _who: String = ""
 var _parry_intent: bool = false
@@ -75,12 +77,17 @@ var _last_player_recovery: float = 0.0
 
 var _parry_scheduled: bool = false
 
+# Cache de performance
+var _physics_tick_rate: float = 1.0 / 60.0
+var _default_parry_chance: float = 0.0
+
 # =============================
 # Setup
 # =============================
 func _ready() -> void:
-	assert(profile != null, "EnemyAIDriver: profile não definido")
-	assert(controller != null, "EnemyAIDriver: controller não definido")
+	if not _validate_dependencies():
+		return
+		
 	_rng.randomize()
 
 	# Identidade para logs
@@ -96,15 +103,44 @@ func _ready() -> void:
 	_connect_self_signals()
 	_connect_player_signals()
 
+	# Cache de valores para performance
+	_physics_tick_rate = 1.0 / float(Engine.physics_ticks_per_second)
+	if profile != null and profile.parry_chance_by_hit.size() >= 4:
+		_default_parry_chance = profile.parry_chance_by_hit[0]
+
 	if _enabled:
 		_think_timer_start()
 	else:
 		_think_timer_stop()
 
 # =============================
+# Validação de dependências
+# =============================
+func _validate_dependencies() -> bool:
+	var valid: bool = true
+	
+	if profile == null:
+		push_error("EnemyAIDriver: profile não definido")
+		valid = false
+		
+	if controller == null:
+		push_error("EnemyAIDriver: controller não definido")
+		valid = false
+		
+	if not valid:
+		set_process(false)
+		set_physics_process(false)
+		
+	return valid
+
+# =============================
 # API pública (Enemy.gd)
 # =============================
 func set_target_controller(cc: CombatController) -> void:
+	if not is_instance_valid(cc):
+		_dbg("set_target_controller: controller inválido", 2)
+		return
+		
 	target_controller = cc
 	_connect_player_signals()
 
@@ -166,14 +202,14 @@ func _on_parry_react_timeout() -> void:
 	# Portas de segurança
 	if not _enabled:
 		return
-	if _parried_cd_active or _sequence_running or _lock_inputs_until_idle:
-		_dbg("parry-skip: reason=blocked_on_timeout")
+	if not _parry_guardrails_unlocked():
+		_dbg("parry-skip: reason=blocked_on_timeout", 2)
 		return
 	if _self_state == CombatController.State.ATTACK:
-		_dbg("parry-skip: reason=self_in_attack_on_timeout")
+		_dbg("parry-skip: reason=self_in_attack_on_timeout", 2)
 		return
 	if _player_state != CombatController.State.ATTACK:
-		_dbg("parry-skip: reason=opponent_not_attacking_on_timeout")
+		_dbg("parry-skip: reason=opponent_not_attacking_on_timeout", 2)
 		return
 
 	# Gate opcional do controller no exato momento do timeout
@@ -181,7 +217,7 @@ func _on_parry_react_timeout() -> void:
 	if controller.has_method("allows_parry_input_now"):
 		allows = controller.allows_parry_input_now()
 	if not allows:
-		_dbg("parry-skip: reason=controller_gate_false_on_timeout")
+		_dbg("parry-skip: reason=controller_gate_false_on_timeout", 2)
 		return
 
 	_press_parry_input("react_timeout")
@@ -226,7 +262,9 @@ func _connect_self_signals() -> void:
 
 func _connect_player_signals() -> void:
 	if target_controller == null:
+		_dbg("target_controller is null, cannot connect signals", 1)
 		return
+		
 	if not target_controller.state_entered.is_connected(_on_player_state_entered):
 		target_controller.state_entered.connect(_on_player_state_entered) # imediato
 	if not target_controller.phase_changed.is_connected(_on_player_phase_changed):
@@ -236,24 +274,13 @@ func _connect_player_signals() -> void:
 # Loop de decisão
 # =============================
 func _on_think_timeout() -> void:
-	if _enabled == false:
+	if not _enabled:
 		return
 
 	# Bloqueios "de turno"
-	if _lock_inputs_until_idle:
+	if _is_input_blocked():
 		_think_timer_start()
 		return
-	if _parried_cd_active:
-		_think_timer_start()
-		return
-	if _post_chain_cd_active:
-		_think_timer_start()
-		return
-	if _defense_bias_active:
-		var can_punish: bool = _punish_window_open()
-		if can_punish == false:
-			_think_timer_start()
-			return
 
 	# Já em sequência normal? O próximo hit é agendado via RECOVER
 	if _sequence_running:
@@ -261,23 +288,32 @@ func _on_think_timeout() -> void:
 		return
 
 	# Precisa estar em alcance
-	if _target_in_range == false:
+	if not _target_in_range:
 		_think_timer_start()
 		return
 
-	# Respeitar o "turno do oponente": não iniciar ataque se o player já está atacando
-	if profile != null and profile.respect_opponent_turn:
-		var player_is_attacking: bool = _player_state == CombatController.State.ATTACK
-		var player_in_recover: bool = _player_phase == CombatController.Phase.RECOVER
-		if player_is_attacking and player_in_recover == false:
-			_think_timer_start()
-			return
+	# Respeitar o "turno do oponente"
+	if _should_respect_opponent_turn():
+		_think_timer_start()
+		return
 
-	var can_attack_now: bool = _can_start_sequence_now()
-	if can_attack_now:
+	if _can_start_sequence_now():
 		_start_normal_sequence()
 
 	_think_timer_start()
+
+func _is_input_blocked() -> bool:
+	return (_lock_inputs_until_idle or 
+			_parried_cd_active or 
+			_post_chain_cd_active or 
+			(_defense_bias_active and not _punish_window_open()))
+
+func _should_respect_opponent_turn() -> bool:
+	if profile != null and profile.respect_opponent_turn:
+		var player_is_attacking: bool = _player_state == CombatController.State.ATTACK
+		var player_in_recover: bool = _player_phase == CombatController.Phase.RECOVER
+		return player_is_attacking and not player_in_recover
+	return false
 
 func _punish_window_open() -> bool:
 	# Heurística: RECOVER do player é "grande" OU acabou de voltar ao IDLE após um RECOVER grande
@@ -290,11 +326,8 @@ func _punish_window_open() -> bool:
 
 func _can_start_sequence_now() -> bool:
 	if controller.has_method("allows_attack_input_now"):
-		var ok: bool = controller.allows_attack_input_now()
-		return ok
-	if _self_state == CombatController.State.IDLE:
-		return true
-	return false
+		return controller.allows_attack_input_now()
+	return _self_state == CombatController.State.IDLE
 
 # =============================
 # Sequência normal (multi-inputs)
@@ -307,9 +340,9 @@ func _start_normal_sequence() -> void:
 	_press_attack_input() # step 1
 
 func _on_sequence_timeout() -> void:
-	if _enabled == false:
+	if not _enabled:
 		return
-	if _sequence_running == false:
+	if not _sequence_running:
 		return
 	if _sequence_kind != SeqKind.NORMAL:
 		return
@@ -317,32 +350,16 @@ func _on_sequence_timeout() -> void:
 
 func _schedule_next_normal_hit(cfg: AttackConfig) -> void:
 	# Chamado no RECOVER para agendar o próximo input
-	if _sequence_running == false:
+	if not _sequence_running or _sequence_kind != SeqKind.NORMAL:
 		return
-	if _sequence_kind != SeqKind.NORMAL:
-		return
-	if profile == null:
-		return
-	if cfg == null:
+	if profile == null or cfg == null:
 		return
 	if _awaiting_chain_end:
 		return
 
-	var tps: float = float(Engine.physics_ticks_per_second)
-	var safety: float = 0.03
-	if tps > 0.0:
-		var frame: float = 1.0 / tps
-		var two_frames: float = frame * 2.0
-		if two_frames > safety:
-			safety = two_frames
-
-	var max_delay: float = cfg.recovery - safety
-	if max_delay < 0.0:
-		max_delay = 0.0
-
-	var delay: float = profile.inter_hit_delay
-	if delay > max_delay:
-		delay = max_delay
+	var safety: float = maxf(_physics_tick_rate * 2.0, 0.03)
+	var max_delay: float = maxf(cfg.recovery - safety, 0.0)
+	var delay: float = minf(profile.inter_hit_delay, max_delay)
 
 	_sequence_timer.stop()
 	if delay <= 0.0:
@@ -364,112 +381,99 @@ func _on_player_phase_changed(phase: int, cfg: AttackConfig) -> void:
 
 	# --- STARTUP: decide se vai tentar parry e agenda a reação cronometrada
 	if phase == CombatController.Phase.STARTUP:
-		# Só consideramos parry se o player realmente está ATACANDO
-		if _player_state != CombatController.State.ATTACK:
-			_dbg("parry-skip: reason=opponent_not_attacking state=" + CombatController.State.keys()[_player_state])
-			_parry_intent = false
-			return
-
-		# Bloqueios/ordem de prioridade
-		if _parried_cd_active:
-			_dbg("parry-skip: reason=parried_cd_active")
-			_parry_intent = false
-			return
-		if _sequence_running:
-			_dbg("parry-skip: reason=sequence_running")
-			_parry_intent = false
-			return
-		if _self_state == CombatController.State.PARRY:
-			_dbg("parry-skip: reason=self_in_parry_state")
-			_parry_intent = false
-			return
-		if _self_state == CombatController.State.ATTACK:
-			_dbg("parry-skip: reason=self_in_attack")
-			_parry_intent = false
-			return
-		if _lock_inputs_until_idle:
-			_dbg("parry-skip: reason=lock_inputs_until_idle")
-			_parry_intent = false
-			return
-
-		# Chance unificada por pressão
-		var idx: int = _pressure_to_index(_pressure_streak)
-		var chance: float = 0.0
-		if profile != null and profile.parry_chance_by_hit.size() >= 4:
-			chance = clamp(profile.parry_chance_by_hit[idx], 0.0, 1.0)
-		var roll: float = _rng.randf()
-
-		_dbg("parry-decision: phase_startup pressure=" + str(_pressure_streak)
-			+ " idx=" + str(idx)
-			+ " chance=" + str(chance) + " roll=" + str(roll)
-			+ " self=" + CombatController.State.keys()[_self_state] + "/" + CombatController.Phase.keys()[_self_phase]
-			+ " player=" + CombatController.State.keys()[_player_state] + "/" + CombatController.Phase.keys()[_player_phase])
-
-		if roll >= chance:
-			_dbg("parry-skip: reason=roll_failed")
-			_parry_intent = false
-			return
-
-		# Gate opcional do controller
-		if controller.has_method("allows_parry_input_now"):
-			if not controller.allows_parry_input_now():
-				_dbg("parry-skip: reason=controller_gate_false")
-				_parry_intent = false
-				return
-
-		# Decidimos parryar este hit
-		_parry_intent = true
-		_schedule_parry_react(cfg, "phase_startup")
+		_handle_parry_startup_phase(cfg)
 		return
 
 	# --- ACTIVE: fallback de segurança (garante 100% quando chance=1.0)
 	if phase == CombatController.Phase.ACTIVE:
-		# Só se já tínhamos decidido parryar este golpe
-		if _parry_intent == false:
-			return
-		# Se já estamos em PARRY, tudo certo
-		if _self_state == CombatController.State.PARRY:
-			return
-		# Respeita os guard-rails (cooldowns/locks)
-		if not _parry_guardrails_unlocked():
-			_dbg("parry-skip: reason=guardrails_block_on_active")
-			return
-		# Cancela qualquer agendamento e aperta agora
-		_parry_react_timer.stop()
-		_parry_scheduled = false
-		_dbg("parry-fallback: phase_active_safety -> pressing now")
-		_press_parry_input("phase_active_safety")
+		_handle_parry_active_phase()
 		return
 
-func _parry_guardrails_unlocked() -> bool:
+func _handle_parry_startup_phase(cfg: AttackConfig) -> void:
+	# Só consideramos parry se o player realmente está ATACANDO
+	if _player_state != CombatController.State.ATTACK:
+		_dbg("parry-skip: reason=opponent_not_attacking state=" + CombatController.State.keys()[_player_state], 2)
+		_parry_intent = false
+		return
+
+	# Bloqueios/ordem de prioridade
+	if not _can_initiate_parry():
+		_parry_intent = false
+		return
+
+	# Chance unificada por pressão
+	var chance: float = _current_parry_chance()
+	var roll: float = _rng.randf()
+
+	_dbg("parry-decision: phase_startup pressure=" + str(_pressure_streak)
+		+ " chance=" + str(chance) + " roll=" + str(roll)
+		+ " self=" + CombatController.State.keys()[_self_state] + "/" + CombatController.Phase.keys()[_self_phase]
+		+ " player=" + CombatController.State.keys()[_player_state] + "/" + CombatController.Phase.keys()[_player_phase], 2)
+
+	if roll >= chance:
+		_dbg("parry-skip: reason=roll_failed", 2)
+		_parry_intent = false
+		return
+
+	# Gate opcional do controller
+	if controller.has_method("allows_parry_input_now"):
+		if not controller.allows_parry_input_now():
+			_dbg("parry-skip: reason=controller_gate_false", 2)
+			_parry_intent = false
+			return
+
+	# Decidimos parryar este hit
+	_parry_intent = true
+	_schedule_parry_react(cfg, "phase_startup")
+
+func _handle_parry_active_phase() -> void:
+	# Só se já tínhamos decidido parryar este golpe
+	if not _parry_intent:
+		return
+	# Se já estamos em PARRY, tudo certo
+	if _self_state == CombatController.State.PARRY:
+		return
+	# Respeita os guard-rails (cooldowns/locks)
+	if not _parry_guardrails_unlocked():
+		_dbg("parry-skip: reason=guardrails_block_on_active", 2)
+		return
+	# Cancela qualquer agendamento e aperta agora
+	_parry_react_timer.stop()
+	_parry_scheduled = false
+	_dbg("parry-fallback: phase_active_safety -> pressing now", 2)
+	_press_parry_input("phase_active_safety")
+
+func _can_initiate_parry() -> bool:
 	if _parried_cd_active:
+		_dbg("parry-skip: reason=parried_cd_active", 2)
 		return false
 	if _sequence_running:
+		_dbg("parry-skip: reason=sequence_running", 2)
 		return false
-	if _lock_inputs_until_idle:
+	if _self_state == CombatController.State.PARRY:
+		_dbg("parry-skip: reason=self_in_parry_state", 2)
 		return false
 	if _self_state == CombatController.State.ATTACK:
+		_dbg("parry-skip: reason=self_in_attack", 2)
+		return false
+	if _lock_inputs_until_idle:
+		_dbg("parry-skip: reason=lock_inputs_until_idle", 2)
 		return false
 	return true
 
+func _parry_guardrails_unlocked() -> bool:
+	return not (_parried_cd_active or 
+				_sequence_running or 
+				_lock_inputs_until_idle or 
+				_self_state == CombatController.State.ATTACK)
+
 func _current_parry_chance() -> float:
-	var idx: int = _pressure_streak
-	if idx < 0:
-		idx = 0
-	if idx > 3:
-		idx = 3
+	if profile == null or profile.parry_chance_by_hit.size() < 4:
+		return _default_parry_chance
 
-	if profile == null:
-		return 0.0
-	if profile.parry_chance_by_hit.size() < 4:
-		return 0.0
-
+	var idx: int = _pressure_to_index(_pressure_streak)
 	var chance: float = profile.parry_chance_by_hit[idx]
-	if chance < 0.0:
-		chance = 0.0
-	if chance > 1.0:
-		chance = 1.0
-	return chance
+	return clampf(chance, 0.0, 1.0)
 
 func _pressure_to_index(pressure: int) -> int:
 	if pressure <= 1:
@@ -490,6 +494,7 @@ func _cancel_scheduled_parry() -> void:
 func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
 	var prev_state: int = _self_state
 	_self_state = state
+	
 	if state == CombatController.State.PARRY:
 		_cancel_scheduled_parry()
 
@@ -501,25 +506,14 @@ func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
 
 	# Regra genérica: se sequência NORMAL está em curso e o estado mudou para algo
 	# que não seja ATTACK nem IDLE, considera interrupção e cancela.
-	var is_attack_state: bool = state == CombatController.State.ATTACK
-	var is_idle_state: bool = state == CombatController.State.IDLE
 	if _sequence_running and _sequence_kind == SeqKind.NORMAL:
-		if is_attack_state == false and is_idle_state == false:
+		var is_attack_state: bool = state == CombatController.State.ATTACK
+		var is_idle_state: bool = state == CombatController.State.IDLE
+		if not is_attack_state and not is_idle_state:
 			_cancel_normal_sequence("state_changed")
 
 	# Pressão + ajustes de "turno"
-	if state == CombatController.State.PARRIED:
-		_increment_pressure()
-		_pending_post_parried_cd = true
-	elif state == CombatController.State.GUARD_HIT:
-		_increment_pressure()
-		_begin_defense_bias()
-	elif state == CombatController.State.GUARD_BROKEN:
-		_increment_pressure()
-		_begin_defense_bias()
-	elif state == CombatController.State.STUNNED:
-		_increment_pressure()
-		_begin_defense_bias()
+	_handle_pressure_states(state, prev_state)
 
 	# Liberar lock ao voltar ao IDLE
 	if _lock_inputs_until_idle and state == CombatController.State.IDLE:
@@ -531,6 +525,21 @@ func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
 	# Morreu: desliga IA
 	if state == CombatController.State.DEAD:
 		set_enabled(false)
+
+func _handle_pressure_states(state: int, prev_state: int) -> void:
+	match state:
+		CombatController.State.PARRIED:
+			_increment_pressure()
+			_pending_post_parried_cd = true
+		CombatController.State.GUARD_HIT:
+			_increment_pressure()
+			_begin_defense_bias()
+		CombatController.State.GUARD_BROKEN:
+			_increment_pressure()
+			_begin_defense_bias()
+		CombatController.State.STUNNED:
+			_increment_pressure()
+			_begin_defense_bias()
 
 func _on_self_phase_changed(phase: int, cfg: AttackConfig) -> void:
 	_self_phase = phase
@@ -546,17 +555,13 @@ func _on_player_state_entered(state: int, cfg: AttackConfig) -> void:
 		_cancel_scheduled_parry()
 	if state == CombatController.State.PARRIED:
 		_pressure_streak = 0
-		_try_start_immediate_punish("parry_success") # se você usa
+		_try_start_immediate_punish("parry_success")
 
 func _try_start_immediate_punish(reason: String) -> void:
-	if _enabled == false: return
-	if _target_in_range == false: return
-	if _lock_inputs_until_idle: return
-	if _sequence_running: return
-	if _post_chain_cd_active: return
-	# Importante: cooldown pós-parryado NÃO bloqueia parry, mas bloqueia ataques;
-	# aqui vamos atacar, então respeite o cooldown:
-	if _parried_cd_active: return
+	if not _enabled or not _target_in_range:
+		return
+	if _lock_inputs_until_idle or _sequence_running or _post_chain_cd_active or _parried_cd_active:
+		return
 
 	# Honrar o "respeita turno" (só barra se o player está atacando e ainda não está em RECOVER)
 	if profile != null and profile.respect_opponent_turn:
@@ -578,49 +583,54 @@ func _press_attack_input() -> void:
 	# Contabiliza passo da sequência normal
 	if _sequence_kind == SeqKind.NORMAL:
 		_normal_step_count += 1
-		if profile != null:
-			if profile.normal_chain_length_hint > 0:
-				if _normal_step_count >= profile.normal_chain_length_hint:
-					_sequence_running = false
-					_sequence_timer.stop()
-					_awaiting_chain_end = true
-					_lock_inputs_until_idle = true
+		if profile != null and profile.normal_chain_length_hint > 0:
+			if _normal_step_count >= profile.normal_chain_length_hint:
+				_sequence_running = false
+				_sequence_timer.stop()
+				_awaiting_chain_end = true
+				_lock_inputs_until_idle = true
 
+	# Tenta diferentes métodos de input
+	var input_pressed: bool = false
 	if controller.has_method("on_attack_pressed"):
 		controller.on_attack_pressed()
-		return
-	if controller.has_method("try_attack"):
+		input_pressed = true
+	elif controller.has_method("try_attack"):
 		controller.try_attack()
-		return
-	if controller.has_method("press_attack"):
+		input_pressed = true
+	elif controller.has_method("press_attack"):
 		controller.press_attack()
-		return
+		input_pressed = true
+		
+	if input_pressed:
+		_dbg("Attack input pressed (step: " + str(_normal_step_count) + ")", 2)
 
 func _press_parry_input(reason: String = "unspecified") -> void:
-	var allows := true
+	var allows: bool = true
 	if controller.has_method("allows_parry_input_now"):
 		allows = controller.allows_parry_input_now()
+		
 	_dbg("press_parry_input(reason="+reason+") allows="+str(allows)
 		+" self="+CombatController.State.keys()[_self_state]+"/"+CombatController.Phase.keys()[_self_phase]
-		+" player="+CombatController.State.keys()[_player_state]+"/"+CombatController.Phase.keys()[_player_phase])
+		+" player="+CombatController.State.keys()[_player_state]+"/"+CombatController.Phase.keys()[_player_phase], 2)
+		
 	if not allows:
 		return
 
+	# Tenta diferentes métodos de input
+	var input_pressed: bool = false
 	if controller.has_method("on_parry_pressed"):
 		controller.on_parry_pressed()
-		call_deferred("_dbg_after_press_snapshot", reason)
-		return
-	if controller.has_method("try_parry"):
+		input_pressed = true
+	elif controller.has_method("try_parry"):
 		controller.try_parry()
-		call_deferred("_dbg_after_press_snapshot", reason)
-		return
-	if controller.has_method("press_parry"):
+		input_pressed = true
+	elif controller.has_method("press_parry"):
 		controller.press_parry()
-		call_deferred("_dbg_after_press_snapshot", reason)
-		return
-
-func _dbg_after_press_snapshot(reason: String) -> void:
-	pass
+		input_pressed = true
+		
+	if input_pressed:
+		_dbg("Parry input pressed: " + reason, 2)
 
 # =============================
 # Cancelamentos e flags
@@ -630,50 +640,52 @@ func _cancel_normal_sequence(reason: String) -> void:
 		_sequence_timer.stop()
 		_sequence_running = false
 		_sequence_kind = SeqKind.NONE
+		_dbg("Normal sequence canceled: " + reason, 2)
 
 # =============================
 # Timers: troca de turno / viés defensivo
 # =============================
 func _begin_parried_cd() -> void:
-	var cd: float = profile.post_parried_cooldown
-	if cd < 0.0:
-		cd = 0.0
+	var cd: float = maxf(profile.post_parried_cooldown, 0.0)
 	_parried_cd_active = true
 	_parried_cd_timer.stop()
 	_parried_cd_timer.start(cd)
+	_dbg("Parried cooldown started: " + str(cd) + "s", 2)
 
 func _on_parried_cd_timeout() -> void:
 	_parried_cd_active = false
+	_dbg("Parried cooldown ended", 2)
 
 func _begin_post_chain_cd() -> void:
-	var cd: float = profile.post_sequence_cooldown
-	if cd < 0.0:
-		cd = 0.0
+	var cd: float = maxf(profile.post_sequence_cooldown, 0.0)
 	_post_chain_cd_active = true
 	_post_chain_cd_timer.stop()
 	_post_chain_cd_timer.start(cd)
+	_dbg("Post-chain cooldown started: " + str(cd) + "s", 2)
 
 func _on_post_chain_cd_timeout() -> void:
 	_post_chain_cd_active = false
+	_dbg("Post-chain cooldown ended", 2)
 
 func _begin_defense_bias() -> void:
-	var cd: float = profile.defense_bias_time
-	if cd < 0.0:
-		cd = 0.0
+	var cd: float = maxf(profile.defense_bias_time, 0.0)
 	_defense_bias_active = true
 	_defense_bias_timer.stop()
 	_defense_bias_timer.start(cd)
+	_dbg("Defense bias started: " + str(cd) + "s", 2)
 
 func _on_defense_bias_timeout() -> void:
 	_defense_bias_active = false
+	_dbg("Defense bias ended", 2)
 
 func _schedule_parry_react(cfg: AttackConfig, reason: String) -> void:
+	if cfg == null:
+		_dbg("Cannot schedule parry: null AttackConfig", 1)
+		return
+
 	# === tempos do golpe do player ===
-	var startup: float = 0.0
-	var active: float = 0.0
-	if cfg != null:
-		startup = maxf(cfg.startup, 0.0)
-		active  = maxf(cfg.hit, 0.0)
+	var startup: float = maxf(cfg.startup, 0.0)
+	var active: float = maxf(cfg.hit, 0.0)
 
 	# === janela do parry do inimigo ===
 	var window: float = 0.0
@@ -681,20 +693,14 @@ func _schedule_parry_react(cfg: AttackConfig, reason: String) -> void:
 		window = maxf(controller._parry_profile.window, 0.0)
 
 	# === física ===
-	var tps: float = float(Engine.physics_ticks_per_second)
-	if tps <= 0.0:
-		tps = 60.0
-	var dt: float  = 1.0 / tps
-	var eps: float = dt * 0.5  # folga p/ ordem de callbacks no mesmo frame
+	var eps: float = _physics_tick_rate * 0.5  # folga p/ ordem de callbacks no mesmo frame
 
 	# === alvos de abertura (head & tail), como limites de segurança ===
 	var hit_tail: float = startup + active                        # fim do ACTIVE
 	var tail_open: float = maxf(hit_tail + eps - window, 0.0)     # janela termina logo após o tail
 
-	var lead_cfg: float = 0.0
-	if profile != null:
-		lead_cfg = maxf(profile.parry_lead_time, 0.0)
-	var early_guard: float = maxf(lead_cfg, dt * 1.5)             # >= ~1.5 frames antes do STARTUP
+	var lead_cfg: float = maxf(profile.parry_lead_time, 0.0) if profile != null else 0.0
+	var early_guard: float = maxf(lead_cfg, _physics_tick_rate * 1.5)  # >= ~1.5 frames antes do STARTUP
 	var head_open: float = maxf(startup - early_guard, 0.0)       # evita abrir colado no STARTUP
 
 	# === impacto esperado: posicione a janela aqui ===
@@ -724,13 +730,13 @@ func _schedule_parry_react(cfg: AttackConfig, reason: String) -> void:
 		+ " start=" + str(startup)
 		+ " active=" + str(active)
 		+ " window=" + str(window)
-		+ " dt=" + str(dt)
+		+ " dt=" + str(_physics_tick_rate)
 		+ " eps=" + str(eps)
-		+ " reason=" + reason)
+		+ " reason=" + reason, 2)
 	_dbg("parry-window: [" + str(open_time) + ", " + str(open_time + window) + "]"
 		+ " head_open=" + str(head_open) + " tail_open=" + str(tail_open)
 		+ " expected_impact=" + str(expected_impact)
-		+ " hit_tail=" + str(hit_tail))
+		+ " hit_tail=" + str(hit_tail), 2)
 
 	if open_time <= 0.0:
 		_on_parry_react_timeout()
@@ -850,10 +856,11 @@ func get_move_axis(
 # =============================
 func _increment_pressure() -> void:
 	_pressure_streak += 1
+	_dbg("Pressure increased: " + str(_pressure_streak), 2)
 
-func _dbg(msg: String) -> void:
-	if not debug_ai_logs:
+func _dbg(msg: String, min_level: int = 1) -> void:
+	if not debug_ai_logs or debug_level < min_level:
 		return
 	var frame: int = Engine.get_physics_frames()
 	var now_ms: int = Time.get_ticks_msec()
-	# print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)
+	print("[AI][", _who, "] f=", str(frame), " ms=", str(now_ms), " :: ", msg)
