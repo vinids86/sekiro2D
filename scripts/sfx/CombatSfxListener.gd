@@ -39,7 +39,7 @@ func setup(
 	_p_voice.name = "SFX_Voice"
 	add_child(_p_voice)
 
-	# conecta sinais do controller
+	# conecta sinais do controller (assinaturas novas)
 	if not _cc.is_connected("state_entered", Callable(self, "_on_state_entered")):
 		_cc.state_entered.connect(_on_state_entered)
 	if not _cc.is_connected("phase_changed", Callable(self, "_on_phase_changed")):
@@ -47,8 +47,8 @@ func setup(
 
 # ===================== ROTEAMENTO POR SINAIS =====================
 
-func _on_state_entered(state: int, cfg: AttackConfig) -> void:
-	# Ataque: sons por fase vêm de _on_phase_changed
+func _on_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
+	# ATTACK: sons por fase vêm de _on_phase_changed
 	if state == CombatController.State.ATTACK:
 		return
 
@@ -56,10 +56,15 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	if state == CombatController.State.PARRY:
 		return
 
-	# Estados sistêmicos (defensor)
+	# Estados sistêmicos (defensor/ofensivo)
 	if state == CombatController.State.DODGE:
-		_play_effect(_get_stream(_dodge_profile, "effect_stream"))
-		_play_voice(_get_stream(_dodge_profile, "voice_stream"))
+		# Direcional via DodgeArgs, com fallback genérico do DodgeProfile
+		var da: DodgeArgs = args as DodgeArgs
+		if da != null:
+			_play_dodge_directional(da)
+		else:
+			_play_effect(_get_stream(_dodge_profile, "effect_stream"))
+			_play_voice(_get_stream(_dodge_profile, "voice_stream"))
 		return
 
 	if state == CombatController.State.PARRIED:
@@ -87,15 +92,8 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		_play_voice(_get_stream(_hitreact_profile, "death_voice_stream"))
 		return
 
-	# Finisher:
-	# - FINISHER_READY (ATACANTE): vem do AttackConfig do golpe finisher
-	if state == CombatController.State.FINISHER_READY:
-		if cfg != null and cfg.kind == CombatTypes.AttackKind.FINISHER:
-			_play_effect(cfg.sfx_startup_stream)
-			_play_voice(cfg.voice_startup_stream)
-		return
-
-	# - BROKEN_FINISHER (DEFENSOR): vem do HitReactProfile
+	# FINISHER_READY / BROKEN_FINISHER:
+	# Mantido silencioso aqui; mapeamos sons específicos no futuro se desejar.
 	if state == CombatController.State.BROKEN_FINISHER:
 		_play_effect(_get_stream(_hitreact_profile, "broken_finisher_effect_stream"))
 		_play_voice(_get_stream(_hitreact_profile, "broken_finisher_voice_stream"))
@@ -104,28 +102,31 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 	# Demais estados: silencioso
 	return
 
-func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
+func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 	var st: int = _cc.get_state()
 
 	# Sons do ATAQUE (streams diretos do AttackConfig)
 	if st == CombatController.State.ATTACK:
+		var ac: AttackConfig = cfg as AttackConfig
+		if ac == null:
+			# Sem AttackConfig válido: nada a tocar
+			return
 		if phase == CombatController.Phase.STARTUP:
-			_play_effect(cfg.sfx_startup_stream)
-			_play_voice(cfg.voice_startup_stream)
+			_play_effect(ac.sfx_startup_stream)
+			_play_voice(ac.voice_startup_stream)
 			return
 		if phase == CombatController.Phase.ACTIVE:
-			_play_effect(cfg.sfx_swing_stream)
-			_play_voice(cfg.voice_swing_stream)
+			_play_effect(ac.sfx_swing_stream)
+			_play_voice(ac.voice_swing_stream)
 			return
 		if phase == CombatController.Phase.RECOVER:
-			_play_effect(cfg.sfx_recover_stream)
-			_play_voice(cfg.voice_recover_stream)
+			_play_effect(ac.sfx_recover_stream)
+			_play_voice(ac.voice_recover_stream)
 			return
 		return
 
 	# PARRY (streams por fase no ParryProfile)
 	if st == CombatController.State.PARRY:
-		print("[SFX] phase: ", phase)
 		if phase == CombatController.Phase.ACTIVE:
 			_play_effect(_get_stream(_parry_profile, "startup_effect_stream"))
 			_play_voice(_get_stream(_parry_profile, "startup_voice_stream"))
@@ -145,12 +146,48 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 
 # ===================== HELPERS =====================
 
+func _play_dodge_directional(da: DodgeArgs) -> void:
+	# Suporta campos opcionais no DodgeProfile:
+	# effect_stream / voice_stream (genéricos)
+	# effect_up_stream, effect_down_stream, effect_left_stream, effect_right_stream, effect_neutral_stream
+	# voice_up_stream,  voice_down_stream,  voice_left_stream,  voice_right_stream,  voice_neutral_stream
+	var eff_field: String = "effect_stream"
+	var voi_field: String = "voice_stream"
+
+	if da.dir == CombatTypes.DodgeDir.UP:
+		eff_field = "effect_up_stream"
+		voi_field = "voice_up_stream"
+	elif da.dir == CombatTypes.DodgeDir.DOWN:
+		eff_field = "effect_down_stream"
+		voi_field = "voice_down_stream"
+	elif da.dir == CombatTypes.DodgeDir.LEFT:
+		eff_field = "effect_left_stream"
+		voi_field = "voice_left_stream"
+	elif da.dir == CombatTypes.DodgeDir.RIGHT:
+		eff_field = "effect_right_stream"
+		voi_field = "voice_right_stream"
+	elif da.dir == CombatTypes.DodgeDir.NEUTRAL:
+		eff_field = "effect_neutral_stream"
+		voi_field = "voice_neutral_stream"
+
+	var eff: AudioStream = _get_stream(_dodge_profile, eff_field)
+	var voi: AudioStream = _get_stream(_dodge_profile, voi_field)
+
+	# Fallbacks para os campos genéricos se os direcionais não existirem
+	if eff == null:
+		eff = _get_stream(_dodge_profile, "effect_stream")
+	if voi == null:
+		voi = _get_stream(_dodge_profile, "voice_stream")
+
+	_play_effect(eff)
+	_play_voice(voi)
+
 func _get_stream(profile: Resource, field: String) -> AudioStream:
 	if profile == null:
 		return null
 	if not profile.has_method("get"):
 		return null
-	var val = profile.get(field)
+	var val: Variant = profile.get(field)
 	if val == null:
 		return null
 	if val is AudioStream:

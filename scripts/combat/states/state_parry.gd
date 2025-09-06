@@ -28,9 +28,3 @@ func is_attack_buffer_window_open(cc: CombatController) -> bool:
 	if cc.phase == CombatController.Phase.RECOVER or cc.phase == CombatController.Phase.SUCCESS:
 		return true
 	return false
-
-func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
-	pass
-
-func on_exit(_cc: CombatController) -> void:
-	pass

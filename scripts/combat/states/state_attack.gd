@@ -48,9 +48,3 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
-
-func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
-	pass
-
-func on_exit(_cc: CombatController) -> void:
-	pass

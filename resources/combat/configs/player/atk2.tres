@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="AttackConfig" load_steps=3 format=3 uid="uid://5uqwpdjb1egg"]
 
-[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_s6qtg"]
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/config/AttackConfig.gd" id="1_s6qtg"]
 [ext_resource type="AudioStream" uid="uid://b1ggdrbymxadc" path="res://audio/attack_2.wav" id="2_uaecc"]
 
 [resource]

@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="FinisherProfile" load_steps=5 format=3 uid="uid://ck31ap674ierg"]
 
-[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_1x8uq"]
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/config/AttackConfig.gd" id="1_1x8uq"]
 [ext_resource type="Script" uid="uid://1g4p4hkkrffu" path="res://scripts/combat/finisher/finisher_profile.gd" id="1_2kun4"]
 [ext_resource type="AudioStream" uid="uid://tbdd6cm3o1wa" path="res://audio/finisher.wav" id="2_c4u4o"]
 
@@ -16,6 +16,8 @@ sfx_swing_stream = ExtResource("2_c4u4o")
 damage = 20.0
 kind = 3
 parryable = true
+poise_break = 10.0
+action_poise = 4.0
 metadata/_custom_type_script = "uid://bpr26trni32iq"
 
 [resource]

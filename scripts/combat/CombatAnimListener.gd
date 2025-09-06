@@ -62,7 +62,11 @@ func setup(
 	print("[ANIM] listener wired: controller+phases+mover OK")
 
 func _on_movement_changed(moving: bool) -> void:
-	if _cc._state != CombatController.State.IDLE:
+	if _cc == null:
+		return
+	if _cc.get_state() != CombatController.State.IDLE:
+		return
+	if _locomotion_profile == null:
 		return
 
 	var clip: StringName = _locomotion_profile.idle_clip
@@ -79,8 +83,8 @@ func _on_movement_changed(moving: bool) -> void:
 
 # ===================== ROTEAMENTO POR SINAIS =====================
 
-func _on_state_entered(state: int, cfg: AttackConfig) -> void:
-	# ATTACK: deixamos o phase_changed STARTUP tocar o clipe do golpe (cfg.body_clip)
+func _on_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
+	# ATTACK: deixamos o phase_changed STARTUP tocar o clipe do golpe (AttackConfig.body_clip)
 	if state == CombatController.State.ATTACK:
 		return
 
@@ -97,7 +101,31 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		return
 
 	if state == CombatController.State.DODGE:
-		_play(&"dodge_down")
+		# Direcional via DodgeArgs
+		var da: DodgeArgs = args as DodgeArgs
+		if da != null:
+			var clip: StringName = &"dodge"
+			if da.dir == CombatTypes.DodgeDir.UP:
+				clip = &"dodge_up"
+			elif da.dir == CombatTypes.DodgeDir.DOWN:
+				clip = &"dodge_down"
+			elif da.dir == CombatTypes.DodgeDir.LEFT:
+				clip = &"dodge_left"
+			elif da.dir == CombatTypes.DodgeDir.RIGHT:
+				clip = &"dodge_right"
+			elif da.dir == CombatTypes.DodgeDir.NEUTRAL:
+				clip = &"dodge"
+
+			if _animation.has_animation(clip):
+				_play(clip)
+			else:
+				push_warning("[AnimListener] Dodge clip ausente: %s" % [str(clip)])
+		else:
+			# Sem args: tenta um genérico
+			if _animation.has_animation(&"dodge"):
+				_play(&"dodge")
+			else:
+				push_warning("[AnimListener] Dodge entrou sem DodgeArgs e sem clip 'dodge'")
 		return
 
 	if state == CombatController.State.PARRIED:
@@ -120,30 +148,33 @@ func _on_state_entered(state: int, cfg: AttackConfig) -> void:
 		_play(&"broken_finisher")
 		return
 
-func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
+func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
+	if _cc == null:
+		return
 	var st: int = _cc.get_state()
 
 	# ATTACK: na virada para STARTUP de cada golpe, toca o clipe do golpe
 	if st == CombatController.State.ATTACK:
 		if phase == CombatController.Phase.STARTUP:
-			print("[ANIM] STARTUP clip=", cfg.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
-			if cfg == null:
-				push_error("CombatAnimListener: ATTACK STARTUP com cfg nulo")
+			var ac: AttackConfig = cfg as AttackConfig
+			if ac == null:
+				push_error("CombatAnimListener: ATTACK STARTUP com cfg que não é AttackConfig")
 				return
+
+			print("[ANIM] STARTUP clip=", ac.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
 
 			# Finisher: exige body_clip configurado; sem fallback.
 			if _cc.current_kind == CombatController.AttackKind.FINISHER:
-				if cfg.body_clip == StringName():
+				if ac.body_clip == StringName():
 					push_error("CombatAnimListener: Finisher sem body_clip configurado")
 					return
-				_play(cfg.body_clip)
+				_play(ac.body_clip)
 				return
 
-			# Outros ataques: mantém comportamento atual (toca se vier clip)
-			if cfg.body_clip != StringName():
-				_play(cfg.body_clip)
-				print("Depois de play [ANIM] STARTUP clip=", cfg.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
-
+			# Outros ataques: toca se vier clip
+			if ac.body_clip != StringName():
+				_play(ac.body_clip)
+				print("Depois de play [ANIM] STARTUP clip=", ac.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
 		return
 
 	# PARRY: clipes separados por fase
@@ -170,37 +201,3 @@ func _on_phase_changed(phase: int, cfg: AttackConfig) -> void:
 func _play(clip: StringName) -> void:
 	_animation.speed_scale = 1.0
 	_animation.play(clip)
-
-# ===================== NOTIFIES (se existirem no AnimationPlayer) =====================
-# Mantidos apenas para compat: não usamos mais notifies para trocar fase/estado.
-
-func phase_startup_end() -> void:
-	# Intencionalmente vazio
-	pass
-
-func phase_hit_end() -> void:
-	pass
-
-func phase_recover_end() -> void:
-	pass
-
-func parried_end() -> void:
-	pass
-
-func guard_hit_end() -> void:
-	pass
-
-func hitstun_end() -> void:
-	pass
-
-func parry_window_on() -> void:
-	pass
-
-func parry_window_off() -> void:
-	pass
-
-func parry_fail_end() -> void:
-	pass
-
-func parry_success_end() -> void:
-	pass

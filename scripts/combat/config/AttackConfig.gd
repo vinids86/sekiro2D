@@ -1,4 +1,4 @@
-extends Resource
+extends StateConfig
 class_name AttackConfig
 
 const AttackKind := CombatTypes.AttackKind

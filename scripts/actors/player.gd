@@ -21,6 +21,7 @@ const DIR_THRESHOLD: float = 0.45
 @export var hitreact_profile: HitReactProfile
 @export var finisher_profile: FinisherProfile
 @export var locomotion_profile: LocomotionProfile
+@export var jump_profile: JumpProfile
 
 @export var heavy_up_config: AttackConfig
 @export var special_sequence_primary: Array[AttackConfig]
@@ -53,6 +54,8 @@ func _ready() -> void:
 	assert(controller != null)
 	assert(hitbox != null)
 	assert(attack_set != null)
+
+	controller.state_entered.connect(Callable(self, "_on_controller_state_entered"))
 
 	_driver = AnimationDriverSprite.new(sprite)
 	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile)
@@ -111,13 +114,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if controller.is_stunned():
 		return
 
-	# --- DODGE + direção (queremos só DOWN por enquanto) ---
 	if event.is_action_pressed("dodge"):
-		var dir: int = _read_dodge_dir()
-		controller.on_dodge_pressed(stamina, CombatTypes.DodgeDir.DOWN)
+		var dir: int = _read_dodge_dir() # retorna CombatTypes.DodgeDir
+		controller.on_dodge_pressed(stamina, dir)
 		return
 		
-	# --- HEAVY + UP (prévia visual) ---
 	if event.is_action_pressed("attack_heavy"):
 		controller.on_heavy_attack_pressed(heavy_up_config)
 		return
@@ -179,14 +180,17 @@ func _opponent_combo_offense_active() -> bool:
 
 	return in_offense
 
-# Lê o vetor de movimento no frame do dodge e resolve para um DodgeDir
 func _read_dodge_dir() -> int:
 	var axis: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	# Apenas DOWN por enquanto; UP/LEFT/RIGHT ficam reservados para o futuro
 	if axis.y > DIR_THRESHOLD:
-		return DodgeDir.DOWN
-	return DodgeDir.NEUTRAL
-
+		return CombatTypes.DodgeDir.DOWN
+	if axis.y < -DIR_THRESHOLD:
+		return CombatTypes.DodgeDir.UP
+	if axis.x < -DIR_THRESHOLD:
+		return CombatTypes.DodgeDir.LEFT
+	if axis.x > DIR_THRESHOLD:
+		return CombatTypes.DodgeDir.RIGHT
+	return CombatTypes.DodgeDir.NEUTRAL
 
 # Lê direção para HEAVY: precisamos de UP
 func _read_heavy_dir() -> int:
@@ -199,3 +203,13 @@ func _read_heavy_dir() -> int:
 func _play_heavy_preview(dir: int) -> void:
 	if dir == HeavyDir.UP:
 		controller.try_attack_heavy(heavy_up_config)
+
+func _on_controller_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
+	if state != CombatController.State.DODGE:
+		return
+	var da: DodgeArgs = args as DodgeArgs
+	if da == null:
+		return
+	if da.dir == CombatTypes.DodgeDir.UP:
+		if jump_profile != null:
+			velocity.y = -jump_profile.impulse

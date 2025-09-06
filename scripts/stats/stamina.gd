@@ -24,16 +24,16 @@ func setup(controller: CombatController) -> void:
 	_controller.state_entered.connect(_on_state_entered)
 	_controller.state_exited.connect(_on_state_exited)
 
-func _on_state_entered(state: int, cfg: AttackConfig) -> void:
-	var st: StateBase = CombatStateRegistry.get_state_for(state)
+func _on_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
+	var st: StateBase = _controller.get_state_instance_for(state)
 	_can_regen = st.allows_stamina_regen(_controller)
 	_idle_elapsed = 0.0
 
-func _on_state_exited(state: int, cfg: AttackConfig) -> void:
-	var st: StateBase = CombatStateRegistry.get_state_for(state)
+
+func _on_state_exited(state: int, cfg: StateConfig, args: StateArgs) -> void:
+	var st: StateBase = _controller.get_state_instance_for(state)
 	if st.refills_stamina_on_exit(_controller):
 		set_current(maximum)
-
 	_can_regen = false
 	_idle_elapsed = 0.0
 

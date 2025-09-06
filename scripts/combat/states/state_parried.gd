@@ -18,9 +18,3 @@ func is_attack_buffer_window_open(_cc: CombatController) -> bool:
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
-
-func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
-	pass
-
-func on_exit(_cc: CombatController) -> void:
-	pass

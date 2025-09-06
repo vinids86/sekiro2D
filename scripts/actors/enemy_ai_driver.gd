@@ -264,7 +264,6 @@ func _connect_player_signals() -> void:
 	if target_controller == null:
 		_dbg("target_controller is null, cannot connect signals", 1)
 		return
-		
 	if not target_controller.state_entered.is_connected(_on_player_state_entered):
 		target_controller.state_entered.connect(_on_player_state_entered) # imediato
 	if not target_controller.phase_changed.is_connected(_on_player_phase_changed):
@@ -371,20 +370,20 @@ func _schedule_next_normal_hit(cfg: AttackConfig) -> void:
 # =============================
 # Parry (chance unificada)
 # =============================
-func _on_player_phase_changed(phase: int, cfg: AttackConfig) -> void:
+func _on_player_phase_changed(phase: int, cfg: StateConfig) -> void:
 	_player_phase = phase
-	if cfg != null:
-		_last_player_recovery = cfg.recovery
+	var ac: AttackConfig = cfg as AttackConfig
+	if ac != null:
+		_last_player_recovery = ac.recovery
 
 	if not _enabled:
 		return
 
-	# --- STARTUP: decide se vai tentar parry e agenda a reação cronometrada
+	# Mantém reações em STARTUP/ACTIVE como antes (sem gates extras)
 	if phase == CombatController.Phase.STARTUP:
-		_handle_parry_startup_phase(cfg)
+		_handle_parry_startup_phase(ac)  # passa AttackConfig (pode ser null; a função já valida)
 		return
 
-	# --- ACTIVE: fallback de segurança (garante 100% quando chance=1.0)
 	if phase == CombatController.Phase.ACTIVE:
 		_handle_parry_active_phase()
 		return
@@ -491,7 +490,7 @@ func _cancel_scheduled_parry() -> void:
 	_parry_react_timer.stop()
 	_parry_scheduled = false
 
-func _on_self_state_entered(state: int, cfg: AttackConfig) -> void:
+func _on_self_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
 	var prev_state: int = _self_state
 	_self_state = state
 	
@@ -541,15 +540,16 @@ func _handle_pressure_states(state: int, prev_state: int) -> void:
 			_increment_pressure()
 			_begin_defense_bias()
 
-func _on_self_phase_changed(phase: int, cfg: AttackConfig) -> void:
+func _on_self_phase_changed(phase: int, cfg: StateConfig) -> void:
 	_self_phase = phase
 	if phase == CombatController.Phase.RECOVER:
-		_schedule_next_normal_hit(cfg)
+		var ac: AttackConfig = cfg as AttackConfig
+		_schedule_next_normal_hit(ac)
 
 # =============================
 # Handlers (PLAYER)
 # =============================
-func _on_player_state_entered(state: int, cfg: AttackConfig) -> void:
+func _on_player_state_entered(state: int, cfg: StateConfig, args: StateArgs) -> void:
 	_player_state = state
 	if state != CombatController.State.ATTACK:
 		_cancel_scheduled_parry()
@@ -579,6 +579,19 @@ func _try_start_immediate_punish(reason: String) -> void:
 func _press_attack_input() -> void:
 	if controller == null:
 		return
+
+	# --- NOVO: rechecagem de turno antes de enviar input (vale para o 1º hit e para os agendados) ---
+	if profile != null and profile.respect_opponent_turn:
+		var player_is_attacking: bool = _player_state == CombatController.State.ATTACK
+		var player_in_recover: bool = _player_phase == CombatController.Phase.RECOVER
+		if player_is_attacking and not player_in_recover:
+			# Se estamos no meio de uma sequência, reagenda um retry curto em vez de forçar input agora
+			if _sequence_running and _sequence_kind == SeqKind.NORMAL:
+				var retry: float = maxf(_physics_tick_rate * 2.0, 0.05)  # ~3 frames
+				_sequence_timer.stop()
+				_sequence_timer.start(retry)
+			return
+	# --- FIM DO NOVO GATE ---
 
 	# Contabiliza passo da sequência normal
 	if _sequence_kind == SeqKind.NORMAL:

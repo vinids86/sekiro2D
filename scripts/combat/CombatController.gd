@@ -1,9 +1,9 @@
 extends Node
 class_name CombatController
 
-signal state_entered(state: int, cfg: AttackConfig)
-signal state_exited(state: int, cfg: AttackConfig)
-signal phase_changed(phase: int, cfg: AttackConfig)
+signal state_entered(state: int, cfg: StateConfig, args: StateArgs)
+signal state_exited(state: int, cfg: StateConfig, args: StateArgs)
+signal phase_changed(phase: int, cfg: StateConfig)
 
 enum State {
 	IDLE,
@@ -27,6 +27,7 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 # CONSTANTES / CAMPOS
 # =========================
 
+var _states: Dictionary = {}
 var _state: int = State.IDLE
 var phase: int = -1
 var current_kind: AttackKind = AttackKind.LIGHT
@@ -44,8 +45,6 @@ var _guard: GuardProfile
 var _counter: CounterProfile
 var _dodge: DodgeProfile
 var _finisher: FinisherProfile
-
-var _last_dodge_dir: int = 0
 
 var _phase_timer: Timer
 
@@ -94,7 +93,7 @@ func initialize(
 		_bonus_poise_timer.stop()
 
 func _ready() -> void:
-	CombatStateRegistry.bind_states(State)
+	_states = CombatStateRegistry.build_states(State)
 
 	_phase_timer = Timer.new()
 	_phase_timer.one_shot = true
@@ -149,11 +148,10 @@ func on_attack_pressed() -> void:
 		return
 
 func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
+	var st: StateBase = _get_state()
 	if st.allows_heavy_start(self):
 		_start_attack(AttackKind.HEAVY, cfg)
 		return
-	# Sem buffer para HEAVY: fora de janela, ignora
 
 func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 	if _state == State.FINISHER_READY:
@@ -188,14 +186,11 @@ func on_dodge_pressed(stamina: Stamina, dir: int) -> void:
 		var ok: bool = stamina.try_consume(cost)
 		if not ok:
 			return
-	
-	_last_dodge_dir = dir
-	
+
 	_buffer_clear()
-	_change_state(State.DODGE, null)
+	_change_state(State.DODGE, null, DodgeArgs.new(dir))
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_dodge.startup)
-	return
 
 # =========================
 # TIMER TICK
@@ -353,6 +348,10 @@ func _tick_finisher_ready() -> void:
 # Consultas
 # =========================
 
+func get_state_instance_for(state_id: int) -> StateBase:
+	assert(_states.has(state_id), "CombatController.get_state_instance_for: id de estado inválido: %s" % [str(state_id)])
+	return _states[state_id]
+
 func is_stunned() -> bool:
 	return _state == State.STUNNED
 
@@ -363,34 +362,26 @@ func is_parry_window() -> bool:
 func is_dodge_active() -> bool:
 	return _state == State.DODGE and phase == Phase.ACTIVE
 
-func get_last_dodge_dir() -> int:
-	return _last_dodge_dir
-
 func is_autoblock_enabled_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.autoblock_enabled(self)
+	return _get_state().autoblock_enabled(self)
 
 func allows_attack_input_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.allows_attack_input(self)
+	return _get_state().allows_attack_input(self)
 
 func allows_parry_input_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.allows_parry_input(self)
+	return _get_state().allows_parry_input(self)
 
 func allows_dodge_input_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.allows_dodge_input(self)
+	return _get_state().allows_dodge_input(self)
 
 func is_interruptible_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.is_interruptible(self)
+	return _get_state().is_interruptible(self)
 
 func allows_movement_now() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.allows_movement(self)
+	return _get_state().allows_movement(self)
 
-# ======= Entradas de reação (armam timer) =======
+func _is_attack_buffer_window_open() -> bool:
+	return _get_state().is_attack_buffer_window_open(self)
 
 # ===== enter_parry_success: mantém seu fluxo e acrescenta o bônus =====
 func enter_parry_success() -> void:
@@ -484,6 +475,10 @@ func start_finisher() -> void:
 # =========================
 # HELPERS
 # =========================
+func _get_state() -> StateBase:
+	assert(_states.has(_state), "CombatController: estado '%s' não foi construído." % [str(_state)])
+	return _states[_state]
+
 func _phase_duration_from_cfg(cfg: AttackConfig, p: Phase) -> float:
 	var dur: float = 0.0
 	match p:
@@ -626,19 +621,25 @@ func _exit_to_idle() -> void:
 	if _buf_has:
 		_buffer_clear()
 
-func _change_state(new_state: int, cfg: AttackConfig) -> void:
+func _change_state(new_state: int, cfg: StateConfig, args: StateArgs = null) -> void:
 	print("[FSM] change state: ", new_state)
+
 	var same: bool = new_state == _state
-	var reentry_allowed: bool = CombatStateRegistry.get_state_for(_state).allows_reentry(self)
+	var reentry_allowed: bool = _get_state().allows_reentry(self)
 
 	if (same and reentry_allowed) or (not same):
 		_stop_phase_timer()
 
 		var prev: int = _state
+		# on_exit do estado anterior
+		_get_state().on_exit(self, cfg)
+		emit_signal("state_exited", prev, cfg, null)
 
-		emit_signal("state_exited", prev, cfg)
 		_state = new_state
-		emit_signal("state_entered", _state, cfg)
+
+		# on_enter do novo estado (com payload)
+		_get_state().on_enter(self, cfg, args)
+		emit_signal("state_entered", _state, cfg, args)
 
 		# Ao sair de ATTACK, limpar o bônus aplicado
 		if prev == State.ATTACK and new_state != State.ATTACK:
@@ -646,7 +647,7 @@ func _change_state(new_state: int, cfg: AttackConfig) -> void:
 			_combo_seq.clear()
 			_combo_hit = -1
 
-func _change_phase(new_phase: Phase, cfg: AttackConfig) -> void:
+func _change_phase(new_phase: Phase, cfg: StateConfig) -> void:
 	var prev: int = phase
 	var prev_name: String = Phase.keys()[prev]
 	var new_name: String = Phase.keys()[new_phase]
@@ -784,10 +785,6 @@ func _on_bonus_poise_timeout() -> void:
 # =========================
 # BUFFER: helpers
 # =========================
-
-func _is_attack_buffer_window_open() -> bool:
-	var st: StateBase = CombatStateRegistry.get_state_for(_state)
-	return st.is_attack_buffer_window_open(self)
 
 func _buffer_clear() -> void:
 	_buf_has = false

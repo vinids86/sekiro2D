@@ -11,5 +11,5 @@ func is_attack_buffer_window_open(_cc: CombatController) -> bool: return false
 func is_interruptible(_cc: CombatController) -> bool: return false
 func refills_stamina_on_exit(controller: CombatController) -> bool:return true
 	
-func on_enter(_cc: CombatController, _cfg: AttackConfig) -> void:
+func on_enter(_cc: CombatController, _cfg: StateConfig, _args: StateArgs) -> void:
 	pass

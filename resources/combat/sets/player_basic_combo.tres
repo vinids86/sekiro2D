@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="AttackSet" load_steps=7 format=3 uid="uid://350s1evxv7gl"]
 
-[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/AttackConfig.gd" id="1_66nef"]
+[ext_resource type="Script" uid="uid://bpr26trni32iq" path="res://scripts/combat/config/AttackConfig.gd" id="1_66nef"]
 [ext_resource type="Resource" uid="uid://bfypskpbw01hf" path="res://resources/combat/configs/player/atk1.tres" id="2_e5jhv"]
 [ext_resource type="Script" uid="uid://c0m6rkcylinaq" path="res://scripts/combat/AttackSet.gd" id="2_pkdgg"]
 [ext_resource type="Resource" uid="uid://5uqwpdjb1egg" path="res://resources/combat/configs/player/atk2.tres" id="3_28qw6"]

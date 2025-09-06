@@ -15,8 +15,10 @@ enum CombatState {
 	DEAD
 }
 
-# Direções de dodge (mantido)
 enum DodgeDir {
 	NEUTRAL,
-	DOWN
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT,
 }
