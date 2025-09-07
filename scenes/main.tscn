@@ -1,61 +1,66 @@
-[gd_scene load_steps=20 format=3 uid="uid://raw8okub6mh6"]
+[gd_scene load_steps=16 format=3 uid="uid://raw8okub6mh6"]
 
 [ext_resource type="PackedScene" uid="uid://5aqapyppbkdg" path="res://scenes/player.tscn" id="2_sugp2"]
-[ext_resource type="Texture2D" uid="uid://c0qmcthcj7s4j" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/sky.png" id="2_ya4ey"]
 [ext_resource type="AudioStream" uid="uid://b46tjiqtj8apf" path="res://audio/Shadows of the Rising Sun.wav" id="3_choun"]
-[ext_resource type="Texture2D" uid="uid://o0jh6ydhl2to" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/mountains_far.png" id="3_jbj1t"]
-[ext_resource type="Texture2D" uid="uid://e2efssxp35et" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/mountains_near.png" id="4_muem4"]
+[ext_resource type="Texture2D" uid="uid://3gg1jredc25g" path="res://tmp/cloud.png" id="4_choun"]
 [ext_resource type="Texture2D" uid="uid://cmpxu72ks47x3" path="res://assets/under_stamina.png" id="4_tefeu"]
-[ext_resource type="Texture2D" uid="uid://77uu68oaha5v" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/village_roofs.png" id="5_dp3eg"]
+[ext_resource type="Script" uid="uid://om3i5l1olkc4" path="res://scripts/scenario/foreground.gd" id="4_ya4ey"]
 [ext_resource type="Texture2D" uid="uid://cwv3m6q2qjgf1" path="res://assets/progress_stamina.png" id="5_o6xl0"]
-[ext_resource type="Texture2D" uid="uid://s6x32avo6cmy" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/bamboo_back.png" id="6_0ld40"]
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="6_choun"]
-[ext_resource type="Texture2D" uid="uid://dlxfm0eeca4v8" path="res://tmp/foggy-shot-floating-torii-miyajima-japan-rain.jpg" id="7_dp3eg"]
-[ext_resource type="Texture2D" uid="uid://b8vesjymu5vr" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/clouds.png" id="7_gqmmt"]
+[ext_resource type="Texture2D" uid="uid://dy807cl7lwbvu" path="res://tmp/background.png" id="7_dp3eg"]
 [ext_resource type="Texture2D" uid="uid://benh8p7wolbhf" path="res://assets/health_bar_progress.png" id="7_tipki"]
 [ext_resource type="PackedScene" uid="uid://bd2t2qkjkliam" path="res://scenes/enemy.tscn" id="9_85g3d"]
-[ext_resource type="Texture2D" uid="uid://c3o306er7ojmt" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/grass_front_a.png" id="10_0ld40"]
-[ext_resource type="Texture2D" uid="uid://bxkedqavvvc7v" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/grass_front_b.png" id="11_gqmmt"]
 [ext_resource type="Script" path="res://scripts/contact_arbiter_registry.gd" id="11_ya4ey"]
-[ext_resource type="Texture2D" uid="uid://qdcfo85d5jce" path="res://tmp/sekiro2d_temp_japan_arena_pack_v1/branch_side.png" id="12_yc10j"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jscy8"]
 size = Vector2(1930, 40)
+
+[sub_resource type="Animation" id="Animation_choun"]
+resource_name = "DriftAcross"
+length = 300.0
+step = 300.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Cloud:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 300),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1245, -191), Vector2(-1247, -191)]
+}
+
+[sub_resource type="Animation" id="Animation_ya4ey"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Cloud:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(4000, 471)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_eb6dy"]
+_data = {
+&"DriftAcross": SubResource("Animation_choun"),
+&"RESET": SubResource("Animation_ya4ey")
+}
 
 [node name="Main" type="Node2D"]
 
 [node name="Background" type="Node2D" parent="."]
 z_index = -10
 
-[node name="Sky" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("2_ya4ey")
-
-[node name="MountainsFar" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("3_jbj1t")
-
-[node name="MountainsNear" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("4_muem4")
-
-[node name="VillageRoofs" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("5_dp3eg")
-
-[node name="BambooBack" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("6_0ld40")
-
-[node name="Clouds" type="Sprite2D" parent="Background"]
-visible = false
-texture = ExtResource("7_gqmmt")
-
-[node name="FogBack" type="Sprite2D" parent="Background"]
-visible = false
-
 [node name="Sprite2D" type="Sprite2D" parent="Background"]
-scale = Vector2(0.5, 0.5)
+position = Vector2(1.5, 13.5)
+scale = Vector2(0.680753, 0.70638)
 texture = ExtResource("7_dp3eg")
 
 [node name="Arena" type="Node2D" parent="."]
@@ -73,23 +78,27 @@ scale = Vector2(0.7, 0.7)
 collision_mask = 3
 
 [node name="Floor" type="StaticBody2D" parent="Arena"]
-visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Floor"]
 visible = false
-position = Vector2(0, 380)
+position = Vector2(9, 275)
 shape = SubResource("RectangleShape2D_jscy8")
 
 [node name="Foreground" type="Node2D" parent="."]
+script = ExtResource("4_ya4ey")
 
-[node name="GrassA" type="Sprite2D" parent="Foreground"]
-texture = ExtResource("10_0ld40")
+[node name="Cloud" type="Sprite2D" parent="Foreground"]
+position = Vector2(4000, 471)
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("4_choun")
 
-[node name="GrassB" type="Sprite2D" parent="Foreground"]
-texture = ExtResource("11_gqmmt")
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Foreground"]
+libraries = {
+&"": SubResource("AnimationLibrary_eb6dy")
+}
 
-[node name="BranchSide" type="Sprite2D" parent="Foreground"]
-texture = ExtResource("12_yc10j")
+[node name="Timer" type="Timer" parent="Foreground"]
+one_shot = true
 
 [node name="Music" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("3_choun")

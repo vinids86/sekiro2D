@@ -1,4 +1,4 @@
-[gd_scene load_steps=674 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=682 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -2145,6 +2145,30 @@ region = Rect2(0, 3116, 1586, 1558)
 [sub_resource type="AtlasTexture" id="AtlasTexture_jxnvk"]
 atlas = ExtResource("46_2a3c5")
 region = Rect2(1586, 3116, 1586, 1558)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xansc"]
+region = Rect2(0, 0, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e5t0d"]
+region = Rect2(0, 512, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gfjgg"]
+region = Rect2(0, 1024, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dls3a"]
+region = Rect2(0, 1536, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xyu54"]
+region = Rect2(1024, 0, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_11rpn"]
+region = Rect2(1024, 1024, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ttywv"]
+region = Rect2(1536, 1536, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gmbp1"]
+region = Rect2(512, 512, 512, 512)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kkgei"]
 atlas = ExtResource("14_4ni07")
@@ -4533,6 +4557,35 @@ animations = [{
 "loop": true,
 "name": &"idle_test",
 "speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xansc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e5t0d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gfjgg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dls3a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xyu54")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_11rpn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ttywv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gmbp1")
+}],
+"loop": true,
+"name": &"new_animation",
+"speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
