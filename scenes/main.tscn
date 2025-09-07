@@ -170,4 +170,3 @@ position = Vector2(-2, 14)
 
 [node name="ContactArbiterRegistry" type="Node" parent="."]
 script = ExtResource("11_ya4ey")
-metadata/_custom_type_script = "uid://4p3r8ooxy8eb"

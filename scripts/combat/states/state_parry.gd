@@ -28,3 +28,24 @@ func is_attack_buffer_window_open(cc: CombatController) -> bool:
 	if cc.phase == CombatController.Phase.RECOVER or cc.phase == CombatController.Phase.SUCCESS:
 		return true
 	return false
+	
+func on_timeout(cc: CombatController) -> void:
+	# Avança as fases do Parry:
+	# ACTIVE -> RECOVER (janela acabou)
+	# SUCCESS -> IDLE (ativa janela de bônus de poise ANTES de sair)
+	# RECOVER -> IDLE
+	if cc.phase == CombatController.Phase.ACTIVE:
+		cc._change_phase(CombatController.Phase.RECOVER, null)
+		cc._safe_start_timer(cc._parry_profile.recover)
+		return
+
+	if cc.phase == CombatController.Phase.SUCCESS:
+		# Ativa a janela de bônus (fica pendente até ser “latchado” no próximo ataque)
+		if cc.poise_controller != null:
+			cc.poise_controller.try_activate_parry_bonus_window()
+		cc._exit_to_idle()
+		return
+
+	if cc.phase == CombatController.Phase.RECOVER:
+		cc._exit_to_idle()
+		return

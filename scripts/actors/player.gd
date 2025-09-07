@@ -58,7 +58,10 @@ func _ready() -> void:
 	controller.state_entered.connect(Callable(self, "_on_controller_state_entered"))
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile)
+	print("controller player: ", controller)
+	#await controller.ready
+	print("controller await player: ", controller)
+	controller.initialize(attack_set, parry_profile, hit_react_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile, 0)
 
 	hitbox.setup(controller, self)
 	anim_listener.setup(
@@ -86,7 +89,7 @@ func _ready() -> void:
 	_driver.play_idle(anim_profile.idle_clip)
 
 func _process(delta: float) -> void:
-	controller.update(delta)
+	pass
 
 func _physics_process(delta: float) -> void:
 	if mover == null:

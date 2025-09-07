@@ -8,4 +8,11 @@ func allows_dodge_input(_cc: CombatController) -> bool: return false
 func autoblock_enabled(_cc: CombatController) -> bool: return false
 func allows_reentry(_cc: CombatController) -> bool: return true
 func is_attack_buffer_window_open(_cc: CombatController) -> bool: return false
-func is_interruptible(_cc: CombatController) -> bool: return true
+
+func on_timeout(cc: CombatController) -> void:
+	if cc.phase == CombatController.Phase.STARTUP:
+		cc._change_phase(CombatController.Phase.ACTIVE, null)
+		return
+
+	if cc.phase == CombatController.Phase.ACTIVE:
+		return

@@ -1,4 +1,4 @@
-[gd_scene load_steps=656 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=658 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -51,7 +51,9 @@
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="37_5utat"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
+[ext_resource type="Script" uid="uid://xv0h8r6flxcj" path="res://scripts/combat/BufferController.gd" id="50_b5geg"]
 [ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="50_sm4rh"]
+[ext_resource type="Script" uid="uid://cd0s3yas3xjt7" path="res://scripts/combat/PoiseController.gd" id="51_g0yyi"]
 [ext_resource type="Script" uid="uid://dyf7ny7kehk38" path="res://scripts/movement/MoveController.gd" id="52_7w3jn"]
 
 [sub_resource type="Resource" id="Resource_0pw1s"]
@@ -5626,9 +5628,19 @@ metadata/_custom_type_script = "uid://cqj4e3s0okuso"
 script = ExtResource("11_otmr2")
 metadata/_custom_type_script = "uid://s1v4ano08fya"
 
-[node name="CombatController" type="Node" parent="."]
+[node name="CombatController" type="Node" parent="." node_paths=PackedStringArray("poise_controller", "buffer_controller")]
 script = ExtResource("13_wtq4b")
+poise_controller = NodePath("PoiseController")
+buffer_controller = NodePath("BufferController")
 metadata/_custom_type_script = "uid://cfihtbf31nc3x"
+
+[node name="BufferController" type="Node" parent="CombatController"]
+script = ExtResource("50_b5geg")
+metadata/_custom_type_script = "uid://xv0h8r6flxcj"
+
+[node name="PoiseController" type="Node" parent="CombatController"]
+script = ExtResource("51_g0yyi")
+metadata/_custom_type_script = "uid://cd0s3yas3xjt7"
 
 [node name="CombatAnimListener" type="Node" parent="."]
 script = ExtResource("16_ile5s")

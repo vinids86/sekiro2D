@@ -21,3 +21,6 @@ func allows_stamina_regen(controller: CombatController) -> bool:
 
 func allows_movement(_cc: CombatController) -> bool:
 	return true
+
+func on_timeout(_cc: CombatController) -> void:
+	pass

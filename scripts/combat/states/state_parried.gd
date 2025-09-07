@@ -18,3 +18,6 @@ func is_attack_buffer_window_open(_cc: CombatController) -> bool:
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
+
+func on_timeout(cc: CombatController) -> void:
+	cc._exit_to_idle()

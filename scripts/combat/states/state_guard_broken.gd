@@ -18,3 +18,6 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
+
+func on_timeout(cc: CombatController) -> void:
+	cc._exit_to_idle()

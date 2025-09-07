@@ -30,10 +30,6 @@ func autoblock_enabled(_cc: CombatController) -> bool:
 	if _cc.phase != CombatController.Phase.ACTIVE:
 		return true
 	return false
-	
-func is_interruptible(_cc: CombatController) -> bool:
-
-	return true
 
 func is_attack_buffer_window_open(cc: CombatController) -> bool:
 	if cc.current_kind == CombatController.AttackKind.COMBO:
@@ -45,3 +41,39 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
+
+func on_timeout(cc: CombatController) -> void:
+	if cc.current_cfg == null:
+		cc._exit_to_idle()
+		return
+
+	if cc.phase == CombatController.Phase.STARTUP:
+		cc._change_phase(CombatController.Phase.ACTIVE, cc.current_cfg)
+		var hit_time: float = cc._phase_duration_from_cfg(cc.current_cfg, CombatController.Phase.ACTIVE)
+		cc._safe_start_timer(hit_time)
+		return
+
+	if cc.phase == CombatController.Phase.ACTIVE:
+		cc._change_phase(CombatController.Phase.RECOVER, cc.current_cfg)
+		cc._safe_start_timer(cc.current_cfg.recovery)
+		return
+
+	if cc.phase == CombatController.Phase.RECOVER:
+		# Lógica de Combo ininterruptível
+		if cc.current_kind == CombatController.AttackKind.COMBO:
+			var next_idx_combo: int = cc._combo_hit + 1
+			if next_idx_combo < cc._combo_seq.size():
+				cc._combo_hit = next_idx_combo
+				cc.current_cfg = cc._combo_seq[cc._combo_hit]
+				cc._change_phase(CombatController.Phase.STARTUP, cc.current_cfg)
+				cc._safe_start_timer(cc.current_cfg.startup)
+				return
+			cc._exit_to_idle()
+			return
+
+		# Consumo do buffer agora usa o BufferController
+		if cc.buffer_controller and cc.buffer_controller.try_consume(cc):
+			return
+
+		cc._exit_to_idle()
+		return

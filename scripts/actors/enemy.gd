@@ -49,6 +49,11 @@ var _driver: AnimationDriver
 var _last_hp: float = 0.0
 
 func _ready() -> void:
+	print("--- Enemy _ready() INICIOU ---")
+	print("Controller antes do await: ", controller)
+	print("controller: ", controller)
+	#await controller.ready
+	print("controller await: ", controller)
 	# Sanidade
 	assert(attack_set != null, "AttackSet não configurado no Enemy")
 	assert(sprite != null, "AnimatedSprite2D não encontrado no Enemy")
@@ -62,7 +67,7 @@ func _ready() -> void:
 	assert(counter_profile != null, "CounterProfile não atribuído no Enemy")
 
 	_driver = AnimationDriverSprite.new(sprite)
-	controller.initialize(attack_set, parry_profile, hitreact_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile)
+	controller.initialize(attack_set, parry_profile, hitreact_profile, parried_profile, guard_profile, counter_profile, dodge_profile, finisher_profile, 0)
 
 	# Listeners
 	anim_listener.setup(
@@ -98,7 +103,7 @@ func _ready() -> void:
 	health.died.connect(Callable(self, "_on_health_died"))
 
 func _process(delta: float) -> void:
-	controller.update(delta)
+	pass
 
 func _physics_process(delta: float) -> void:
 	if mover == null:
