@@ -5,14 +5,19 @@
 
 [resource]
 script = ExtResource("1_1e1l8")
-startup = 0.16
-hit = 0.08
-recovery = 0.18
+startup = 0.2
+hit = 0.1
+recovery = 0.5
 body_clip = &"atk3"
 anim_fps = 30.0
-hitbox_offset = Vector2(60, 0)
+hitbox_offset = Vector2(120, 0)
 sfx_swing_stream = ExtResource("2_fvgu0")
 damage = 5.0
 kind = 0
 parryable = true
+poise_break = 10.0
+action_poise = 4.0
+startup_velocity = Vector2(0, 0)
+active_velocity = Vector2(0, 0)
+recover_velocity = Vector2(0, 0)
 metadata/_custom_type_script = "uid://bpr26trni32iq"

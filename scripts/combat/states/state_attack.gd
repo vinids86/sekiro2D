@@ -5,7 +5,7 @@ func allows_attack_input(cc: CombatController) -> bool:
 	return false
 
 func allows_parry_input(_cc: CombatController) -> bool:
-	if _cc.phase == CombatController.Phase.RECOVER and _cc.current_kind == CombatController.AttackKind.LIGHT: 
+	if _cc.phase == CombatController.Phase.RECOVER and _cc.current_kind == CombatController.AttackKind.LIGHT:
 		return true
 	else: return false
 
@@ -42,6 +42,29 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
 
+# --- NOVA FUNÇÃO ---
+# Retorna a velocidade de movimento que deve ser aplicada neste frame,
+# com base na fase atual do combate.
+func get_current_movement_velocity(cc: CombatController) -> Vector2:
+	if not cc.current_cfg:
+		return Vector2.ZERO
+
+	# Garante que estamos lidando com um AttackConfig que tem as propriedades de velocidade
+	if not cc.current_cfg is AttackConfig:
+		return Vector2.ZERO
+
+	var cfg: AttackConfig = cc.current_cfg as AttackConfig
+	match cc.phase:
+		CombatController.Phase.STARTUP:
+			return cfg.startup_velocity
+		CombatController.Phase.ACTIVE:
+			return cfg.active_velocity
+		CombatController.Phase.RECOVER:
+			return cfg.recover_velocity
+	
+	return Vector2.ZERO
+
+
 func on_timeout(cc: CombatController) -> void:
 	if cc.current_cfg == null:
 		cc._exit_to_idle()
@@ -59,7 +82,6 @@ func on_timeout(cc: CombatController) -> void:
 		return
 
 	if cc.phase == CombatController.Phase.RECOVER:
-		# Lógica de Combo ininterruptível
 		if cc.current_kind == CombatController.AttackKind.COMBO:
 			var next_idx_combo: int = cc._combo_hit + 1
 			if next_idx_combo < cc._combo_seq.size():
@@ -71,7 +93,6 @@ func on_timeout(cc: CombatController) -> void:
 			cc._exit_to_idle()
 			return
 
-		# Consumo do buffer agora usa o BufferController
 		if cc.buffer_controller and cc.buffer_controller.try_consume(cc):
 			return
 

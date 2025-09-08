@@ -110,20 +110,6 @@ func _physics_process(delta: float) -> void:
 		return
 	if controller == null:
 		return
-	var fd: FacingDriver = facing as FacingDriver
-	if fd == null:
-		return
-	if stamina == null:
-		return
-	var ai: EnemyAIDriver = ai_driver as EnemyAIDriver
-	if ai == null:
-		return
-
-	# ===== Horizontal (AI + MoveController) =====
-	var opp_stamina: Stamina = _try_get_opponent_stamina(fd)
-	var axis: float = ai.get_move_axis(self, fd, stamina, opp_stamina, delta)
-	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
-	velocity.x = vx
 
 	# ===== Gravidade (Vertical) =====
 	if not is_on_floor():
@@ -131,9 +117,34 @@ func _physics_process(delta: float) -> void:
 		if velocity.y > max_fall_speed:
 			velocity.y = max_fall_speed
 	else:
-		# limpa resto de queda quando pousar
 		if velocity.y > 0.0:
 			velocity.y = 0.0
+			
+	# --- NOVA LÓGICA DE MOVIMENTO HORIZONTAL ---
+	
+	# 1. Primeiro, pegamos a velocidade definida pelo estado atual
+	var state_velocity: Vector2 = Vector2.ZERO
+	if controller:
+		var current_state = controller.get_state_instance_for(controller.get_state())
+		if current_state.has_method("get_current_movement_velocity"):
+			state_velocity = current_state.get_current_movement_velocity(controller)
+
+	# 2. Agora, decidimos como combinar com o input da IA
+	if state_velocity != Vector2.ZERO:
+		# Se a ação do estado tem uma velocidade definida, ela SOBRESCREVE a IA.
+		velocity.x = state_velocity.x * facing.scale.x # Multiplica pela direção
+		if state_velocity.y != 0:
+			velocity.y = state_velocity.y
+	else:
+		# Se a ação do estado não tem movimento, usamos o input da IA.
+		var fd: FacingDriver = facing as FacingDriver
+		if fd == null: return
+		var stamina_inimigo: Stamina = _try_get_opponent_stamina(fd)
+		var ai: EnemyAIDriver = ai_driver as EnemyAIDriver
+		if ai == null: return
+		var axis: float = ai.get_move_axis(self, fd, stamina, stamina_inimigo, delta)
+		var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
+		velocity.x = vx
 
 	move_and_slide()
 

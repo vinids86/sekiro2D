@@ -766,18 +766,19 @@ func get_move_axis(
 	opponent_stamina: Stamina,
 	delta: float
 ) -> float:
-	# Timer de histerese temporal
+	# === Histerese temporal de troca de modo ===
 	if _mode_timer > 0.0:
 		_mode_timer -= delta
 		if _mode_timer < 0.0:
 			_mode_timer = 0.0
 
-	# Sem facing/oponente: relaxa para 0
+	# === Sem facing/oponente: relaxa eixo para 0 ===
 	if fd == null or fd.opponent == null:
 		var t0: float = clampf(axis_accel * delta, 0.0, 1.0)
 		_axis = lerp(_axis, 0.0, t0)
 		return _axis
 
+	# === Geometria básica ===
 	var opp: Node = fd.opponent
 	var dx: float = opp.global_position.x - enemy.global_position.x
 	var dist: float = absf(dx)
@@ -788,7 +789,7 @@ func get_move_axis(
 	elif dx < 0.0:
 		dir = -1.0
 
-	# Staminas atuais (com nulos tratados)
+	# === Stamina atual (self/oponente) ===
 	var self_curr: float = 0.0
 	if stamina_self != null:
 		self_curr = stamina_self.current
@@ -798,23 +799,33 @@ func get_move_axis(
 	if has_opp_stamina:
 		opp_curr = opponent_stamina.current
 
-	# --- Regras por stamina ---
+	# === Intenções por stamina ===
 	var want_approach: bool = self_curr >= approach_stamina_min
-
 	var want_retreat: bool = false
 	if self_curr <= retreat_stamina_max:
 		if has_opp_stamina and self_curr < opp_curr:
 			want_retreat = true
 
-	# --- Gate por alcance: dentro do range, ficar em HOLD, exceto RETREAT ---
+	# === Gate de ENABLE: desabilita APENAS a aproximação ===
+	if not _enabled:
+		# Nunca aproximar quando desabilitado
+		want_approach = false
+		# Fora de alcance: não tem por que se mover; freia para 0 e sai
+		if not _target_in_range:
+			var t_stop: float = clampf(axis_accel * delta, 0.0, 1.0)
+			_axis = lerp(_axis, 0.0, t_stop)
+			return _axis
+
+	# === Escolha de modo (com histerese) ===
 	var requested_mode: int = Mode.HOLD
 	var immediate_override: bool = false
+
 	if _target_in_range:
 		if want_retreat:
 			requested_mode = Mode.RETREAT
 		else:
 			requested_mode = Mode.HOLD
-			immediate_override = true  # parar já, sem esperar cooldown de modo
+			immediate_override = true  # parar já quando entra no range
 	else:
 		if want_retreat:
 			requested_mode = Mode.RETREAT
@@ -823,19 +834,24 @@ func get_move_axis(
 		else:
 			requested_mode = Mode.HOLD
 
-	# Seleção do modo com/sem override imediato
+	# Se estiver desabilitado e a decisão foi HOLD, force parada imediata
+	if not _enabled and requested_mode == Mode.HOLD:
+		immediate_override = true
+
+	# Aplicar mudança de modo respeitando histerese
 	if immediate_override:
 		if _mode != requested_mode:
 			_mode = requested_mode
 			_mode_timer = mode_cooldown
 	else:
 		if requested_mode != _mode and _mode_timer > 0.0:
+			# mantém o modo atual até cooldown zerar
 			requested_mode = _mode
 		elif requested_mode != _mode and _mode_timer <= 0.0:
 			_mode = requested_mode
 			_mode_timer = mode_cooldown
 
-	# Tradução do modo para eixo alvo, com zonas
+	# === Traduzir modo -> eixo alvo ===
 	var target_axis: float = 0.0
 	if _mode == Mode.APPROACH:
 		if dist > approach_until_distance:
@@ -850,13 +866,13 @@ func get_move_axis(
 		else:
 			target_axis = 0.0
 	else:
-		target_axis = 0.0
+		target_axis = 0.0  # HOLD
 
-	# Suavização do eixo
+	# === Suavização do eixo ===
 	var t: float = clampf(axis_accel * delta, 0.0, 1.0)
 	_axis = lerp(_axis, target_axis, t)
 
-	# Clamp final
+	# === Clamp final ===
 	if _axis > 1.0:
 		_axis = 1.0
 	elif _axis < -1.0:

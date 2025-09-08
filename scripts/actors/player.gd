@@ -95,21 +95,38 @@ func _physics_process(delta: float) -> void:
 	if mover == null:
 		return
 
-	# ===== Horizontal (Input + MoveController) =====
-	var axis: float = Input.get_axis("move_left", "move_right")
-	var fd: FacingDriver = facing as FacingDriver
-	var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
-	velocity.x = vx
-
 	# ===== Gravidade (Vertical) =====
 	if not is_on_floor():
 		velocity.y += gravity * delta
 		if velocity.y > max_fall_speed:
 			velocity.y = max_fall_speed
 	else:
-		# limpa resto de queda quando pousar
 		if velocity.y > 0.0:
 			velocity.y = 0.0
+			
+	# --- NOVA LÓGICA DE MOVIMENTO HORIZONTAL ---
+	
+	# 1. Primeiro, pegamos a velocidade definida pelo estado atual
+	var state_velocity: Vector2 = Vector2.ZERO
+	if controller:
+		var current_state = controller.get_state_instance_for(controller.get_state())
+		# Verificamos se o estado TEM a nossa nova função, para evitar erros
+		if current_state.has_method("get_current_movement_velocity"):
+			state_velocity = current_state.get_current_movement_velocity(controller)
+
+	# 2. Agora, decidimos como combinar com o input do jogador
+	if state_velocity != Vector2.ZERO:
+		# Se a ação do estado tem uma velocidade definida (ex: um ataque),
+		# ela SOBRESCREVE o input do jogador. Isso cria o "compromisso" do golpe.
+		velocity.x = state_velocity.x * facing.scale.x # Multiplica pela direção
+		if state_velocity.y != 0: # Para pulos ou golpes aéreos
+			velocity.y = state_velocity.y
+	else:
+		# Se a ação do estado não tem movimento (ex: IDLE), usamos o input do jogador.
+		var axis: float = Input.get_axis("move_left", "move_right")
+		var fd: FacingDriver = facing as FacingDriver
+		var vx: float = mover.compute_vx(self, controller, fd, axis, delta)
+		velocity.x = vx
 
 	move_and_slide()
 

@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://n6ytvdruc80j"]
+
+[ext_resource type="PackedScene" uid="uid://5aqapyppbkdg" path="res://scenes/player.tscn" id="1_u2xay"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_u2xay"]
+size = Vector2(1958, 144.5)
+
+[node name="Node2D" type="Node2D"]
+position = Vector2(579, 685)
+
+[node name="Player" parent="." instance=ExtResource("1_u2xay")]
+
+[node name="Body" parent="Player/Facing" index="3"]
+metadata/_edit_use_anchors_ = true
+
+[node name="Weapon" parent="Player/Facing" index="4"]
+metadata/_edit_use_anchors_ = true
+
+[node name="StaticBody2D" type="StaticBody2D" parent="."]
+position = Vector2(-17, 61)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
+position = Vector2(400, 321)
+shape = SubResource("RectangleShape2D_u2xay")
+
+[editable path="Player"]
