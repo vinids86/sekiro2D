@@ -1,4 +1,4 @@
-[gd_scene load_steps=682 format=3 uid="uid://5aqapyppbkdg"]
+[gd_scene load_steps=688 format=3 uid="uid://5aqapyppbkdg"]
 
 [ext_resource type="Script" uid="uid://ce4dqsicv6yvy" path="res://scripts/actors/player.gd" id="1_onrkg"]
 [ext_resource type="Shader" uid="uid://cxv54tnvdml8f" path="res://materials/flash_shader.gdshader" id="2_ur7pv"]
@@ -63,6 +63,11 @@
 [ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="58_2a3c5"]
 [ext_resource type="Script" uid="uid://xv0h8r6flxcj" path="res://scripts/combat/BufferController.gd" id="58_51ujp"]
 [ext_resource type="Script" uid="uid://dyf7ny7kehk38" path="res://scripts/movement/MoveController.gd" id="59_42b1b"]
+[ext_resource type="Resource" uid="uid://bekx4w6ggr23s" path="res://resources/combat/configs/player/dodge/dodge_neutral.tres" id="62_2w11d"]
+[ext_resource type="Resource" uid="uid://b7p1c4dn42lqq" path="res://resources/combat/configs/player/dodge/dodge_front.tres" id="63_770dr"]
+[ext_resource type="Resource" uid="uid://difbsegifaedt" path="res://resources/combat/configs/player/dodge/dodge_back.tres" id="64_8f1cb"]
+[ext_resource type="Resource" uid="uid://bknsxrukg0lpc" path="res://resources/combat/configs/player/dodge/dodge_up.tres" id="65_vdulj"]
+[ext_resource type="Resource" uid="uid://c1sntgy4j2hrc" path="res://resources/combat/configs/player/dodge/dodge_down.tres" id="66_vau08"]
 
 [sub_resource type="Resource" id="Resource_8svfe"]
 script = ExtResource("10_74r1k")
@@ -4851,50 +4856,14 @@ length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("AnimatedSprite2D:sprite_frames")
+tracks/0/path = NodePath("Body:color")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [SubResource("SpriteFrames_giy8y")]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("AnimatedSprite2D:animation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [&"heavy_up"]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("AnimatedSprite2D:frame")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [11]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("Weapon:rotation")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [0.0]
+"values": [Color(1, 1, 1, 1)]
 }
 
 [sub_resource type="Animation" id="Animation_42b1b"]
@@ -5339,26 +5308,14 @@ step = 0.0833333
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("AnimatedSprite2D:animation")
+tracks/0/path = NodePath("Body:visible")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(0.05, 0.3),
+"transitions": PackedFloat32Array(1, 1),
 "update": 1,
-"values": [&"dodge_down"]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("AnimatedSprite2D:frame")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.0833333, 0.166667, 0.25, 0.333333, 0.416667, 0.5, 0.583333, 0.666666, 0.75, 0.833333, 0.916666, 1, 1.08333, 1.16667, 1.25, 1.33333, 1.41667, 1.5, 1.58333),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-"update": 1,
-"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+"values": [false, true]
 }
 
 [sub_resource type="Animation" id="Animation_8f1cb"]
@@ -5637,6 +5594,47 @@ tracks/1/keys = {
 "values": [0, 1, 2, 3, 4, 5, 6, 9, 8, 9, 10, 11, 12]
 }
 
+[sub_resource type="Animation" id="Animation_vau08"]
+resource_name = "dodge_down"
+length = 0.6
+step = 0.0833333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Body:size")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(70, 330), Vector2(70, 165), Vector2(70, 330)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Body:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(-35, -165), Vector2(-35, 0), Vector2(-35, -165)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Body:color")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.300856, 0.599679),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(0, 0, 0, 1), Color(1, 1, 1, 1)]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_au7lq"]
 _data = {
 &"RESET": SubResource("Animation_h7ic4"),
@@ -5654,6 +5652,7 @@ _data = {
 &"combo1_atk5": SubResource("Animation_cpn3g"),
 &"combo1_atk6": SubResource("Animation_6dibf"),
 &"dodge": SubResource("Animation_51ujp"),
+&"dodge_down": SubResource("Animation_vau08"),
 &"finisher": SubResource("Animation_8f1cb"),
 &"guard_broken": SubResource("Animation_2w11d"),
 &"heavy_up": SubResource("Animation_8svfe"),
@@ -5730,6 +5729,7 @@ offset_left = 68.0
 offset_top = 24.0
 offset_right = 218.0
 offset_bottom = 34.0
+rotation = -0.872665
 pivot_offset = Vector2(5, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
@@ -5769,6 +5769,11 @@ metadata/_custom_type_script = "uid://dyf7ny7kehk38"
 script = ExtResource("8_smehm")
 poise_controller = NodePath("PoiseController")
 buffer_controller = NodePath("BufferController")
+neutral_dodge_config = ExtResource("62_2w11d")
+forward_dodge_config = ExtResource("63_770dr")
+back_dodge_config = ExtResource("64_8f1cb")
+up_dodge_config = ExtResource("65_vdulj")
+down_dodge_config = ExtResource("66_vau08")
 metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 
 [node name="PoiseController" type="Node" parent="CombatController"]

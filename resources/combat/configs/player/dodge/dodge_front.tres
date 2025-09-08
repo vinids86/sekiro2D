@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DodgeConfig" load_steps=2 format=3 uid="uid://b7p1c4dn42lqq"]
+
+[ext_resource type="Script" uid="uid://fr3ufu5jqa3d" path="res://scripts/combat/dodge/DodgeConfig.gd" id="1_nt2nj"]
+
+[resource]
+script = ExtResource("1_nt2nj")
+startup = 0.05
+active = 0.25
+recover = 0.3
+stamina_cost = 3.0
+has_iframes = true
+startup_velocity = Vector2(0, 0)
+active_velocity = Vector2(600, 0)
+recover_velocity = Vector2(0, 0)
+metadata/_custom_type_script = "uid://fr3ufu5jqa3d"

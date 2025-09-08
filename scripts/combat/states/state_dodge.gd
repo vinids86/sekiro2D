@@ -1,21 +1,22 @@
 extends StateBase
 class_name StateDodge
 
-var _dir: int = 0
-
 func allows_attack_input(_cc: CombatController) -> bool:
 	return false
 
 func allows_parry_input(_cc: CombatController) -> bool:
 	if _cc.phase == CombatController.Phase.RECOVER:
 		return true
-	else:
-		return false
+	return false
 
 func allows_dodge_input(_cc: CombatController) -> bool:
 	return false
 
-func autoblock_enabled(_cc: CombatController) -> bool:
+# A invencibilidade (iframes) agora é controlada pelo DodgeConfig
+func autoblock_enabled(cc: CombatController) -> bool:
+	var cfg: DodgeConfig = cc.current_cfg as DodgeConfig
+	if cfg and cfg.has_iframes and cc.phase == CombatController.Phase.ACTIVE:
+		return true # Nome "autoblock" aqui é um pouco enganoso, mas a função é a mesma: ignorar dano
 	return false
 
 func is_attack_buffer_window_open(cc: CombatController) -> bool:
@@ -29,33 +30,39 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
 
+# --- NOVA FUNÇÃO DE MOVIMENTO ---
+func get_current_movement_velocity(cc: CombatController) -> Vector2:
+	if not cc.current_cfg or not cc.current_cfg is DodgeConfig:
+		return Vector2.ZERO
+
+	var cfg: DodgeConfig = cc.current_cfg as DodgeConfig
+	match cc.phase:
+		CombatController.Phase.STARTUP:
+			return cfg.startup_velocity
+		CombatController.Phase.ACTIVE:
+			return cfg.active_velocity
+		CombatController.Phase.RECOVER:
+			return cfg.recover_velocity
+	
+	return Vector2.ZERO
+
+# --- on_timeout MODIFICADO para ler do config ---
 func on_timeout(cc: CombatController) -> void:
+	var cfg: DodgeConfig = cc.current_cfg as DodgeConfig
+	if not cfg:
+		cc._exit_to_idle()
+		return
+
 	if cc.phase == CombatController.Phase.STARTUP:
-		cc._change_phase(CombatController.Phase.ACTIVE, null)
-		var dur_active: float = 0.0
-		if cc._dodge != null:
-			dur_active = cc._dodge.active
-		cc._safe_start_timer(dur_active)
+		cc._change_phase(CombatController.Phase.ACTIVE, cfg)
+		cc._safe_start_timer(cfg.active)
 		return
 
 	if cc.phase == CombatController.Phase.ACTIVE:
-		cc._change_phase(CombatController.Phase.RECOVER, null)
-		var dur_recover: float = 0.0
-		if cc._dodge != null:
-			dur_recover = cc._dodge.recover
-		cc._safe_start_timer(dur_recover)
+		cc._change_phase(CombatController.Phase.RECOVER, cfg)
+		cc._safe_start_timer(cfg.recover)
 		return
 
 	if cc.phase == CombatController.Phase.RECOVER:
 		cc._exit_to_idle()
 		return
-
-func on_enter(_cc: CombatController, _cfg: StateConfig, _args: StateArgs) -> void:
-	var da: DodgeArgs = _args as DodgeArgs
-	if da != null:
-		_dir = da.dir
-	else:
-		_dir = 0
-
-func on_exit(_cc: CombatController, _cfg: StateConfig) -> void:
-	_dir = 0

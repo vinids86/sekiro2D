@@ -18,6 +18,13 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 @export var poise_controller: PoiseController
 @export var buffer_controller: BufferController
 
+@export_group("Configurações de Esquiva")
+@export var neutral_dodge_config: DodgeConfig
+@export var forward_dodge_config: DodgeConfig
+@export var back_dodge_config: DodgeConfig
+@export var up_dodge_config: DodgeConfig
+@export var down_dodge_config: DodgeConfig
+
 # =========================
 # ESTADO E CONFIGURAÇÃO
 # =========================
@@ -26,7 +33,7 @@ var _state: int = State.IDLE
 var phase: int = -1
 var current_kind: AttackKind = AttackKind.LIGHT
 var combo_index: int = 0
-var current_cfg: AttackConfig
+var current_cfg: StateConfig
 
 var attack_set: AttackSet
 var _combo_seq: Array[AttackConfig] = []
@@ -116,17 +123,37 @@ func on_parry_pressed() -> void:
 	_change_phase(Phase.ACTIVE, null)
 	_safe_start_timer(_parry_profile.window)
 
-func on_dodge_pressed(stamina: Stamina, dir: int) -> void:
+func on_dodge_pressed(stamina: Stamina, dir: int, facing_direction: float) -> void:
 	if not allows_dodge_input_now():
 		return
-	var cost: float = maxf(0.0, _dodge.stamina_cost)
+
+	var dodge_cfg: DodgeConfig
+	match dir:
+		CombatTypes.DodgeDir.UP:
+			dodge_cfg = up_dodge_config
+		CombatTypes.DodgeDir.DOWN:
+			dodge_cfg = down_dodge_config
+		CombatTypes.DodgeDir.LEFT, CombatTypes.DodgeDir.RIGHT:
+			# A nova lógica usa a direção recebida para decidir
+			if facing_direction > 0: # Olhando para a direita
+				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.RIGHT else back_dodge_config
+			else: # Olhando para a esquerda
+				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.LEFT else back_dodge_config
+		_: # NEUTRAL
+			dodge_cfg = neutral_dodge_config
+
+	if not dodge_cfg:
+		print("COMBAT CONTROLLER: DodgeConfig para a direção ", dir, " não está configurado.")
+		return
+
+	var cost: float = maxf(0.0, dodge_cfg.stamina_cost)
 	if cost > 0.0 and not stamina.try_consume(cost):
 		return
 
 	buffer_controller.clear()
-	_change_state(State.DODGE, null, DodgeArgs.new(dir))
-	_change_phase(Phase.STARTUP, null)
-	_safe_start_timer(_dodge.startup)
+	_change_state(State.DODGE, dodge_cfg, DodgeArgs.new(dir))
+	_change_phase(Phase.STARTUP, dodge_cfg)
+	_safe_start_timer(dodge_cfg.startup)
 
 # =========================
 # TIMER TICK
@@ -345,8 +372,10 @@ func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
 
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
-	var last: AttackConfig = current_cfg
-	_change_state(State.IDLE, last)
+	var last_cfg: StateConfig = current_cfg
+	
+	_change_state(State.IDLE, last_cfg)
+	
 	phase = Phase.STARTUP
 	current_cfg = null
 	combo_index = 0
@@ -360,6 +389,7 @@ func _change_state(new_state: int, cfg: StateConfig, args: StateArgs = null) -> 
 	var reentry_allowed: bool = _get_state().allows_reentry(self)
 	if not same or reentry_allowed:
 		_stop_phase_timer()
+		current_cfg = cfg
 		var prev: int = _state
 		_get_state().on_exit(self, cfg)
 		emit_signal("state_exited", prev, cfg, null)

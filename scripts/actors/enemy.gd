@@ -33,14 +33,6 @@ class_name Enemy
 # Listeners (nós filhos dedicados)
 @onready var anim_listener: CombatAnimListener = $CombatAnimListener
 @onready var sfx_listener: CombatSfxListener = $CombatSfxListener
-
-@onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
-@onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
-@onready var sfx_parry_startup: AudioStreamPlayer2D = $Sfx/ParryStartup
-@onready var sfx_parry_success: AudioStreamPlayer2D = $Sfx/ParrySuccess
-@onready var sfx_dodge: AudioStreamPlayer2D = $Sfx/Dodge
-@onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
-@onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
 @onready var ai_driver: EnemyAIDriver = $EnemyAIDriver
 @onready var mover: MoveController = $MoveController
 

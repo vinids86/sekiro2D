@@ -39,14 +39,6 @@ const DIR_THRESHOLD: float = 0.45
 @onready var sfx_listener: CombatSfxListener = $CombatSfxListener
 @onready var stamina: Stamina = $Stamina
 
-@onready var sfx_swing: AudioStreamPlayer2D = $Sfx/Swing
-@onready var sfx_impact: AudioStreamPlayer2D = $Sfx/Impact
-@onready var sfx_parry_startup: AudioStreamPlayer2D = $Sfx/ParryStartup
-@onready var sfx_parry_success: AudioStreamPlayer2D = $Sfx/ParrySuccess
-@onready var sfx_dodge: AudioStreamPlayer2D = $Sfx/Dodge
-@onready var sfx_heavy: AudioStreamPlayer2D = $Sfx/Heavy
-@onready var sfx_combo_parry_enter: AudioStreamPlayer2D = $Sfx/ComboParryEnter
-
 var _driver: AnimationDriver
 
 func _ready() -> void:
@@ -135,8 +127,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("dodge"):
-		var dir: int = _read_dodge_dir() # retorna CombatTypes.DodgeDir
-		controller.on_dodge_pressed(stamina, dir)
+		var dir: int = _read_dodge_dir()
+		controller.on_dodge_pressed(stamina, dir, facing.scale.x)
 		return
 		
 	if event.is_action_pressed("attack_heavy"):
