@@ -316,6 +316,9 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
 	print("[ATK] fb=", feedback, " name=", ContactArbiter.AttackerFeedback.keys()[feedback])
 
+	if feedback == ContactArbiter.AttackerFeedback.BLOCKED or feedback == ContactArbiter.AttackerFeedback.HIT_CONFIRMED:
+		poise_controller.add_momentum(cfg)
+
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
 		var kind_now: int = current_kind
 		if kind_now == AttackKind.LIGHT:

@@ -1,5 +1,5 @@
 extends Resource
-class_name EnemyAttackProfile
+class_name EnemyAIProfile
 
 @export_category("General")
 @export var enabled_default: bool = true

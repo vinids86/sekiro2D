@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_dp4gt")
-enabled_default = false
+enabled_default = true
 think_interval = 0.1
 respect_opponent_turn = true
 inter_hit_delay = 0.18

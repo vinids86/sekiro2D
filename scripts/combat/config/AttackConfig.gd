@@ -33,6 +33,7 @@ var kind: int = AttackKind.LIGHT
 # ====== POISE / INTERRUPÇÃO ======
 @export var poise_break: float = 10.0
 @export var action_poise: float = 4.0
+@export var grants_momentum_poise: float = 1.0
 
 # --- NOVO: Grupo de Movimento ---
 @export_group("Movimento")

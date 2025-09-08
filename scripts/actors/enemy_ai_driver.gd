@@ -11,7 +11,7 @@ var _parry_intent: bool = false
 # =============================
 # Wiring
 # =============================
-@export var profile: EnemyAttackProfile
+@export var profile: EnemyAIProfile
 @export var controller: CombatController
 @export var target_controller: CombatController
 
