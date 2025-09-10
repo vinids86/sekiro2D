@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EnemyAIProfile" load_steps=2 format=3 uid="uid://corrmcvkqxhfn"]
+
+[ext_resource type="Script" uid="uid://dbksbm5yigo6h" path="res://scripts/actors/enemy_ai_profile.gd" id="1_dp4gt"]
+
+[resource]
+script = ExtResource("1_dp4gt")
+idle_patience_time = 1.0
+post_parry_cooldown = 1.0
+idle_attack_chance = 0.7
+punish_recover_threshold = 0.3
+parry_chance_per_hit = [0.2, 0.4, 0.6, 0.95]
+pressure_reset_time = 1.5

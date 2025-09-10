@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="StunConfig" load_steps=2 format=3 uid="uid://bbs8tml1cbmwt"]
+
+[ext_resource type="Script" uid="uid://c3ggv7323oxcn" path="res://scripts/combat/config/StunConfig.gd" id="1_lexuw"]
+
+[resource]
+script = ExtResource("1_lexuw")
+startup_velocity = Vector2(-100, 0)
+metadata/_custom_type_script = "uid://c3ggv7323oxcn"

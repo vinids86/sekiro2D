@@ -68,13 +68,6 @@ func _on_area_entered(area: Area2D) -> void:
 	if not arb.attacker_impact.is_connected(cb_atk_cc):
 		arb.attacker_impact.connect(cb_atk_cc)
 
-	# (Opcional já existente) Conexão de evento da Stamina → Controller (ex.: emptied → GUARD_BROKEN)
-	if defender_root.has_node(^"Stamina"):
-		var stamina_node: Node = defender_root.get_node(^"Stamina")
-		var cb_empty: Callable = Callable(def_cc, "_on_stamina_emptied")
-		if not stamina_node.is_connected("emptied", cb_empty):
-			stamina_node.connect("emptied", cb_empty)
-
 	# ===== Agora sim, resolver o impacto =====
 	arb.resolve(cfg)
 

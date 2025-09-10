@@ -30,6 +30,16 @@ func autoblock_enabled(_cc: CombatController) -> bool:
 	if _cc.phase != CombatController.Phase.ACTIVE:
 		return true
 	return false
+	
+# --- NOVA FUNÇÃO IMPLEMENTADA ---
+func allows_attack_buffer(cc: CombatController) -> bool:
+	# A lógica original do seu BufferController, agora no lugar certo.
+	if cc.phase != CombatController.Phase.RECOVER: return false
+	if cc.current_kind != CombatController.AttackKind.LIGHT: return false
+	if cc.attack_set == null: return false
+	
+	var next_idx: int = cc.attack_set.next_index(cc.combo_index)
+	return next_idx >= 0
 
 func is_attack_buffer_window_open(cc: CombatController) -> bool:
 	if cc.current_kind == CombatController.AttackKind.COMBO:
@@ -42,14 +52,9 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
 
-# --- NOVA FUNÇÃO ---
-# Retorna a velocidade de movimento que deve ser aplicada neste frame,
-# com base na fase atual do combate.
 func get_current_movement_velocity(cc: CombatController) -> Vector2:
 	if not cc.current_cfg:
 		return Vector2.ZERO
-
-	# Garante que estamos lidando com um AttackConfig que tem as propriedades de velocidade
 	if not cc.current_cfg is AttackConfig:
 		return Vector2.ZERO
 
@@ -63,7 +68,6 @@ func get_current_movement_velocity(cc: CombatController) -> Vector2:
 			return cfg.recover_velocity
 	
 	return Vector2.ZERO
-
 
 func on_timeout(cc: CombatController) -> void:
 	if cc.current_cfg == null:
@@ -93,8 +97,7 @@ func on_timeout(cc: CombatController) -> void:
 			cc._exit_to_idle()
 			return
 
-		if cc.buffer_controller and cc.buffer_controller.try_consume(cc):
-			return
-
+		# A chamada para try_consume foi removida daqui. A responsabilidade
+		# de consumir o buffer será do CombatController ao sair para IDLE.
 		cc._exit_to_idle()
 		return

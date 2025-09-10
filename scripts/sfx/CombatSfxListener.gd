@@ -112,6 +112,7 @@ func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 			# Sem AttackConfig válido: nada a tocar
 			return
 		if phase == CombatController.Phase.STARTUP:
+			print("Tocando: ", ac.sfx_swing_stream.resource_path, ac.body_clip)
 			_play_effect(ac.sfx_startup_stream)
 			_play_voice(ac.voice_startup_stream)
 			return

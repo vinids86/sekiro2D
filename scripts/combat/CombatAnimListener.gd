@@ -161,7 +161,7 @@ func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 				push_error("CombatAnimListener: ATTACK STARTUP com cfg que não é AttackConfig")
 				return
 
-			print("[ANIM] STARTUP clip=", ac.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
+			print("Tocando [ANIM] STARTUP clip=", ac.body_clip, " current=", _animation.current_animation, " playing=", _animation.is_playing())
 
 			# Finisher: exige body_clip configurado; sem fallback.
 			if _cc.current_kind == CombatController.AttackKind.FINISHER:

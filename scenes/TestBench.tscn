@@ -14,7 +14,6 @@ position = Vector2(579, 685)
 metadata/_edit_use_anchors_ = true
 
 [node name="Weapon" parent="Player/Facing" index="4"]
-rotation = -0.872665
 metadata/_edit_use_anchors_ = true
 
 [node name="StaticBody2D" type="StaticBody2D" parent="."]

@@ -18,6 +18,8 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 @export var poise_controller: PoiseController
 @export var buffer_controller: BufferController
 
+@export var stun_config: StunConfig
+
 @export_group("Configurações de Esquiva")
 @export var neutral_dodge_config: DodgeConfig
 @export var forward_dodge_config: DodgeConfig
@@ -59,7 +61,6 @@ func initialize(
 		parried_profile: ParriedProfile, guard_profile: GuardProfile, counter_profile: CounterProfile,
 		dodge_profile: DodgeProfile, finisher_profile: FinisherProfile, base_poise: float
 	) -> void:
-	print("parry_profile", parry_profile, _parry_profile)
 	self.attack_set = attack_set
 	_parry_profile = parry_profile
 	_hitreact = hit_react_profile
@@ -101,6 +102,8 @@ func on_attack_pressed() -> void:
 		_start_attack(AttackKind.LIGHT, first)
 		return
 
+	# --- MUDANÇA IMPORTANTE ---
+	# Agora usa a nova função simplificada e correta do buffer.
 	if buffer_controller.can_buffer_now(self):
 		buffer_controller.capture()
 		return
@@ -134,12 +137,11 @@ func on_dodge_pressed(stamina: Stamina, dir: int, facing_direction: float) -> vo
 		CombatTypes.DodgeDir.DOWN:
 			dodge_cfg = down_dodge_config
 		CombatTypes.DodgeDir.LEFT, CombatTypes.DodgeDir.RIGHT:
-			# A nova lógica usa a direção recebida para decidir
-			if facing_direction > 0: # Olhando para a direita
+			if facing_direction > 0:
 				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.RIGHT else back_dodge_config
-			else: # Olhando para a esquerda
+			else:
 				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.LEFT else back_dodge_config
-		_: # NEUTRAL
+		_:
 			dodge_cfg = neutral_dodge_config
 
 	if not dodge_cfg:
@@ -175,7 +177,7 @@ func get_state_instance_for(state_id: int) -> StateBase:
 
 func get_effective_poise() -> float:
 	var action_poise: float = 0.0
-	if current_cfg != null:
+	if current_cfg != null and "action_poise" in current_cfg:
 		action_poise = current_cfg.action_poise
 	return poise_controller.get_effective_poise(action_poise)
 
@@ -208,8 +210,7 @@ func is_guard_broken_active() -> bool:
 
 func get_guard_absorb_cap() -> float:
 	assert(_guard != null, "CombatController.get_guard_absorb_cap: GuardProfile nulo")
-	var cap: float = _guard.defense_absorb_cap
-	return cap
+	return _guard.defense_absorb_cap
 
 func get_finisher_cfg() -> AttackConfig:
 	assert(_finisher != null, "CombatController.get_finisher_cfg: FinisherProfile nulo")
@@ -259,7 +260,7 @@ func enter_guard_broken() -> void:
 
 func enter_hit_react() -> void:
 	buffer_controller.clear()
-	_change_state(State.STUNNED, null)
+	_change_state(State.STUNNED, stun_config)
 	_change_phase(Phase.STARTUP, null)
 	_safe_start_timer(_hitreact.stun)
 
@@ -286,7 +287,7 @@ func start_finisher() -> void:
 	_start_attack(AttackKind.FINISHER, _finisher.attack)
 
 # =========================
-# Impact Handlers (ATACANTE E DEFENSOR)
+# Impact Handlers
 # =========================
 func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int) -> void:
 	if result == ContactArbiter.DefenderResult.PARRY_SUCCESS:
@@ -301,12 +302,10 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 	if result == ContactArbiter.DefenderResult.POISE_BREAK:
 		enter_hit_react()
 		return
-
 	if result == ContactArbiter.DefenderResult.DODGED:
 		return
 	if _state == State.ATTACK and phase != Phase.RECOVER:
 		return
-
 	if metrics.absorbed > 0.0 and metrics.hp_damage <= 0.0:
 		enter_guard_hit()
 		return
@@ -314,20 +313,15 @@ func _on_defender_impact(cfg: AttackConfig, metrics: ImpactMetrics, result: int)
 		enter_hit_react()
 
 func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetrics) -> void:
-	print("[ATK] fb=", feedback, " name=", ContactArbiter.AttackerFeedback.keys()[feedback])
-
 	if feedback == ContactArbiter.AttackerFeedback.BLOCKED or feedback == ContactArbiter.AttackerFeedback.HIT_CONFIRMED:
 		poise_controller.add_momentum(cfg)
-
 	if feedback == ContactArbiter.AttackerFeedback.ATTACK_PARRIED:
 		var kind_now: int = current_kind
 		if kind_now == AttackKind.LIGHT:
 			enter_parried()
 			return
 		return
-
 	if feedback == ContactArbiter.AttackerFeedback.GUARD_BROKEN_CONFIRMED:
-		print("[ATK] enter_finisher_ready()")
 		enter_finisher_ready()
 		return
 
@@ -335,48 +329,46 @@ func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetric
 # HELPERS
 # =========================
 func _get_state() -> StateBase:
-	assert(_states.has(_state), "CombatController: estado '%s' não foi construído." % [str(_state)])
-	return _states[_state]
+	return get_state_instance_for(_state)
 
 func _get_attack_from_set(index: int) -> AttackConfig:
-	if attack_set == null:
-		return null
+	if attack_set == null: return null
 	return attack_set.get_attack(index)
 
 func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
 	if cfg == null:
 		return
 	current_kind = kind
-	current_cfg = cfg
-	poise_controller.on_attack_started()
-	
 	var idx: int = -1
 	if attack_set:
 		idx = attack_set.attacks.find(cfg)
 	combo_index = idx if idx >= 0 else 0
-
-	_change_state(State.ATTACK, current_cfg)
-	_change_phase(Phase.STARTUP, current_cfg)
-	_safe_start_timer(current_cfg.startup)
+	_change_state(State.ATTACK, cfg)
+	_change_phase(Phase.STARTUP, cfg)
+	poise_controller.on_attack_started()
+	_safe_start_timer(cfg.startup)
 
 func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
 	current_kind = AttackKind.COMBO
 	_combo_seq = seq.filter(func(ac): return ac != null)
 	if _combo_seq.is_empty():
 		return
-	
 	_combo_hit = 0
-	current_cfg = _combo_seq[_combo_hit]
+	var cfg = _combo_seq[_combo_hit]
 	combo_index = 0
-	
-	_change_state(State.ATTACK, current_cfg)
-	_change_phase(Phase.STARTUP, current_cfg)
-	_safe_start_timer(current_cfg.startup)
+	_change_state(State.ATTACK, cfg)
+	_change_phase(Phase.STARTUP, cfg)
+	_safe_start_timer(cfg.startup)
 
+# --- FUNÇÃO ATUALIZADA ---
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
-	var last_cfg: StateConfig = current_cfg
 	
+	if buffer_controller.has_buffer():
+		if _try_consume_buffered_attack():
+			return
+
+	var last_cfg: StateConfig = current_cfg
 	_change_state(State.IDLE, last_cfg)
 	
 	phase = Phase.STARTUP
@@ -387,22 +379,77 @@ func _exit_to_idle() -> void:
 	poise_controller.on_action_finished()
 	buffer_controller.clear()
 
+# --- NOVA FUNÇÃO HELPER ---
+func _try_consume_buffered_attack() -> bool:
+	buffer_controller.clear()
+
+	if attack_set == null: return false
+	
+	var next_idx: int
+	if _state == State.PARRY and phase == Phase.SUCCESS:
+		next_idx = 0
+	elif _state == State.ATTACK and current_kind == AttackKind.LIGHT:
+		print("Tocando: ", combo_index)
+		next_idx = attack_set.next_index(combo_index)
+	else:
+		return false
+
+	if next_idx < 0: return false
+
+	var next_cfg: AttackConfig = attack_set.get_attack(next_idx)
+	if next_cfg == null: return false
+
+	_start_attack(AttackKind.LIGHT, next_cfg)
+	return true
+
 func _change_state(new_state: int, cfg: StateConfig, args: StateArgs = null) -> void:
 	var same: bool = new_state == _state
 	var reentry_allowed: bool = _get_state().allows_reentry(self)
 	if not same or reentry_allowed:
+		var who: StringName = _owner_tag()
+		var prev: int = _state
+		if OS.is_debug_build():
+			var prev_name: StringName = _state_to_name(prev)
+			var new_name: StringName = _state_to_name(new_state)
+			if same and reentry_allowed:
+				print("[FSM] %s: reentry %s" % [str(who), str(prev_name)])
+			else:
+				print("[FSM] %s: %s -> %s" % [str(who), str(prev_name), str(new_name)])
+
 		_stop_phase_timer()
 		current_cfg = cfg
-		var prev: int = _state
 		_get_state().on_exit(self, cfg)
 		emit_signal("state_exited", prev, cfg, null)
 		_state = new_state
 		_get_state().on_enter(self, cfg, args)
 		emit_signal("state_entered", _state, cfg, args)
+
 		if prev == State.ATTACK and new_state != State.ATTACK:
 			poise_controller.on_action_finished()
 			_combo_seq.clear()
 			_combo_hit = -1
+
+# =========================
+# HELPERS
+# =========================
+
+func _owner_tag() -> StringName:
+	var n: Node = self
+	while n != null:
+		if n.is_in_group(&"player"):
+			return &"player"
+		if n.is_in_group(&"enemy"):
+			return &"enemy"
+		n = n.get_parent()
+	return &"unknown"
+
+func _state_to_name(value: int) -> StringName:
+	for key in State:  # 'State' é um Dictionary: { "IDLE": 0, "ATTACK": 1, ... }
+		var k: StringName = StringName(key)
+		var v: int = State[key]
+		if v == value:
+			return k
+	return &"UNKNOWN"
 
 func _change_phase(new_phase: Phase, cfg: StateConfig) -> void:
 	phase = new_phase

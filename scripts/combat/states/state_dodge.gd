@@ -30,7 +30,6 @@ func allows_heavy_start(_cc: CombatController) -> bool:
 func allows_reentry(_cc: CombatController) -> bool:
 	return false
 
-# --- NOVA FUNÇÃO DE MOVIMENTO ---
 func get_current_movement_velocity(cc: CombatController) -> Vector2:
 	if not cc.current_cfg or not cc.current_cfg is DodgeConfig:
 		return Vector2.ZERO

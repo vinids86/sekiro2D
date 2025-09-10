@@ -1,4 +1,4 @@
-[gd_scene load_steps=659 format=3 uid="uid://bd2t2qkjkliam"]
+[gd_scene load_steps=658 format=3 uid="uid://bd2t2qkjkliam"]
 
 [ext_resource type="Script" uid="uid://djdssxfwgprut" path="res://scripts/actors/enemy.gd" id="1_md0e3"]
 [ext_resource type="Resource" uid="uid://350s1evxv7gl" path="res://resources/combat/sets/player_basic_combo.tres" id="2_j0cyh"]
@@ -6,13 +6,13 @@
 [ext_resource type="Resource" uid="uid://c2wswk56ahat6" path="res://resources/anim/anim.tres" id="3_1x4g4"]
 [ext_resource type="Texture2D" uid="uid://q60mr4ngn5r6" path="res://art/c1-atk1-sheet.png" id="3_4ra3w"]
 [ext_resource type="Script" uid="uid://dusihogycvu87" path="res://scripts/combat/hitbox/AttackHitbox.gd" id="3_5uy6h"]
-[ext_resource type="Script" uid="uid://dr6qm6qpxsqc1" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox/Hurtbox.gd" id="4_c4w8v"]
 [ext_resource type="Texture2D" uid="uid://cxrgptaqaqwve" path="res://art/idle.png" id="4_ipns3"]
 [ext_resource type="Resource" uid="uid://dxtuaxnns713q" path="res://resources/combat/configs/parry.tres" id="4_rogs8"]
 [ext_resource type="Resource" uid="uid://b0uudpt73r847" path="res://resources/combat/configs/HitReactProfile.tres" id="5_2mchx"]
 [ext_resource type="Texture2D" uid="uid://buicnrtdybg40" path="res://art/c1-atk2-sheet.png" id="5_8qclf"]
 [ext_resource type="Texture2D" uid="uid://dska00fioxoka" path="res://art/c1-atk3-sheet.png" id="6_w8i8w"]
-[ext_resource type="Resource" uid="uid://corrmcvkqxhfn" path="res://resources/ai/EnemyAIProfile.tres" id="7_1f82d"]
+[ext_resource type="Resource" uid="uid://corrmcvkqxhfn" path="res://resources/ai/EnemyAttackProfile.tres" id="7_1f82d"]
 [ext_resource type="Texture2D" uid="uid://cw5ui2mim6g27" path="res://art/c1-atk4-sheet.png" id="7_otmr2"]
 [ext_resource type="Script" path="res://scripts/actors/facing.gd" id="8_0lg75"]
 [ext_resource type="Resource" uid="uid://o762wyf72smd" path="res://resources/combat/configs/parried.tres" id="8_lsnsy"]
@@ -51,7 +51,6 @@
 [ext_resource type="Texture2D" uid="uid://t8bmcg387rrg" path="res://art/heavy_up.png" id="37_5utat"]
 [ext_resource type="Texture2D" uid="uid://bojxhnnwcwivl" path="res://art/combo_parry.png" id="40_b5geg"]
 [ext_resource type="Texture2D" uid="uid://dc2fxiad07eed" path="res://art/walk.png" id="44_13roy"]
-[ext_resource type="Resource" uid="uid://bbs8tml1cbmwt" path="res://resources/combat/configs/player/stun/stun.tres" id="49_g0yyi"]
 [ext_resource type="Script" uid="uid://xv0h8r6flxcj" path="res://scripts/combat/BufferController.gd" id="50_b5geg"]
 [ext_resource type="Script" uid="uid://hxnopbe32bk8" path="res://scripts/sfx/CombatSfxListener.gd" id="50_sm4rh"]
 [ext_resource type="Script" uid="uid://cd0s3yas3xjt7" path="res://scripts/combat/PoiseController.gd" id="51_g0yyi"]
@@ -4765,22 +4764,10 @@ tracks/3/keys = {
 "update": 0,
 "values": [-0.872665]
 }
-tracks/4/type = "value"
-tracks/4/imported = false
-tracks/4/enabled = true
-tracks/4/path = NodePath("Body:color")
-tracks/4/interp = 1
-tracks/4/loop_wrap = true
-tracks/4/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Color(1, 1, 0, 1)]
-}
 
 [sub_resource type="Animation" id="Animation_42b1b"]
 resource_name = "atk1"
-length = 0.7
+length = 2.0
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -4788,22 +4775,10 @@ tracks/0/path = NodePath("Weapon:rotation")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.3, 0.7),
+"times": PackedFloat32Array(0, 0.366667, 0.666667),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
 "values": [-0.872665, 0.0, -0.872665]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("Body:color")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.3, 0.7),
-"transitions": PackedFloat32Array(1, 1, 1),
-"update": 0,
-"values": [Color(1, 1, 0, 1), Color(0, 0, 0, 1), Color(1, 1, 1, 1)]
 }
 
 [sub_resource type="Animation" id="Animation_au7lq"]
@@ -5574,7 +5549,7 @@ size = Vector2(167, 145)
 size = Vector2(130, 330)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_x24ca"]
-size = Vector2(268, 388)
+size = Vector2(200, 388)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4ra3w"]
 size = Vector2(150, 350)
@@ -5613,12 +5588,14 @@ libraries = {
 }
 
 [node name="AttackHitbox" type="Area2D" parent="Facing"]
+visible = false
 collision_layer = 16
 collision_mask = 0
 monitoring = false
 script = ExtResource("3_5uy6h")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Facing/AttackHitbox"]
+visible = false
 shape = SubResource("RectangleShape2D_lsnsy")
 
 [node name="Body" type="ColorRect" parent="Facing"]
@@ -5626,7 +5603,6 @@ offset_left = -35.0
 offset_top = -166.0
 offset_right = 35.0
 offset_bottom = 164.0
-color = Color(1, 1, 0, 1)
 metadata/_edit_use_anchors_ = true
 
 [node name="Weapon" type="ColorRect" parent="Facing"]
@@ -5642,6 +5618,7 @@ visible = false
 shape = SubResource("RectangleShape2D_md0e3")
 
 [node name="DetectionArea" type="Area2D" parent="."]
+visible = false
 collision_layer = 0
 collision_mask = 2
 
@@ -5670,7 +5647,6 @@ metadata/_custom_type_script = "uid://s1v4ano08fya"
 script = ExtResource("13_wtq4b")
 poise_controller = NodePath("PoiseController")
 buffer_controller = NodePath("BufferController")
-stun_config = ExtResource("49_g0yyi")
 metadata/_custom_type_script = "uid://cfihtbf31nc3x"
 
 [node name="BufferController" type="Node" parent="CombatController"]

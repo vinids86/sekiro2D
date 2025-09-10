@@ -18,6 +18,10 @@ kind = 3
 parryable = true
 poise_break = 10.0
 action_poise = 4.0
+grants_momentum_poise = 1.0
+startup_velocity = Vector2(0, 0)
+active_velocity = Vector2(0, 0)
+recover_velocity = Vector2(0, 0)
 metadata/_custom_type_script = "uid://bpr26trni32iq"
 
 [resource]

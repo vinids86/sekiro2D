@@ -44,6 +44,11 @@ func _process(delta: float) -> void:
 		if _idle_elapsed >= idle_warmup and idle_regen_per_second > 0.0 and current < maximum:
 			recover(idle_regen_per_second * delta)
 
+func get_percent() -> float:
+	if maximum <= 0:
+		return 0.0
+	return current / maximum
+
 func set_current(value: float) -> void:
 	var prev: float = current
 	current = clampf(value, 0.0, maximum)

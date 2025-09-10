@@ -7,7 +7,7 @@
 script = ExtResource("1_1e1l8")
 startup = 0.2
 hit = 0.1
-recovery = 0.5
+recovery = 0.25
 body_clip = &"atk3"
 anim_fps = 30.0
 hitbox_offset = Vector2(120, 0)
@@ -17,6 +17,7 @@ kind = 0
 parryable = true
 poise_break = 10.0
 action_poise = 4.0
+grants_momentum_poise = 1.0
 startup_velocity = Vector2(20, 0)
 active_velocity = Vector2(0, 0)
 recover_velocity = Vector2(0, 0)

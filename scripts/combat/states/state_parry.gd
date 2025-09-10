@@ -8,14 +8,18 @@ func allows_parry_input(cc: CombatController) -> bool:
 	return cc.phase == CombatController.Phase.SUCCESS
 
 func is_parry_window(_cc: CombatController) -> bool:
-	return _cc.get_state() == CombatController.State.PARRY \
-		and _cc.phase == CombatController.Phase.ACTIVE
+	return _cc.get_state() == CombatController.State.PARRY and _cc.phase == CombatController.Phase.ACTIVE
 
 func allows_dodge_input(_cc: CombatController) -> bool:
 	return false
 
 func autoblock_enabled(_cc: CombatController) -> bool:
 	return true
+	
+# --- NOVA FUNÇÃO IMPLEMENTADA ---
+func allows_attack_buffer(cc: CombatController) -> bool:
+	# Permite buferizar um ataque (o contra-ataque) durante a fase de sucesso do parry.
+	return cc.phase == CombatController.Phase.SUCCESS
 
 func allows_heavy_start(_cc: CombatController) -> bool:
 	return false
