@@ -7,7 +7,7 @@
 script = ExtResource("1_3js76")
 startup = 0.15
 hit = 0.1
-recovery = 0.8
+recovery = 10.8
 body_clip = &"atk4"
 anim_fps = 30.0
 hitbox_offset = Vector2(120, 0)

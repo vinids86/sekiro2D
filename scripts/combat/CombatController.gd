@@ -17,7 +17,6 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 # =========================
 @export var poise_controller: PoiseController
 @export var buffer_controller: BufferController
-
 @export var stun_config: StunConfig
 
 @export_group("Configurações de Esquiva")
@@ -33,9 +32,14 @@ enum AttackKind { LIGHT, HEAVY, COUNTER, FINISHER, COMBO }
 var _states: Dictionary = {}
 var _state: int = State.IDLE
 var phase: int = -1
-var current_kind: AttackKind = AttackKind.LIGHT
+var current_kind: int = AttackKind.LIGHT
 var combo_index: int = 0
-var current_cfg: StateConfig
+
+# ---- current_cfg com setter/getter para rastrear quem escreve
+var _current_cfg: StateConfig
+var current_cfg: StateConfig:
+	set = _set_current_cfg,
+	get = _get_current_cfg
 
 var attack_set: AttackSet
 var _combo_seq: Array[AttackConfig] = []
@@ -55,11 +59,16 @@ var _phase_timer: Timer
 var _timer_owner_state: int = -1
 var _timer_owner_phase: int = -1
 
-
 func initialize(
-		attack_set: AttackSet, parry_profile: ParryProfile, hit_react_profile: HitReactProfile,
-		parried_profile: ParriedProfile, guard_profile: GuardProfile, counter_profile: CounterProfile,
-		dodge_profile: DodgeProfile, finisher_profile: FinisherProfile, base_poise: float
+		attack_set: AttackSet,
+		parry_profile: ParryProfile,
+		hit_react_profile: HitReactProfile,
+		parried_profile: ParriedProfile,
+		guard_profile: GuardProfile,
+		counter_profile: CounterProfile,
+		dodge_profile: DodgeProfile,
+		finisher_profile: FinisherProfile,
+		base_poise: float
 	) -> void:
 	self.attack_set = attack_set
 	_parry_profile = parry_profile
@@ -70,18 +79,24 @@ func initialize(
 	_dodge = dodge_profile
 	_finisher = finisher_profile
 
-	if poise_controller: poise_controller.initialize(base_poise)
-	if buffer_controller: buffer_controller.clear()
+	if poise_controller != null:
+		poise_controller.initialize(base_poise)
+	if buffer_controller != null:
+		buffer_controller.clear()
 
 	_state = State.IDLE
 	phase = -1
 	combo_index = 0
+	_current_cfg = null
 	current_cfg = null
+	current_kind = AttackKind.LIGHT
+	_combo_seq.clear()
+	_combo_hit = -1
 
 func _ready() -> void:
 	assert(poise_controller != null, "PoiseController não está atribuído no CombatController.")
 	assert(buffer_controller != null, "BufferController não está atribuído no CombatController.")
-	
+
 	_states = CombatStateRegistry.build_states(State)
 
 	_phase_timer = Timer.new()
@@ -99,14 +114,28 @@ func on_attack_pressed() -> void:
 
 	if _state == State.IDLE:
 		var first: AttackConfig = _get_attack_from_set(0)
+		var first_name: String = "null"
+		if first != null:
+			first_name = first.resource_name
+			if first_name == "":
+				first_name = "unnamed"
+		print("[BUF] request: start from IDLE -> LIGHT idx=0 cfg=%s" % [first_name])
 		_start_attack(AttackKind.LIGHT, first)
 		return
 
-	# --- MUDANÇA IMPORTANTE ---
-	# Agora usa a nova função simplificada e correta do buffer.
 	if buffer_controller.can_buffer_now(self):
+		var next_idx_dbg: int = -1
+		if attack_set != null and current_kind == AttackKind.LIGHT:
+			next_idx_dbg = attack_set.next_index(combo_index)
+		print("[BUF] captured: state=%s phase=%s kind=%s combo_idx=%d next_idx=%d" % [
+			_state_to_name(_state), str(phase), str(current_kind), combo_index, next_idx_dbg
+		])
 		buffer_controller.capture()
 		return
+	else:
+		print("[BUF] capture_denied: state=%s phase=%s kind=%s combo_idx=%d" % [
+			_state_to_name(_state), str(phase), str(current_kind), combo_index
+		])
 
 func on_heavy_attack_pressed(cfg: AttackConfig) -> void:
 	if _get_state().allows_heavy_start(self):
@@ -121,7 +150,6 @@ func on_combo_pressed(seq: Array[AttackConfig]) -> void:
 func on_parry_pressed() -> void:
 	if not allows_parry_input_now():
 		return
-	buffer_controller.clear()
 	_change_state(State.PARRY, null)
 	_change_phase(Phase.ACTIVE, null)
 	_safe_start_timer(_parry_profile.window)
@@ -130,21 +158,27 @@ func on_dodge_pressed(stamina: Stamina, dir: int, facing_direction: float) -> vo
 	if not allows_dodge_input_now():
 		return
 
-	var dodge_cfg: DodgeConfig
+	var dodge_cfg: DodgeConfig = null
 	match dir:
 		CombatTypes.DodgeDir.UP:
 			dodge_cfg = up_dodge_config
 		CombatTypes.DodgeDir.DOWN:
 			dodge_cfg = down_dodge_config
 		CombatTypes.DodgeDir.LEFT, CombatTypes.DodgeDir.RIGHT:
-			if facing_direction > 0:
-				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.RIGHT else back_dodge_config
+			if facing_direction > 0.0:
+				if dir == CombatTypes.DodgeDir.RIGHT:
+					dodge_cfg = forward_dodge_config
+				else:
+					dodge_cfg = back_dodge_config
 			else:
-				dodge_cfg = forward_dodge_config if dir == CombatTypes.DodgeDir.LEFT else back_dodge_config
+				if dir == CombatTypes.DodgeDir.LEFT:
+					dodge_cfg = forward_dodge_config
+				else:
+					dodge_cfg = back_dodge_config
 		_:
 			dodge_cfg = neutral_dodge_config
 
-	if not dodge_cfg:
+	if dodge_cfg == null:
 		print("COMBAT CONTROLLER: DodgeConfig para a direção ", dir, " não está configurado.")
 		return
 
@@ -163,7 +197,6 @@ func on_dodge_pressed(stamina: Stamina, dir: int, facing_direction: float) -> vo
 func _on_phase_timer_timeout() -> void:
 	if _state != _timer_owner_state or phase != _timer_owner_phase:
 		return
-	
 	_get_state().on_timeout(self)
 
 # =========================
@@ -222,10 +255,12 @@ func is_combo_offense_active() -> bool:
 func is_combo_last_attack() -> bool:
 	if current_kind == AttackKind.COMBO:
 		return _combo_hit >= _combo_seq.size() - 1
-
-	assert(attack_set != null, "is_combo_last_attack: attack_set é null.")
-	assert(attack_set.attacks.size() > 0, "is_combo_last_attack: attack_set.attacks vazio.")
-	assert(combo_index >= 0 and combo_index < attack_set.attacks.size(), "is_combo_last_attack: combo_index fora do intervalo.")
+	if attack_set == null:
+		return true
+	if attack_set.attacks.is_empty():
+		return true
+	if combo_index < 0 or combo_index >= attack_set.attacks.size():
+		return true
 	return combo_index >= attack_set.attacks.size() - 1
 
 # =========================
@@ -326,23 +361,41 @@ func _on_attacker_impact(cfg: AttackConfig, feedback: int, metrics: ImpactMetric
 		return
 
 # =========================
-# HELPERS
+# HELPERS (estados)
 # =========================
 func _get_state() -> StateBase:
 	return get_state_instance_for(_state)
 
 func _get_attack_from_set(index: int) -> AttackConfig:
-	if attack_set == null: return null
+	if attack_set == null:
+		return null
 	return attack_set.get_attack(index)
 
-func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
+func _start_attack(kind: int, cfg: AttackConfig) -> void:
 	if cfg == null:
+		print("[ATTACK] abort: cfg=null kind=%s" % [str(kind)])
 		return
+
 	current_kind = kind
-	var idx: int = -1
-	if attack_set:
-		idx = attack_set.attacks.find(cfg)
-	combo_index = idx if idx >= 0 else 0
+
+	var idx_in_set: int = -1
+	if kind == AttackKind.LIGHT and attack_set != null:
+		idx_in_set = attack_set.attacks.find(cfg)
+		if idx_in_set >= 0:
+			combo_index = idx_in_set
+		else:
+			print("[ATTACK] cfg not found in AttackSet; forcing combo_index=0")
+			combo_index = 0
+
+	var path: String = cfg.resource_path
+	var name: String = cfg.resource_name
+	if path == "":
+		path = "(built-in)"
+	if name == "":
+		name = "unnamed"
+	print("[CFG] START: kind=%s idx_in_set=%d combo_index=%d path=%s name=%s body=%s times{ startup=%.3f hit=%.3f rec=%.3f }"
+		% [str(kind), idx_in_set, combo_index, path, name, str(cfg.body_clip), cfg.startup, cfg.hit, cfg.recovery])
+
 	_change_state(State.ATTACK, cfg)
 	_change_phase(Phase.STARTUP, cfg)
 	poise_controller.on_attack_started()
@@ -350,27 +403,61 @@ func _start_attack(kind: AttackKind, cfg: AttackConfig) -> void:
 
 func _start_combo_from_seq(seq: Array[AttackConfig]) -> void:
 	current_kind = AttackKind.COMBO
-	_combo_seq = seq.filter(func(ac): return ac != null)
+	_combo_seq = []
+	for ac in seq:
+		if ac != null:
+			_combo_seq.append(ac)
 	if _combo_seq.is_empty():
 		return
+
 	_combo_hit = 0
-	var cfg = _combo_seq[_combo_hit]
-	combo_index = 0
+	var cfg: AttackConfig = _combo_seq[_combo_hit]
+
 	_change_state(State.ATTACK, cfg)
 	_change_phase(Phase.STARTUP, cfg)
 	_safe_start_timer(cfg.startup)
 
-# --- FUNÇÃO ATUALIZADA ---
+func _advance_light_chain() -> bool:
+	if attack_set == null:
+		print("[CHAIN] abort: attack_set=null")
+		return false
+	var next_idx: int = attack_set.next_index(combo_index)
+	print("[CHAIN] advance: from=%d to=%d" % [combo_index, next_idx])
+	if next_idx < 0:
+		return false
+	var next_cfg: AttackConfig = attack_set.get_attack(next_idx)
+	if next_cfg == null:
+		print("[CHAIN] abort: next_cfg=null at idx=%d" % [next_idx])
+		return false
+	_start_attack(AttackKind.LIGHT, next_cfg)
+	return true
+
+func _advance_combo_seq() -> bool:
+	var next_hit: int = _combo_hit + 1
+	if next_hit >= _combo_seq.size():
+		return false
+	_combo_hit = next_hit
+	var cfg: AttackConfig = _combo_seq[_combo_hit]
+	_start_attack(AttackKind.COMBO, cfg)
+	return true
+
 func _exit_to_idle() -> void:
 	_stop_phase_timer()
-	
+
 	if buffer_controller.has_buffer():
+		print("[FSM] exit_to_idle: has_buffer=true (state=%s phase=%s kind=%s combo_idx=%d)" % [
+			_state_to_name(_state), str(phase), str(current_kind), combo_index
+		])
 		if _try_consume_buffered_attack():
 			return
+	else:
+		print("[FSM] exit_to_idle: no_buffer (state=%s phase=%s kind=%s combo_idx=%d)" % [
+			_state_to_name(_state), str(phase), str(current_kind), combo_index
+		])
 
 	var last_cfg: StateConfig = current_cfg
 	_change_state(State.IDLE, last_cfg)
-	
+
 	phase = Phase.STARTUP
 	current_cfg = null
 	combo_index = 0
@@ -379,28 +466,113 @@ func _exit_to_idle() -> void:
 	poise_controller.on_action_finished()
 	buffer_controller.clear()
 
-# --- NOVA FUNÇÃO HELPER ---
 func _try_consume_buffered_attack() -> bool:
-	buffer_controller.clear()
-
-	if attack_set == null: return false
-	
-	var next_idx: int
-	if _state == State.PARRY and phase == Phase.SUCCESS:
-		next_idx = 0
-	elif _state == State.ATTACK and current_kind == AttackKind.LIGHT:
-		print("Tocando: ", combo_index)
-		next_idx = attack_set.next_index(combo_index)
-	else:
+	if attack_set == null:
+		print("[BUF] consume_skip: attack_set=null")
 		return false
 
-	if next_idx < 0: return false
+	if _state == State.PARRY and phase == Phase.SUCCESS:
+		var first_cfg: AttackConfig = _get_attack_from_set(0)
+		var fc_name: String = "null"
+		if first_cfg != null:
+			fc_name = first_cfg.resource_name
+			if fc_name == "":
+				fc_name = "unnamed"
+		print("[BUF] consume_from=PARRY/SUCCESS -> LIGHT idx=0 cfg=%s" % [fc_name])
+		if first_cfg != null:
+			_start_attack(AttackKind.LIGHT, first_cfg)
+			buffer_controller.clear()
+			print("[BUF] consumed: restart idx=0")
+			return true
+		return false
 
-	var next_cfg: AttackConfig = attack_set.get_attack(next_idx)
-	if next_cfg == null: return false
+	if _state == State.ATTACK and current_kind == AttackKind.LIGHT:
+		var next_idx_dbg: int = attack_set.next_index(combo_index)
+		print("[BUF] consume_try: state=ATTACK kind=LIGHT combo_idx=%d next_idx=%d" % [combo_index, next_idx_dbg])
+		if _advance_light_chain():
+			buffer_controller.clear()
+			print("[BUF] consumed: advanced to idx=%d" % [combo_index])
+			return true
+		print("[BUF] consume_fail: cannot advance")
+		return false
 
-	_start_attack(AttackKind.LIGHT, next_cfg)
-	return true
+	print("[BUF] consume_skip: state=%s kind=%s (no rule)" % [_state_to_name(_state), str(current_kind)])
+	return false
+
+# =========================
+# HELPERS (infra / logging)
+# =========================
+func _owner_tag() -> StringName:
+	var n: Node = self
+	while n != null:
+		if n.is_in_group(&"player"):
+			return &"player"
+		if n.is_in_group(&"enemy"):
+			return &"enemy"
+		n = n.get_parent()
+	return &"unknown"
+
+func _state_to_name(value: int) -> StringName:
+	for key in State:
+		var k: StringName = StringName(key)
+		var v: int = State[key]
+		if v == value:
+			return k
+	return &"UNKNOWN"
+
+func _phase_to_name(value: int) -> StringName:
+	for key in Phase:
+		var k: StringName = StringName(key)
+		var v: int = Phase[key]
+		if v == value:
+			return k
+	return &"UNKNOWN"
+
+func _change_phase(new_phase: int, cfg: StateConfig) -> void:
+	phase = new_phase
+
+	# Diagnóstico: se o chamador passar um cfg diferente do current_cfg, acusar
+	if cfg != null and current_cfg != null and (cfg is AttackConfig) and (current_cfg is AttackConfig):
+		var passed: AttackConfig = cfg
+		var cur: AttackConfig = current_cfg
+		var p_path: String = passed.resource_path
+		var c_path: String = cur.resource_path
+		if p_path == "":
+			p_path = "(built-in)"
+		if c_path == "":
+			c_path = "(built-in)"
+		if p_path != c_path:
+			push_warning("[CFG PHASE MISMATCH] cfg passado em _change_phase difere do current_cfg "
+				+ "(passed=%s, current=%s) phase=%s" % [p_path, c_path, str(_phase_to_name(phase))])
+			print_stack()
+
+	emit_signal("phase_changed", phase, cfg)
+
+func _safe_start_timer(duration: float) -> void:
+	_phase_timer.stop()
+	var d: float = duration
+	if d < 0.0:
+		d = 0.0
+	_timer_owner_state = _state
+	_timer_owner_phase = phase
+	_phase_timer.wait_time = d
+	_phase_timer.start()
+
+func _stop_phase_timer() -> void:
+	if _phase_timer != null:
+		_phase_timer.stop()
+
+func _phase_duration_from_cfg(cfg: AttackConfig, p: int) -> float:
+	if cfg == null:
+		return 0.0
+	match p:
+		Phase.STARTUP:
+			return cfg.startup
+		Phase.ACTIVE:
+			return cfg.hit
+		Phase.RECOVER:
+			return cfg.recovery
+	return 0.0
 
 func _change_state(new_state: int, cfg: StateConfig, args: StateArgs = null) -> void:
 	var same: bool = new_state == _state
@@ -430,51 +602,65 @@ func _change_state(new_state: int, cfg: StateConfig, args: StateArgs = null) -> 
 			_combo_hit = -1
 
 # =========================
-# HELPERS
+# PROPRIEDADE current_cfg: setter/getter com rastreio
 # =========================
+func _set_current_cfg(value: StateConfig) -> void:
+	var who: StringName = _owner_tag()
+	var st_name: StringName = _state_to_name(_state)
+	var ph_name: StringName = _phase_to_name(phase)
 
-func _owner_tag() -> StringName:
-	var n: Node = self
-	while n != null:
-		if n.is_in_group(&"player"):
-			return &"player"
-		if n.is_in_group(&"enemy"):
-			return &"enemy"
-		n = n.get_parent()
-	return &"unknown"
+	# ---- Info anterior
+	var prev_path: String = "(null)"
+	var prev_body: String = "-"
+	var prev_s: float = -1.0
+	var prev_h: float = -1.0
+	var prev_r: float = -1.0
+	if _current_cfg != null and (_current_cfg is AttackConfig):
+		var pac: AttackConfig = _current_cfg
+		prev_path = pac.resource_path
+		if prev_path == "":
+			prev_path = "(built-in)"
+		prev_body = str(pac.body_clip)
+		prev_s = pac.startup
+		prev_h = pac.hit
+		prev_r = pac.recovery
 
-func _state_to_name(value: int) -> StringName:
-	for key in State:  # 'State' é um Dictionary: { "IDLE": 0, "ATTACK": 1, ... }
-		var k: StringName = StringName(key)
-		var v: int = State[key]
-		if v == value:
-			return k
-	return &"UNKNOWN"
+	# ---- Info nova
+	var new_path: String = "(null)"
+	var new_body: String = "-"
+	var new_s: float = -1.0
+	var new_h: float = -1.0
+	var new_r: float = -1.0
+	if value != null and (value is AttackConfig):
+		var nac: AttackConfig = value
+		new_path = nac.resource_path
+		if new_path == "":
+			new_path = "(built-in)"
+		new_body = str(nac.body_clip)
+		new_s = nac.startup
+		new_h = nac.hit
+		new_r = nac.recovery
 
-func _change_phase(new_phase: Phase, cfg: StateConfig) -> void:
-	phase = new_phase
-	emit_signal("phase_changed", phase, cfg)
+	print("[CFG WRITE] who=%s state=%s phase=%s prev{path=%s body=%s s=%.3f h=%.3f r=%.3f} -> new{path=%s body=%s s=%.3f h=%.3f r=%.3f}"
+		% [str(who), str(st_name), str(ph_name), prev_path, prev_body, prev_s, prev_h, prev_r, new_path, new_body, new_s, new_h, new_r])
 
-func _safe_start_timer(duration: float) -> void:
-	_phase_timer.stop()
-	var d: float = maxf(duration, 0.0)
-	_timer_owner_state = _state
-	_timer_owner_phase = phase
-	_phase_timer.wait_time = d
-	_phase_timer.start()
+	# Sempre traçar a origem de QUALQUER escrita durante ATTACK (qualquer fase)
+	if _state == State.ATTACK:
+		push_warning("[CFG WRITE TRACE] escrita em current_cfg durante ATTACK/%s" % [str(ph_name)])
+		print_stack()
 
-func _stop_phase_timer() -> void:
-	if _phase_timer != null:
-		_phase_timer.stop()
-	
-func _phase_duration_from_cfg(cfg: AttackConfig, p: Phase) -> float:
-	if not cfg:
-		return 0.0
-	match p:
-		Phase.STARTUP:
-			return cfg.startup
-		Phase.ACTIVE:
-			return cfg.hit
-		Phase.RECOVER:
-			return cfg.recovery
-	return 0.0
+	# Extra: destacar quando há mudança de fato
+	var changed: bool = false
+	if prev_path != new_path:
+		changed = true
+	elif prev_body != new_body:
+		changed = true
+	elif prev_s != new_s or prev_h != new_h or prev_r != new_r:
+		changed = true
+	if changed:
+		print("[CFG WRITE DIFF] prev_path=%s -> new_path=%s" % [prev_path, new_path])
+
+	_current_cfg = value
+
+func _get_current_cfg() -> StateConfig:
+	return _current_cfg
