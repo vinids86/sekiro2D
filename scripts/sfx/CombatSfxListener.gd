@@ -110,59 +110,21 @@ func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 		var ac: AttackConfig = cfg as AttackConfig
 		if ac == null:
 			return
-
-		var cfg_path: String = ac.resource_path
-		if cfg_path == "":
-			cfg_path = "(built-in)"
-
 		if phase == CombatController.Phase.STARTUP:
-			var eff_start: AudioStream = ac.sfx_startup_stream
-			var voi_start: AudioStream = ac.voice_startup_stream
-			var eff_path: String = "(null)"
-			var voi_path: String = "(null)"
-			if eff_start != null and eff_start.resource_path != "":
-				eff_path = eff_start.resource_path
-			if voi_start != null and voi_start.resource_path != "":
-				voi_path = voi_start.resource_path
-			print("[SFX] ATTACK STARTUP: cfg=%s body=%s sfx=%s voice=%s"
-				% [cfg_path, str(ac.body_clip), eff_path, voi_path])
-			_play_effect(eff_start)
-			_play_voice(voi_start)
+			_play_effect(ac.sfx_startup_stream)
+			_play_voice(ac.voice_startup_stream)
 			return
-
 		if phase == CombatController.Phase.ACTIVE:
-			var eff_swing: AudioStream = ac.sfx_swing_stream
-			var voi_swing: AudioStream = ac.voice_swing_stream
-			var eff_path2: String = "(null)"
-			var voi_path2: String = "(null)"
-			if eff_swing != null and eff_swing.resource_path != "":
-				eff_path2 = eff_swing.resource_path
-			if voi_swing != null and voi_swing.resource_path != "":
-				voi_path2 = voi_swing.resource_path
-			print("[SFX] ATTACK ACTIVE: cfg=%s body=%s sfx=%s voice=%s"
-				% [cfg_path, str(ac.body_clip), eff_path2, voi_path2])
-			_play_effect(eff_swing)
-			_play_voice(voi_swing)
+			_play_effect(ac.sfx_swing_stream)
+			_play_voice(ac.voice_swing_stream)
 			return
-
 		if phase == CombatController.Phase.RECOVER:
-			var eff_rec: AudioStream = ac.sfx_recover_stream
-			var voi_rec: AudioStream = ac.voice_recover_stream
-			var eff_path3: String = "(null)"
-			var voi_path3: String = "(null)"
-			if eff_rec != null and eff_rec.resource_path != "":
-				eff_path3 = eff_rec.resource_path
-			if voi_rec != null and voi_rec.resource_path != "":
-				voi_path3 = voi_rec.resource_path
-			print("[SFX] ATTACK RECOVER: cfg=%s body=%s sfx=%s voice=%s"
-				% [cfg_path, str(ac.body_clip), eff_path3, voi_path3])
-			_play_effect(eff_rec)
-			_play_voice(voi_rec)
+			_play_effect(ac.sfx_recover_stream)
+			_play_voice(ac.voice_recover_stream)
 			return
-
 		return
 
-	# PARRY (streams por fase no ParryProfile) — mantido
+	# PARRY (streams por fase no ParryProfile)
 	if st == CombatController.State.PARRY:
 		if phase == CombatController.Phase.ACTIVE:
 			_play_effect(_get_stream(_parry_profile, "startup_effect_stream"))
@@ -178,7 +140,6 @@ func _on_phase_changed(phase: int, cfg: StateConfig) -> void:
 			return
 		return
 
-	# Outros estados: silencioso
 	return
 
 # ===================== HELPERS =====================

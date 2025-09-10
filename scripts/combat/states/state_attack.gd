@@ -5,7 +5,6 @@ func allows_attack_input(cc: CombatController) -> bool:
 	return false
 
 func allows_parry_input(cc: CombatController) -> bool:
-	# Regra atual: parry ignora buffer; janela só em RECOVER de LIGHT.
 	if cc.phase != CombatController.Phase.RECOVER:
 		return false
 	if cc.current_kind != CombatController.AttackKind.LIGHT:
@@ -23,18 +22,16 @@ func allows_dodge_input(cc: CombatController) -> bool:
 	if kind == CombatController.AttackKind.HEAVY:
 		return true
 	if kind == CombatController.AttackKind.COMBO:
-		# COMBO: liberar dodge apenas no último hit da sequência
 		return cc.is_combo_last_attack()
 
 	return false
 
-func autoblock_enabled(_cc: CombatController) -> bool:
-	if _cc.phase != CombatController.Phase.ACTIVE:
+func autoblock_enabled(cc: CombatController) -> bool:
+	if cc.phase != CombatController.Phase.ACTIVE:
 		return true
 	return false
-	
+
 func allows_attack_buffer(cc: CombatController) -> bool:
-	# Buffer apenas na cadeia leve durante RECOVER
 	if cc.phase != CombatController.Phase.RECOVER:
 		return false
 	if cc.current_kind != CombatController.AttackKind.LIGHT:
@@ -45,7 +42,6 @@ func allows_attack_buffer(cc: CombatController) -> bool:
 	return next_idx >= 0
 
 func is_attack_buffer_window_open(cc: CombatController) -> bool:
-	# Nunca abre janela de buffer para COMBO explícito
 	if cc.current_kind == CombatController.AttackKind.COMBO:
 		return false
 	return true
@@ -79,50 +75,33 @@ func on_timeout(cc: CombatController) -> void:
 		return
 
 	if not (cc.current_cfg is AttackConfig):
-		print("[ATKST] timeout: cfg is not AttackConfig -> exit_to_idle")
 		cc._exit_to_idle()
 		return
 
 	var acfg: AttackConfig = cc.current_cfg
-	var path: String = acfg.resource_path
-	var name: String = acfg.resource_name
-	if path == "":
-		path = "(built-in)"
-	if name == "":
-		name = "unnamed"
 
 	if cc.phase == CombatController.Phase.STARTUP:
-		# Conferir o mesmo cfg antes de entrar em ACTIVE
-		print("[CFG] BEFORE ACTIVE: path=%s name=%s body=%s times{ startup=%.3f hit=%.3f rec=%.3f }"
-			% [path, name, str(acfg.body_clip), acfg.startup, acfg.hit, acfg.recovery])
 		cc._change_phase(CombatController.Phase.ACTIVE, acfg)
 		var hit_time: float = cc._phase_duration_from_cfg(acfg, CombatController.Phase.ACTIVE)
 		cc._safe_start_timer(hit_time)
 		return
 
 	if cc.phase == CombatController.Phase.ACTIVE:
-		# Conferir o mesmo cfg antes de entrar em RECOVER
-		print("[CFG] BEFORE RECOVER: path=%s name=%s body=%s times{ startup=%.3f hit=%.3f rec=%.3f }"
-			% [path, name, str(acfg.body_clip), acfg.startup, acfg.hit, acfg.recovery])
 		cc._change_phase(CombatController.Phase.RECOVER, acfg)
 		cc._safe_start_timer(acfg.recovery)
 		return
 
 	if cc.phase == CombatController.Phase.RECOVER:
-		# COMBO explícito avança sozinho
 		if cc.current_kind == CombatController.AttackKind.COMBO:
 			var next_idx_combo: int = cc._combo_hit + 1
-			print("[ATKST] RECOVER (COMBO): next_hit=%d size=%d" % [next_idx_combo, cc._combo_seq.size()])
 			if next_idx_combo < cc._combo_seq.size():
 				cc._combo_hit = next_idx_combo
 				cc.current_cfg = cc._combo_seq[cc._combo_hit]
 				cc._change_phase(CombatController.Phase.STARTUP, cc.current_cfg)
 				cc._safe_start_timer((cc.current_cfg as AttackConfig).startup)
 				return
-			print("[ATKST] combo finished -> exit_to_idle")
 			cc._exit_to_idle()
 			return
 
-		print("[ATKST] RECOVER (LIGHT/HEAVY) -> exit_to_idle (buffer may consume)")
 		cc._exit_to_idle()
 		return
